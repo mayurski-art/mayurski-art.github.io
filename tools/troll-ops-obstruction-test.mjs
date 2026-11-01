@@ -41,6 +41,16 @@ const res = await page.evaluate(async ([tag, id, spec, DEPTH]) => {
   const { buildMap } = await import(`/assets/games/troll-ops/maps/maps.js?v=${tag}`);
   const colliders = [];
   const built = buildMap(id, { colliders, arena: {} });
+  // what the map's code changed since its Blender build wrote the faces file
+  // (Kabukigrin's dug club, kabukigrin-under.js): faces, props and floors
+  // dropped where it cut the model, and its own added
+  const more = built.map.facesMore?.();
+  if (more) {
+    const mid = (p) => p.lo.map((v, a) => (v + p.hi[a]) / 2);
+    spec.faces = spec.faces.filter((f) => !more.drop(f.c)).concat(more.faces);
+    spec.props = spec.props.filter((p) => !more.drop(mid(p))).concat(more.props);
+    spec.eyes = spec.eyes.filter((e) => !more.dropEyes?.(e)).concat(more.eyes);
+  }
   // wait for the models to stream in
   const count = () => { let n = 0; built.root.traverse((o) => { if (o.isMesh) n++; }); return n; };
   const t0 = performance.now();
@@ -196,10 +206,11 @@ const res = await page.evaluate(async ([tag, id, spec, DEPTH]) => {
     }
     report.push({ id: f.id, seen, blocked: [...blocked.entries()].map(([prop, b]) => ({ prop, ...b })) });
   }
-  return { eyes: eyes.length, tris: T.length / 9, faces: report };
+  return { eyes: eyes.length, tris: T.length / 9, faces: report, spec: { faces: spec.faces, eyes: spec.eyes } };
 }, [mapsTag, id, spec, DEPTH]);
 await browser.close();
 server.close();
+Object.assign(spec, res.spec);
 
 const known = (face, prop) => (spec.known || []).find((k) => k.face === face && k.prop === prop);
 let bad = 0;

@@ -106,7 +106,7 @@ async function open(mode) {
     T.scene.traverse((o) => {
       if (ball || !o.isMesh || o.geometry?.type !== "SphereGeometry") return;
       const p = o.getWorldPosition(o.position.clone());
-      if (p.y > 2 && inHall(p) && o.geometry.parameters.radius < 2) ball = { x: p.x, y: p.y, z: p.z };
+      if (p.y > (hall.y ?? 0) + 2 && p.y < (hall.top ?? 99) && inHall(p) && o.geometry.parameters.radius < 2) ball = { x: p.x, y: p.y, z: p.z };
     });
     if (ball) M.onShot(ball);
     const boost = M.debug().ballBoost;
@@ -132,8 +132,8 @@ async function open(mode) {
     // (headless, the camera can sit on the intro shot, so the zones are read
     // straight off the muffle map rather than from wherever the camera is)
     await wait(1500);
-    const hall = { want: M.debug().want, lp: M.debug().muffleAt((h.x0 + h.x1) / 2, 1.9, (h.z0 + h.z1) / 2) };
-    const street = { lp: M.debug().muffleAt(h.x1 + 4.4, 1.7, (h.z0 + h.z1) / 2) };
+    const hall = { want: M.debug().want, lp: M.debug().muffleAt((h.x0 + h.x1) / 2, (h.y ?? 0) + 1.9, (h.z0 + h.z1) / 2) };
+    const street = { lp: M.debug().muffleAt(-27, 1.7, -14)   /* A Main, up the street from the club */ };
     M.onFrame({ live: true, radio: true });
     const radio = { want: M.debug().want };
     return { hall, street, radio, ctx: !!T.audio?.ctx };
@@ -159,11 +159,11 @@ async function open(mode) {
     const T = window.__trollOps, M = window.__kb;
     const { groundHeightAt } = await import("/assets/games/troll-ops/core/movement.js");
     const col = typeof T.colliders === "function" ? T.colliders() : T.colliders;
-    return { game: T.bombSites().map((s) => ({ ...s, y: groundHeightAt(col, s.x, s.z, 3) })), map: M.debug().sites, hall: M.dj.club };
+    return { raw: T.bombSites().map((s) => ({ ...s })), game: T.bombSites().map((s) => ({ ...s, y: groundHeightAt(col, s.x, s.z, (s.y ?? 0) + 3) })), map: M.debug().sites, hall: M.dj.club };
   });
   console.log("sites", JSON.stringify(r.game));
   const at = (id) => r.game.find((s) => s.id === id);
-  const placed = r.map.every((m) => { const g = at(m.id); return g && Math.hypot(g.x - m.x, g.z - m.z) < 0.5; });
+  const placed = r.map.every((m) => { const g = at(m.id); return g && Math.hypot(g.x - m.x, g.z - m.z) < 0.5 && Math.abs((r.raw.find((s) => s.id === m.id)?.y ?? 0) - (m.y ?? 0)) < 0.1; });
   check(r.game.length === 2 && placed, "the game plays the map's two sites", JSON.stringify(r.map));
   const A = at("A"), B = at("B"), h = r.hall;
   check(!!A && A.x > h.x0 && A.x < h.x1 && A.z > h.z0 && A.z < h.z1, "site A is in the club", A && `(${A.x}, ${A.z})`);

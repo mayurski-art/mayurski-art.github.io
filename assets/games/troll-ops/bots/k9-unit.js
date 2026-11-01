@@ -238,14 +238,14 @@ export class K9Pack {
      A person's 2.2 m headroom made the saloon back room's door lintel, 2.1 m
      over its floor, a wall, and dogs that ran in at the back door sat there. */
   baseFor(y) {
-    const level = Math.max(0, Math.round(y * 2) / 2);
+    const level = Math.round(y * 2) / 2;
     let base = this.baseFields.get(level);
     if (!base) {
       const { bounds } = this.world;
       const colliders = this.world.colliders.filter((c) =>
         c.min.y < level + K9.head + (level < 0.5 ? floorAt((c.min.x + c.max.x) / 2, (c.min.z + c.max.z) / 2) : 0));
       base = new FlowField(colliders, bounds, level, {
-        step: 0.5, needSupport: level > 0.5, blockBy: "centre", pad: K9.radius, cell: Math.min(this.world.navCell || 0.6, 1.0),
+        step: 0.5, needSupport: Math.abs(level) > 0.5, blockBy: "centre", pad: K9.radius, cell: Math.min(this.world.navCell || 0.6, 1.0),
       });
       this.baseFields.set(level, base);
     }

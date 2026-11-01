@@ -50,13 +50,13 @@ await page.waitForFunction(() => !!window.__trollOps.townNpcs?.()?.list?.length,
 
 const res = await page.evaluate(() => {
   const tn = window.__trollOps.townNpcs();
-  const floor = { x0: -27, x1: -17, z0: 10, z1: 20 };   // kabukigrin.js DANCE
+  const floor = { x0: -27.5, x1: -15.5, z0: 11, z1: 23 };   // kabukigrin-under.js DANCE (the club's floor, y -7.5)
   const on = (n) => n.x > floor.x0 && n.x < floor.x1 && n.z > floor.z0 && n.z < floor.z1;
   const ravers = tn.list.filter((n) => n.c.role === "Raver");
   const roamers = ravers.filter((n) => n.c.stops);
   const still = ravers.filter((n) => !n.c.stops).map((n) => ({ n, x: n.x, z: n.z }));
   const seen = roamers.map(() => ({ off: false, backOn: false, moved: false }));
-  const eye = { x: -22, y: 1.7, z: 15 };
+  const eye = { x: -22, y: -5.8, z: 17 };
   let facing = null;
   for (let i = 0; i < 4 * 60 * 10; i++) {   // four minutes in 0.1 s steps
     tn.update(0.1, eye);
@@ -67,7 +67,7 @@ const res = await page.evaluate(() => {
       if (s.off && on(n) && !n.leg) s.backOn = true;
       if (!facing && !n.leg && n.c.stops[n.stop].act === "phone") {
         const d = n.c.stops[n.stop];
-        facing = { yaw: n.yaw, want: Math.atan2(n.x + 29.6, n.z - 15), act: d.act };
+        facing = { yaw: n.yaw, want: Math.atan2(n.x + 29.6, n.z - 17)   /* kabukigrin-under.js DECK */, act: d.act };
       }
     });
   }

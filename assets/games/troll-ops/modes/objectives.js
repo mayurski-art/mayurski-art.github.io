@@ -56,9 +56,13 @@ export function scoreHill() {
 }
 
 const SND_SITE_RADIUS = 5.5;   // must match the visual ring in setBombSiteMarkers
+const SND_SITE_RISE = 2.5;     // how far off a site's own floor (a map's site.y) still counts
+// On a site's floor, where the map gives it one: Kabukigrin's A is on the
+// club's dance floor, under the square and the balcony
+const onSiteFloor = (s, y) => s.y == null || Math.abs(y - s.y) < SND_SITE_RISE;
 
 export function siteUnderfoot() {
-  for (const s of game.bombSites) if (Math.hypot(game.move.pos.x - s.x, game.move.pos.z - s.z) <= SND_SITE_RADIUS) return s;
+  for (const s of game.bombSites) if (Math.hypot(game.move.pos.x - s.x, game.move.pos.z - s.z) <= SND_SITE_RADIUS && onSiteFloor(s, game.move.pos.y)) return s;
   return null;
 }
 
@@ -97,10 +101,13 @@ export function updateSnd(dt) {
   const wasPlanted = game.bomb.state === "planted";
   if (wasPlanted && game.bomb.update(dt)) {
     const s = game.bomb.siteAt(game.bomb.site);
-    const at = new THREE.Vector3(s.x, (groundHeightAt(game.colliders, s.x, s.z, 1) ?? 0) + 0.5, s.z);
+    const at = new THREE.Vector3(s.x, (groundHeightAt(game.colliders, s.x, s.z, (s.y ?? 0) + 1) ?? 0) + 0.5, s.z);
     explosionFx({ kind: "lethal", glow: 0xffb347, radius: 14 }, at);
-    // The blast is the round-ender, not a weapon: it kills whoever stayed.
-    if (game.player.alive && Math.hypot(game.move.pos.x - s.x, game.move.pos.z - s.z) < 9) damagePlayer(500, null, "bomb", false, at);
+    // The blast is the round-ender, not a weapon: it kills whoever stayed
+    // (on a site with a floor of its own, in the room it's in: not the
+    // street over Kabukigrin's club)
+    const dy = s.y == null ? 0 : game.move.pos.y - s.y;
+    if (game.player.alive && Math.hypot(game.move.pos.x - s.x, dy, game.move.pos.z - s.z) < 9) damagePlayer(500, null, "bomb", false, at);
     sndRoundWin(game.sndAttackTeam, "bomb detonated");
   }
 
@@ -359,17 +366,17 @@ export function botObjective(bot) {
   const attacking = bot.team === game.sndAttackTeam;
   if (game.bomb.state === "planted") {
     const s = game.bomb.siteAt(game.bomb.site);
-    return { id: `site-${s.id}`, x: s.x, z: s.z, radius: attacking ? 7 : 1 };
+    return { id: `site-${s.id}`, x: s.x, z: s.z, ...(s.y != null && { y: s.y }), radius: attacking ? 7 : 1 };
   }
   if (attacking) {
     const s = game.bomb.siteAt(sndBotSite);
-    return { id: `site-${s.id}`, x: s.x, z: s.z, radius: game.bomb.carrierId === bot.id ? 1 : 8 };
+    return { id: `site-${s.id}`, x: s.x, z: s.z, ...(s.y != null && { y: s.y }), radius: game.bomb.carrierId === bot.id ? 1 : 8 };
   }
   // Defenders pick a site by id so the split is stable across the round.
   let h = 0;
   for (let i = 0; i < bot.id.length; i++) h = (h * 31 + bot.id.charCodeAt(i)) >>> 0;
   const s = game.bombSites[h % game.bombSites.length];
-  return { id: `site-${s.id}`, x: s.x, z: s.z, radius: 6 };
+  return { id: `site-${s.id}`, x: s.x, z: s.z, ...(s.y != null && { y: s.y }), radius: 6 };
 }
 
 export function botBusy(bot) {
@@ -395,7 +402,7 @@ function updateSndBots(dt) {
   if (game.bomb.state === "carried") {
     const b = game.bots.byId(game.bomb.carrierId);
     const s = game.bomb.siteAt(sndBotSite);
-    if (b?.alive && !(b.stunT > 0) && Math.hypot(b.pos.x - s.x, b.pos.z - s.z) <= SND_BOT_SITE_R) {
+    if (b?.alive && !(b.stunT > 0) && Math.hypot(b.pos.x - s.x, b.pos.z - s.z) <= SND_BOT_SITE_R && onSiteFloor(s, b.groundY ?? b.pos.y)) {
       actor = b; kind = "plant"; site = s;
     }
   } else if (game.bomb.state === "planted") {
@@ -404,7 +411,7 @@ function updateSndBots(dt) {
     const candidates = current ? [current, ...game.bots.bots] : game.bots.bots;
     for (const b of candidates) {
       if (!b?.alive || b.team === game.sndAttackTeam || b.stunT > 0) continue;
-      if (Math.hypot(b.pos.x - s.x, b.pos.z - s.z) > SND_BOT_SITE_R) continue;
+      if (Math.hypot(b.pos.x - s.x, b.pos.z - s.z) > SND_BOT_SITE_R || !onSiteFloor(s, b.groundY ?? b.pos.y)) continue;
       actor = b; kind = "defuse"; site = s;
       break;
     }

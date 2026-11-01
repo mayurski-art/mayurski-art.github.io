@@ -117,8 +117,10 @@ export class FlowField {
     const walls = [];
     const centre = blockBy === "centre";
     for (const c of colliders) {
-      // On the ground floor of a hilly map, measured from the ground under it.
-      const fy = floorY < 0.5 ? floorY + floorAt((c.min.x + c.max.x) / 2, (c.min.z + c.max.z) / 2) : floorY;
+      // On the ground floor of a hilly map, measured from the ground under it
+      // (a hill only: where the ground is dug out, Kabukigrin's club, the
+      // street stands on a slab at 0 and the floors below have grids of their own).
+      const fy = Math.abs(floorY) < 0.5 ? floorY + Math.max(0, floorAt((c.min.x + c.max.x) / 2, (c.min.z + c.max.z) / 2)) : floorY;
       if (!blocks(c, fy, step)) continue;
       walls.push(c.min.x, c.max.x, c.min.z, c.max.z);
       let x0, x1, z0, z1;

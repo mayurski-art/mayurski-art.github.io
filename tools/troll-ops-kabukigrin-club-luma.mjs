@@ -36,13 +36,18 @@ const BASE = `http://localhost:${server.address().port}`;
 // [name, body x, feet y, z, camera x, z]: the camera stands at eye height on
 // the body's floor and looks at its chest
 const SPOTS = [
-  ["dance floor (DJ line)", -26.5, 0, 15, -20.5, 15],
-  ["dance floor", -22, 0, 11, -18.5, 11],
-  ["site A (dance floor)", -22, 0, 15, -16, 18],
-  ["bar", -18.2, 0, 13, -23, 13],
-  ["booths", -21.5, 0, 21.5, -21.5, 16.5],
+  // the club, two floors under Lulz Square (docs/KB-CLUB-UNDERGROUND.md):
+  // the dance floor at -7.5, the balcony at -3.6
+  ["dance floor (DJ line)", -26.5, -7.5, 17, -20.5, 17],
+  ["dance floor", -22, -7.5, 14, -18.5, 14],
+  ["site A (dance floor)", -21.5, -7.5, 17, -16, 20],
+  ["bar", -10.2, -7.5, 16.6, -15.5, 16.6],
+  ["booths", -19, -7.5, 6.6, -19, 11],
+  ["balcony (north arm)", -20, -3.6, 11, -15, 11],
+  ["balcony (east arm)", -9, -3.6, 17, -9, 13.2],
+  ["Lulz Square", -22, 0, 16, -28, 12],
   ["VIP", -28, 0.3, 25, -26, 23.5],
-  ["mezzanine (A Heaven)", -9, 3, 15, -12.5, 12.5],
+  ["A Heaven", -9, 3, 15, -12.5, 12.5],
   ["office", -12.5, 3, 21.5, -10.6, 23.2],
   ["A Main", -27, 0, -5, -27, -12],
   ["mid", -3, 0, 14, 3.5, 20],

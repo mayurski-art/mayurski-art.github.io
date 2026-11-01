@@ -767,7 +767,7 @@ export function beginMatch(mapId = null) {
     // from the spawns. Either way they sit on open ground at y 0.
     const designed = game.builtMap.map.bombSites;
     game.bombSites = designed
-      ? designed.map((s) => ({ id: s.id, x: s.x, z: s.z }))
+      ? designed.map((s) => ({ id: s.id, x: s.x, z: s.z, ...(s.y && { y: s.y }) }))
       : pickBombSites(game.builtMap.map.bounds, game.builtMap.spawnPoints, game.colliders);
     game.bomb = new Bomb(game.bombSites);
     setBombSiteMarkers(game.bombSites);

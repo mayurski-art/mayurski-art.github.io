@@ -12,10 +12,11 @@
 import { rng } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { MACHINES, PARLOUR } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1-kb3-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { pickOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1-gb3-rh1";
+import { FL, B1, HALL, TUNNEL, STAGE, WELLS, underSeats } from "./kabukigrin-under.js?v=kbu1";
 
 // the camera's yaw facing each way (0 faces -z, +PI/2 faces -x)
 const FACE_YAW = { "+z": Math.PI, "-z": 0, "+x": -Math.PI / 2, "-x": Math.PI / 2 };
-const MEZZ = 3, STAGE_TOP = 0.45, TATAMI = 0.3, STOOL = 0.76;
+const MEZZ = 3, TATAMI = 0.3;
 
 /* ------------------------------------------------------------ the rooms */
 export function kbZone(x, y, z) {
@@ -23,16 +24,23 @@ export function kbZone(x, y, z) {
   // (the pachinko parlour off its west side is part of it: its doors stand open)
   if (x >= -32 && x <= -14.4 && z >= -32 && z < 3.9) return "aMain";
   if (x >= PARLOUR.back && x < -32 && z >= PARLOUR.z0 && z <= PARLOUR.z1) return "aMain";
+  // the dug club (kabukigrin-under.js): everything under the street, and the
+  // stairs down from their top step (the front and side stairs' wells in the
+  // square are the club's; the yard's staff stair and its tunnel are back of house)
+  const inWell = (k) => x >= WELLS[k][0] && x <= WELLS[k][1] && z >= WELLS[k][2] && z <= WELLS[k][3] && y < 0.5;
+  if (inWell(2) || (y < -0.3 && x >= TUNNEL.x0 - 0.6 && x <= TUNNEL.x1 + 0.6 && z > HALL.z1 + 0.25 && z <= 41)) return "back";
+  if (inWell(0) || inWell(1) || (y < -0.3 && x >= HALL.x0 - 0.6 && x <= HALL.x1 + 0.6 && z >= HALL.z0 - 0.6 && z <= HALL.z1 + 0.25)) return "hall";
   if (x < -32 || x > -6 || z < 3.9 || z > 34) return "street";
   if (z > 24) return x < -24.15 && z < 29.85 ? "vip" : "back";
-  if (x > -14.2 && y > MEZZ - 0.5) return z > 19 ? "office" : "mezz";
-  if (x > -14.2) return "riser";   // under the mezzanine: the mid rope room, the bar's back
-  return "hall";
+  if (x > -14.2 && y > MEZZ - 0.5 && z > 19) return "office";
+  // Lulz Square, A Heaven over it and the arcade under that: the street now
+  return "street";
 }
-// (the rest of the street sees neither: the blocks stand between)
+// (the club is under a slab, seen only from inside and through the tunnel;
+// the tatami room's door and the office's window open onto the square)
 const SEES = {
-  aMain: ["hall"], street: ["riser"], hall: ["aMain", "mezz", "vip", "back"], mezz: ["hall", "office"], office: ["mezz", "hall"],
-  vip: ["hall", "back"], back: ["hall", "vip"], riser: ["street"],
+  aMain: ["street"], street: ["aMain", "office", "vip"], hall: ["back"], office: ["street"],
+  vip: ["back", "street"], back: ["hall", "vip"],
 };
 export const KB_VIEW = { zoneOf: kbZone, sees: (a, b) => a === b || SEES[a]?.includes(b) };
 
@@ -49,16 +57,22 @@ function entryZoneOf(x, y, z) {
    side, the line running up the lane along the west edge wall, in through
    the door to the lobby, the bounced on the lane's far side, newcomers
    walking down A Main from the spawn. */
-const MOUTH = { x: -27.6, z: 3.0 };
+// (the club's door is the front stair's head in Lulz Square now: the rope
+// across the top step, you're let in onto the stair, kabukigrin-under.js S1)
+const MOUTH = { x: -26, z: 3.9 };
+const DOOR_POSTS = [{ x: -27.9, z: 3.6 }, { x: -24.1, z: 3.6 }];
 export const KB_DOOR = {
   line: Array.from({ length: 9 }, (_, i) => ({ x: -29.2, z: 1.2 - i * 0.95 })),
+  // (where the guest stands at each bouncer; the bouncers' own posts are
+  // DOOR_POSTS, each beside a rope end: Big Lulz steps halfway to the hook)
   lanes: [
-    { bouncer: "Big Lulz", x: -29.9, z: 2.2 },
-    { bouncer: "Tank", x: -25.3, z: 2.2 },
+    { bouncer: "Big Lulz", x: -28.8, z: 2.8 },
+    { bouncer: "Tank", x: -23.5, z: 2.8 },
   ],
   mouth: MOUTH,
-  rope: { a: { x: -29.4, z: 3.5 }, b: { x: -25.8, z: 3.5 }, y: 0.84 },
-  lobby: { x: -27, z: 7, y: 0, yaw: Math.PI },
+  rope: { a: { x: -27.4, z: 4.2 }, b: { x: -24.6, z: 4.2 }, y: 0.84 },
+  // on the stair's third tread (S1: 0.2 m risers on 0.3 m treads from z 4.5)
+  lobby: { x: -26, z: 5.25, y: -0.6, yaw: Math.PI },
   curb: { x: -25.5, z: -3, yaw: Math.PI },
   arrive: { x: -27, z: -24 },
   // club-entry.js's own numbers (the throw, the curb, the rope's reach) are
@@ -72,27 +86,18 @@ export const KB_DOOR = {
 
 /* ------------------------------------------------------------ the seats
 
-   Studio's furniture (Club.Furniture): three booths on the hall's walls,
-   six stools at the bar, a sofa on the mezzanine facing the floor and one
-   in the green room; the tatami room's cushions and the yokocho's stools. */
+   The dug club's furniture (kabukigrin-under.js FURNITURE): seven booths
+   under the balcony's arms, six stools at the main bar, four sofas on the
+   balcony facing the floor; Studio's on the street: a sofa on A Heaven and
+   one in the green room, the tatami room's cushions and the yokocho's
+   stools. */
 export const KB_SEATS = [];
 function seatAt(x, z, y, floor, yaw, kind, out = 0.75) {
   KB_SEATS.push({ x, z, y, floor, yaw, kind, stand: { x: x - Math.sin(yaw) * out, z: z - Math.cos(yaw) * out } });
 }
-// a booth 2.5 m long along x against a wall, facing `face`; three places
-export const KB_BOOTHS = [
-  { x: -22.0, z: 4.55, face: "+z" },
-  { x: -23.3, z: 23.4, face: "-z" },
-  { x: -19.7, z: 23.4, face: "-z" },
-];
-for (const b of KB_BOOTHS) {
-  const dz = b.face === "+z" ? 0.25 : -0.25;
-  for (const dx of [-0.8, 0, 0.8]) seatAt(b.x + dx, b.z + dz, 0.45, 0, FACE_YAW[b.face], "bench");
-}
-export const KB_BAR_STOOLS = [9.0, 10.3, 11.6, 12.9, 14.2, 15.5].map((z) => ({ x: -16.85, z }));
-for (const s of KB_BAR_STOOLS) seatAt(s.x, s.z, STOOL, 0, FACE_YAW["+x"], "stool", 0.6);
+for (const s of underSeats()) seatAt(s.x, s.z, s.y, s.floor, FACE_YAW[s.face], s.kind, s.out);
 export const KB_SOFAS = [
-  { x: -6.8, z: 15.5, len: 3, face: "-x", y: MEZZ },     // the mezzanine's, facing the floor
+  { x: -6.8, z: 15.5, len: 3, face: "-x", y: MEZZ },     // A Heaven's, facing the square
   { x: -8.5, z: 33.35, len: 3, face: "-z", y: 0 },       // the green room's
 ];
 for (const s of KB_SOFAS) {
@@ -138,23 +143,26 @@ export function kbNpcs({ DC, DANCE, deck }) {
   };
   const seatsOf = (kind, pred = () => true) => KB_SEATS.map((s, i) => [s, i]).filter(([s]) => s.kind === kind && pred(s)).map(([, i]) => i);
 
-  /* ---- the door: two bouncers, the list, the line up the lane */
-  add("Big Lulz", "Bouncer", "guard", { x: -29.0, z: 3.0, y: 0, yaw: 0 }, guard);
-  add("Tank", "Bouncer", "guard", { x: -26.2, z: 3.0, y: 0, yaw: 0 }, guard);
-  add("Clipboard Carl", "Door host", "count", { x: -24.2, z: 2.6, y: 0, yaw: 0 });
+  /* ---- the door: the front stair's head in Lulz Square, two bouncers
+     either side of the rope, the list, the line up the lane */
+  add("Big Lulz", "Bouncer", "guard", { ...DOOR_POSTS[0], y: 0, yaw: 0 }, guard);
+  add("Tank", "Bouncer", "guard", { ...DOOR_POSTS[1], y: 0, yaw: 0 }, guard);
+  add("Clipboard Carl", "Door host", "count", { x: -28.4, z: 1.9, y: 0, yaw: 0 });
   ["phone", "guard", "phone", "dance", "phone", "phone", "guard", "phone"].forEach((act, i) =>
     extra("Clubgoer", act, { x: -29.2 + (i % 3) * 0.12, z: 1.2 - i * 0.95, y: 0, yaw: Math.PI + (i % 2 ? 0.25 : -0.2) }, act === "dance" ? { dance: 0 } : {}));
 
-  /* ---- the lobby: the inside man on the door */
-  add("Brick", "Bouncer", "guard", { x: -25.2, z: 5.0, y: 0, yaw: 0.4 }, guard);
+  /* ---- the inside man, on the front stair's east side a few treads down,
+     looking up at whoever comes through the rope (S1: 0.2 m risers on
+     0.3 m treads from z 4.5: the eighth tread's top is -1.6) */
+  add("Brick", "Bouncer", "guard", { x: -24.95, z: 6.75, y: -1.6, yaw: 0 }, guard);
 
-  /* ---- the dance floor: the go-go dancer on the podium, the crowd facing
+  /* ---- the dance floor: the go-go dancer in the middle, the crowd facing
      the DJ on the west wall, the hype man on the stage. Twelve keep their
      spot; six roam (user, 2026-10-26: "not all of them needs to be in that
      same spot"): dance a while, step off to the floor's edge and film the
      DJ, then find another spot (town-npcs.js `stops`). */
-  add("Glitter", "Go-go dancer", "dance", { x: DC.x, z: DC.z, y: 0.28, yaw: FACE_YAW["-x"] }, { dance: 3 });
-  add("Hype Hank", "Hype man", "dance", { x: -29.2, z: 12.2, y: STAGE_TOP, yaw: FACE_YAW["+x"] }, { dance: 2 });
+  add("Glitter", "Go-go dancer", "dance", { x: DC.x, z: DC.z, y: FL, yaw: FACE_YAW["-x"] }, { dance: 3 });
+  add("Hype Hank", "Hype man", "dance", { x: STAGE.x1 - 0.6, z: STAGE.z0 + 1.2, y: FL + STAGE.top, yaw: FACE_YAW["+x"] }, { dance: 2 });
   const R = rng(43);
   const spots = [];
   for (let tries = 0; spots.length < 24 && tries < 800; tries++) {
@@ -166,42 +174,52 @@ export function kbNpcs({ DC, DANCE, deck }) {
   const faceDeck = (p) => Math.atan2(p.x - deck.x, p.z - deck.z);
   for (const s of spots.slice(0, 12)) {
     const to = R() < 0.7 ? { x: deck.x, z: deck.z } : { x: DC.x + (R() - 0.5) * 4, z: DC.z + (R() - 0.5) * 4 };
-    extra("Raver", "dance", { x: s.x, z: s.z, y: 0, yaw: Math.atan2(s.x - to.x, s.z - to.z) }, { dance: Math.floor(R() * 4) });
+    extra("Raver", "dance", { x: s.x, z: s.z, y: FL, yaw: Math.atan2(s.x - to.x, s.z - to.z) }, { dance: Math.floor(R() * 4) });
   }
-  // the floor's edge, clear of the booths, the stools and the standing crowd
-  const RIM = [[-25.8, 8.5], [-23.2, 8.5], [-20.2, 8.5], [-27.2, 21.5], [-23.7, 21.5], [-19.6, 21.5]].map(([x, z]) => ({ x, z }));
+  // the floor's edge under the arms, clear of the booths, the stairs and the standing crowd
+  const RIM = [[-25.8, 9.6], [-22.4, 9.6], [-18.8, 9.6], [-26.6, 24.6], [-22.8, 24.6], [-18.6, 24.6]].map(([x, z]) => ({ x, z }));
   for (let i = 0; i < 6; i++) {
     const a = spots[12 + i], b = spots[18 + i], rim = RIM[(i * 5) % 6];
     if (!a || !b) break;
     const stop = (p, act, secs) => ({ x: p.x, z: p.z, act, secs, yaw: faceDeck(p), dance: Math.floor(R() * 4) });
-    extra("Raver", "roam", { x: a.x, z: a.z, y: 0, yaw: faceDeck(a) }, {
+    extra("Raver", "roam", { x: a.x, z: a.z, y: FL, yaw: faceDeck(a) }, {
       stops: [stop(a, "dance", 14 + R() * 10), stop(rim, "phone", 7 + R() * 5), stop(b, "dance", 14 + R() * 10)],
     });
   }
 
   /* ---- the booths (two of three places taken), the bar, the edges */
-  KB_BOOTHS.forEach((b, bi) => seatsOf("bench", (s) => Math.abs(s.z - b.z) < 0.5 && Math.abs(s.x - b.x) < 1.3).slice(0, 2)
-    .forEach((i, k) => sit(i, "Clubgoer", k ? "phone" : "drink", bi === 1 ? { drink: "whiskey" } : {})));
-  add("Shots McGee", "Bartender", "wipe", { x: -14.9, z: 10, y: 0, yaw: FACE_YAW["-x"] });
-  add("Pourtia", "Bartender", "count", { x: -14.9, z: 14.4, y: 0, yaw: FACE_YAW["-x"] });
-  add("Neon Nina", "Bartender", "wipe", { x: -14.9, z: 12.2, y: 0, yaw: FACE_YAW["-x"] });
-  seatsOf("stool", (s) => s.x < -16).forEach((i, k) => { if (k !== 2) sit(i, "Barfly", "drink", k % 3 ? {} : { drink: "whiskey" }); });
-  for (const [x, z, yaw] of [[-30.2, 6.2, 2.4], [-29.4, 7.0, -0.8], [-17.6, 6.0, 0.6], [-16.8, 6.8, -2.6], [-17.3, 21.0, -0.3], [-25.0, 21.2, 0.2], [-30.4, 21.6, 2.8], [-29.6, 22.3, -0.4]]) {
-    extra("Clubgoer", R() < 0.6 ? "drink" : "phone", { x, z, y: 0, yaw });
+  // (underSeats lists each booth's three places together)
+  const benches = seatsOf("bench", (s) => s.floor === FL);
+  for (let bi = 0; bi * 3 < benches.length; bi++) {
+    benches.slice(bi * 3, bi * 3 + 2).forEach((i, k) => sit(i, "Clubgoer", k ? "phone" : "drink", bi % 3 === 1 ? { drink: "whiskey" } : {}));
   }
-  // under @SwishPng's screen, watching it
-  for (const x of [-22.4, -21.0]) extra("Clubgoer", "phone", { x, z: 20.8, y: 0, yaw: Math.PI });
-  add("Knuckles", "Security", "guard", { x: -16.0, z: 22.7, y: 0, yaw: 0 }, guard);
+  // behind the main bar under the east arm (the bottle wall at x -6.55); the
+  // third is North (npc-dialogue's bartender, Neon Nina's index)
+  add("Shots McGee", "Bartender", "wipe", { x: -7.1, z: 14.5, y: FL, yaw: FACE_YAW["-x"] });
+  add("Pourtia", "Bartender", "count", { x: -7.1, z: 19.5, y: FL, yaw: FACE_YAW["-x"] });
+  add("Neon Nina", "Bartender", "wipe", { x: -7.1, z: 17, y: FL, yaw: FACE_YAW["-x"] });
+  seatsOf("stool", (s) => s.floor === FL).forEach((i, k) => { if (k !== 2) sit(i, "Barfly", "drink", k % 3 ? {} : { drink: "whiskey" }); });
+  for (const [x, z, yaw] of [[-29.5, 7.6, 2.4], [-28.7, 8.4, -0.8], [-14.2, 7.4, 0.6], [-13.4, 8.2, -2.6], [-14.6, 25.4, -0.3], [-21.6, 25.6, 0.2], [-27.8, 26.0, 2.8], [-27.0, 26.7, -0.4]]) {
+    extra("Clubgoer", R() < 0.6 ? "drink" : "phone", { x, z, y: FL, yaw });
+  }
+  // under @SwishPng's screen on the south wall, watching it
+  for (const x of [-27.6, -26.3]) extra("Clubgoer", "phone", { x, z: 27.2, y: FL, yaw: Math.PI });
+  // the staff tunnel's mouth on the south arm; the tatami room's door, on
+  // the square now; the side stair's head
+  add("Knuckles", "Security", "guard", { x: -18.3, z: 29.1, y: B1, yaw: 0 }, guard);
   add("Rope", "VIP door", "guard", { x: -28.7, z: 22.9, y: 0, yaw: 0.3 }, guard);
+  add("Deuce", "Bouncer", "guard", { x: -22.9, z: 21.3, y: 0, yaw: FACE_YAW["-x"] }, guard);
 
-  /* ---- the mezzanine: on the glass over the floor, the sofa, the sound
-     desk, a stroller */
-  for (const z of [6, 8.4, 12.2, 15.6]) extra("Clubgoer", "drink", { x: -13.35, z, y: MEZZ, yaw: FACE_YAW["-x"] });
-  seatsOf("bench", (s) => s.floor === MEZZ).slice(0, 2).forEach((i) => sit(i, "Clubgoer", "drink"));
-  add("Fader", "Sound tech", "count", { x: -11.9, z: 15.2, y: MEZZ, yaw: 0 });
-  extra("Clubgoer", "walk", { y: MEZZ, path: [[-12.7, 5.2], [-12.7, 12.6]], pace: true, at: 0.3 });
+  /* ---- the balcony: on the glass over the floor, the sofas, the sound
+     tech by the east arm's tables, a stroller along the north arm */
+  for (const [x, z, face] of [[-22.6, 11.5, "+z"], [-19.5, 11.5, "+z"], [-15.6, 11.5, "+z"], [-10.5, 15.4, "-x"], [-10.5, 18.6, "-x"]]) {
+    extra("Clubgoer", "drink", { x, z, y: B1, yaw: FACE_YAW[face] });
+  }
+  seatsOf("bench", (s) => s.floor === B1).filter((i, k) => k % 2 === 0).slice(0, 4).forEach((i) => sit(i, "Clubgoer", "drink"));
+  add("Fader", "Sound tech", "count", { x: -8.2, z: 17, y: B1, yaw: FACE_YAW["-x"] });
+  extra("Clubgoer", "walk", { y: B1, path: [[-22, 10.9], [-13, 10.9]], pace: true, at: 0.3 });
 
-  /* ---- the office: the manager at the desk, looking down the floor */
+  /* ---- the office over the square, the manager at the desk */
   add("Big Boss", "Manager", "count", { x: -12.35, z: 21.6, y: MEZZ, yaw: FACE_YAW["-x"] });
 
   /* ---- the tatami room: four of its six cushions, bottle service, one at the koi */

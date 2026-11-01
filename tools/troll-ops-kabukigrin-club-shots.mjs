@@ -57,6 +57,18 @@ const VIEWS = {
   stools:    [-20.5, 1.7, 7.5, -16.8, 0.8, 13, 70],
   sofaMezz:  [-11.6, 4.7, 12.5, -6.8, 3.5, 15.5, 70],
   door:      [-27.6, 1.7, -8, -27.6, 1.4, 3, 70],
+  // the dug club (docs/KB-CLUB-UNDERGROUND.md): B2 floor -7.5, B1 balcony -3.6
+  square:    [-24, 1.7, -4, -22, 0.5, 14, 76],
+  stairS1:   [-26, 1.7, 3.2, -26, -2.5, 10, 74],
+  uBalcony:  [-9, -2.0, 7, -26, -5.5, 16, 78],
+  uHall:     [-13, -5.9, 24, -29, -4.5, 12, 76],
+  uFloor:    [-19, -5.8, 22, -29, -4.4, 12, 80],
+  uDj:       [-21, -5.8, 17, -31.4, -4, 17, 76],
+  uBar:      [-20, -5.8, 17, -6.5, -5.6, 17, 74],
+  uCeiling:  [-21.5, -6.0, 20, -21.5, -1, 14, 84],
+  uGrand:    [-13, -2.0, 10, -13, -6, 17, 74],
+  uSouth:    [-20, -5.8, 12, -20, -4.5, 29, 76],
+  tunnel:    [-20, 1.7, 41, -20, -2.5, 34, 74],
 };
 const MAP = process.env.MAP || "kabukigrin";
 if (process.env.VIEW) VIEWS.custom = process.env.VIEW.split(",").map(Number);
