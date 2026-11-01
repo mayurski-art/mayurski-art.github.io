@@ -15,7 +15,10 @@ reach for things and bend down: a bottle off the shelf, a can from the
 vending machine's slot, a bill off the floor, a lighter, a phone. The club
 gets most of them, and small groups hang around outside on the streets.
 
-Status: draft, waiting on the user's picks (section 9). Nothing is built yet.
+Status: approved 2026-11-01 with the recommended picks for all six
+(section 9). Phase 1 (the bodies) in progress. The packs have no bomber
+jacket or vest, so `clubber_m` wears a tee, cargos and a chain, and the
+bartender a waist apron with a towel.
 
 ## 1. What we already have
 
@@ -48,6 +51,7 @@ bodies, skin, hair and recoloured clothes, adds each outfit's kit, and
 exports `ppl-<look>.glb`: rigged, no clips, one mesh, one atlas.
 
 **Budget per look:** about 6k triangles and a 1k atlas, around 0.6 MB.
+Built (phase 1): 6.4k to 8k triangles and 590 to 660 KB each.
 The cops are 0.9 MB at 2k. A crowd needs more looks than a squad, so
 each one is lighter.
 

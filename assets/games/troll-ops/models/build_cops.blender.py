@@ -38,6 +38,7 @@ flat, hexlin = Z["flat"], Z["hexlin"]
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 RENDER_DIR = os.environ.get("CB_RENDER_DIR", os.path.join(HERE, "_renders"))
+PREFIX = "cop"   # the export's file name: <PREFIX>-<name>.glb (build_people sets "ppl")
 BAKE_DIR = os.environ.get("CB_BAKE_DIR", os.path.join(os.environ.get("TEMP", "/tmp"), "cb_bake"))
 
 # ---------------------------------------------------------------- poses
@@ -527,7 +528,7 @@ def export_cop(name, look, P):
     rig.select_set(True)
     ob.select_set(True)
     bpy.context.view_layer.objects.active = rig
-    path = os.path.join(HERE, f"cop-{name}.glb")
+    path = os.path.join(HERE, f"{PREFIX}-{name}.glb")
     bpy.ops.export_scene.gltf(
         filepath=path, export_format="GLB", use_selection=True, export_yup=True,
         export_apply=False, export_skins=True, export_animations=False,
