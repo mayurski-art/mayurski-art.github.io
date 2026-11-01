@@ -85,8 +85,11 @@ await sleep(200);
 check(await shown(page, ".to-fn-picker"), "Change mode opens the picker");
 await page.click('.to-fn-picker [data-pl="solo"]');
 await sleep(200);
+// (Solo Play opens its modes in the picker; one of them is the pick: fn-one-pick-test)
+await page.click('.to-fn-pick-modes [data-mode="ops"]');
+await sleep(200);
 const name = await page.evaluate(() => document.querySelector(".to-fn-mode-name").textContent);
-check(name === "Solo Play" && !(await shown(page, ".to-fn-picker")), "picking Solo Play names it on the card", name);
+check(name === "Solo Play" && !(await shown(page, ".to-fn-picker")), "picking a Solo Play mode names it on the card", name);
 await page.click(".to-fn-go");
 await sleep(300);
 check(await cur(page) === "solo" && await onTab(page) === "play", "PLAY opens Solo Play under the Play tab", `${await cur(page)} / ${await onTab(page)}`);
@@ -118,24 +121,36 @@ check(!bars.length, "no scrollbars drawn", bars.join(", "));
 await ctx.close();
 
 // ---- 5
+// The news is a loop nobody turns (user, 2026-10-31): a swipe or a tap
+// leaves it where it is, it turns by itself, and Play this is the one way to
+// a story's mode (the full check: tools/troll-ops-fn-news-loop-test.mjs).
 ({ ctx, page } = await open({ width: 1280, height: 720 }));
-await page.evaluate(() => { window.__toBo2.menu.backTo("main"); document.body.classList.add("tf-anim-off"); });
+await page.evaluate(() => window.__toBo2.menu.backTo("main"));
 await sleep(500);
 const newsNow = () => page.evaluate(() => document.querySelector(".to-fn-news-card:not([hidden]) b")?.textContent);
-const swipe = async (dx) => {
-  const r = await page.evaluate(() => { const b = document.querySelector(".to-fn-news").getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
-  await page.mouse.move(r.x, r.y); await page.mouse.down(); await page.mouse.move(r.x + dx / 2, r.y); await page.mouse.move(r.x + dx, r.y); await page.mouse.up();
-  await sleep(200);
-};
-const firstNews = await newsNow();
 const plBefore = await page.evaluate(() => window.__toBo2.fn.playlist());
-await swipe(-120);
-const second = await newsNow();
-await swipe(120);
-const back = await newsNow();
-const plAfter = await page.evaluate(() => window.__toBo2.fn.playlist());
-check(firstNews === "Halloween" && second === "Trollface Island" && back === "Halloween", "the news swipes: left the next, right the last", `${firstNews} -> ${second} -> ${back}`);
-check(plAfter === plBefore, "a swipe doesn't open the card's mode", `${plBefore} -> ${plAfter}`);
+const firstNews = await newsNow();
+{
+  const r = await page.evaluate(() => { const b = document.querySelector(".to-fn-news").getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
+  await page.mouse.move(r.x, r.y); await page.mouse.down(); await page.mouse.move(r.x - 60, r.y); await page.mouse.move(r.x - 120, r.y); await page.mouse.up();
+  await page.mouse.click(r.x, r.y + 10);
+  await sleep(200);
+}
+const afterTouch = await newsNow();
+check(firstNews === "Halloween" && afterTouch === firstNews, "a swipe or a tap doesn't turn the news", `${firstNews} -> ${afterTouch}`);
+check(await page.evaluate(() => window.__toBo2.fn.playlist()) === plBefore, "nor opens the card's mode");
+// it turns by itself; when Kabukigrin comes round, Play this opens Socialize
+let story = afterTouch;
+for (let t = Date.now(); Date.now() - t < 30000 && story !== "Kabukigrin"; ) { await sleep(300); story = await newsNow(); }
+check(story === "Kabukigrin", "the news turns by itself (Halloween, Trollface Island, Kabukigrin)", story);
+await page.click(".to-fn-news-go"); await sleep(400);
+check(await page.evaluate(() => window.__toBo2.fn.playlist()) === "social", "Play this on Kabukigrin opens Socialize");
+const clash = await page.evaluate(() => {
+  const go = document.querySelector(".to-fn-news-go").getBoundingClientRect();
+  const card = document.querySelector(".to-fn-news-card:not([hidden])");
+  return [...card.querySelectorAll("b, small"), ...document.querySelectorAll(".to-fn-pips > *")].filter((el) => { const r = el.getBoundingClientRect(); return r.width && r.left < go.right && r.right > go.left && r.top < go.bottom && r.bottom > go.top; }).map((el) => el.textContent || el.tagName);
+});
+check(!clash.length, "Play this sits clear of the story's text and the circles", clash.join(", "));
 await ctx.close();
 
 check(!errors.length, "no page errors", errors.slice(0, 3).join(" | "));

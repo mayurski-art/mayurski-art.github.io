@@ -43,7 +43,7 @@ export function padEmotePressed(gp, edge) {
 const EMOTE = "emote";
 const BINDINGS = [
   { i: 7,  side: "R", action: "Fire" },
-  { i: 5,  side: "R", action: "Lethal (hold to cook)" },
+  { i: 5,  side: "R", action: "Roll" },
   { i: 3,  side: "R", action: "Switch weapon" },
   { i: 1,  side: "R", action: "Crouch · hold: prone · slide" },
   { i: 0,  side: "R", action: "Jump · vault" },
@@ -51,7 +51,7 @@ const BINDINGS = [
   { i: 9,  side: "R", action: "Menu" },
   { i: 11, side: "R", action: "Look · click: melee", stick: "R" },
   { i: 6,  side: "L", action: "Aim down sights" },
-  { i: 4,  side: "L", action: "Tactical (hold to cook)" },
+  { i: 4,  side: "L", action: "Grenade (hold to cook)" },
   { i: 10, side: "L", action: "Move · click: sprint", stick: "L" },
   { i: 8,  side: "L", action: "Third person" },
   { i: EMOTE, side: "L", action: "Emote wheel" },

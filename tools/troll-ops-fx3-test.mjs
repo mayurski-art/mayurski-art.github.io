@@ -116,9 +116,6 @@ check("keyboard + saber reach is arm + blade (2.0 / 2.2 m)", reach.kb === 2.0 &&
 // --- start a match with veteran bots
 await page.evaluate(async () => {
   const T = window.__trollOps;
-  T.settings.botSkill = "veteran";
-  document.getElementById("to-set-botskill").value = "veteran";
-  document.getElementById("to-set-botskill").dispatchEvent(new Event("change", { bubbles: true }));
   T.setMode("tdm");
   if (T.els.noBots) T.els.noBots.checked = false;
   await T.startGame();
@@ -131,10 +128,9 @@ await page.waitForFunction(() => window.__trollOps.killcam.tracks.size > 5 && !w
 await sleep(2500);
 const vet = await page.evaluate(() => {
   const T = window.__trollOps;
-  return { skill: T.roomBotSkill(), bots: T.bots.bots.map((b) => b.skill), boost: T.veteranBoostOn(), xp: T.boostedXp(100),
-    note: document.getElementById("to-set-botskill-note")?.textContent };
+  return { skill: T.roomBotSkill(), bots: T.bots.bots.map((b) => b.skill), boost: T.veteranBoostOn(), xp: T.boostedXp(100) };
 });
-check("room bot skill is the host's (veteran), every bot built with it", vet.skill === "veteran" && vet.bots.every((s) => s === "veteran"), vet);
+check("room bot skill is Veteran with no setting, every bot built with it", vet.skill === "veteran" && vet.bots.every((s) => s === "veteran"), vet);
 check("veteran bots pay +10% XP", vet.boost && vet.xp === 110, vet);
 
 // --- killcam carries melee state

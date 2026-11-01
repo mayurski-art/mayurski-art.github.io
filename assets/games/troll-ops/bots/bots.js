@@ -91,6 +91,10 @@ const DIFFICULTY = {
   veteran:  { label: "Veteran",  hit: 0.55, missSpread: [0.4, 1.0], damage: 20, interval: 0.53, reaction: 0.16, strafe: 1.0, lead: 0.75, readsGuard: true, adsTime: 0.22,
     nade: { chance: 0.85, scatter: 1.0, cook: true }, jump: 0.2, slide: 0.2, knife: 0.6 },
 };
+// Every room's bots play Veteran, with no option to change it (user,
+// 2026-10-31: "Difficulty needs to be Veteran at baseline. There should not
+// be any bot skill option"). A mode can still fix its own (rules.skill).
+const BOT_SKILL = "veteran";
 
 /* Moving like a player (user: bots never jumped or slid). In a fight a bot
    rolls every MOVE_ROLL seconds for a hop or a slide (`jump` / `slide`
@@ -292,14 +296,14 @@ class Bot {
     this.sidearmReserve -= take;
   }
 
-  constructor(team, spawn, difficulty = "regular", rules = {}) {
+  constructor(team, spawn, difficulty = BOT_SKILL, rules = {}) {
     this.rules = rules;   // the BotManager's, shared: the match's mode rules
     this.id = `bot-${(counter++).toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     this.name = BOT_NAME;
     this.team = team;
     this.isBot = true;
     // A mode can fix the tier (Troll Royale: rules.skill, match-start.js beginMatch).
-    this.skill = DIFFICULTY[rules.skill] ? rules.skill : DIFFICULTY[difficulty] ? difficulty : "regular";
+    this.skill = DIFFICULTY[rules.skill] ? rules.skill : DIFFICULTY[difficulty] ? difficulty : BOT_SKILL;
     this.diff = DIFFICULTY[this.skill];
     this.weaponId = BOT_WEAPONS[counter % BOT_WEAPONS.length];
     this.secondaryId = counter % 5 === 0 ? "fhj18" : BOT_SIDEARMS[counter % BOT_SIDEARMS.length];
@@ -1547,7 +1551,7 @@ export class BotManager {
   constructor() {
     this.bots = [];
     this.enabled = false;
-    this.difficulty = "regular";
+    this.difficulty = BOT_SKILL;
     this.rules = { oneShot: false, calm: false, skill: null, squad: 0, humanSquads: null, goDown: null };   // the match's mode rules every bot reads (match-start.js beginMatch)
     this.fieldSrc = null;         // geometry the fields are built from
     this.fieldPool = new Map();   // [level|]target id -> FlowField, reused across sweeps

@@ -28,7 +28,7 @@ export const HEROES = {
   metamorph: {
     id: "metamorph", name: "Troll Metamorphosis", hp: 80, speed: 1.2, melee: "halo", meleeMult: 1, cd: 0,
     ability: "Transform", passive: "Damage and kills fill the meter",
-    blurb: "Weak and fast as Pepe. Fill the meter, press E, become the brute for 20 s.",
+    blurb: "Weak and fast as Pepe. Fill the meter, hold E, become the brute for 20 s.",
   },
 };
 export const HERO_IDS = Object.keys(HEROES);
