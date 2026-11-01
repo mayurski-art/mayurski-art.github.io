@@ -210,7 +210,8 @@ export function mountFnLobby(api) {
   news.innerHTML = `
       ${NEWS.map((n, i) => `<button type="button" class="to-fn-news-card" data-i="${i}" ${i ? "hidden" : ""} aria-label="${esc(`${n.title}: ${n.tag}`)}">
         <img alt="" data-map="${n.map}"><em>News</em><b>${esc(n.title)}</b><small>${esc(n.tag)}</small></button>`).join("")}
-      <div class="to-fn-pips">${NEWS.map((n, i) => `<button type="button" data-i="${i}" aria-label="News ${i + 1}: ${esc(n.title)}"></button>`).join("")}</div>`;
+      <div class="to-fn-pips">${NEWS.map((n, i) => `<button type="button" data-i="${i}" aria-label="News ${i + 1}: ${esc(n.title)}"></button>`).join("")}</div>
+      <button type="button" class="to-fn-news-go"></button>`;
 
   /* ── Play tab, right: the mode card and PLAY ── */
   const play = document.createElement("section");
@@ -500,17 +501,28 @@ export function mountFnLobby(api) {
     newsIdx = (i + NEWS.length) % NEWS.length;
     cards.forEach((c, k) => { c.hidden = k !== newsIdx; });
     pips.forEach((p, k) => p.setAttribute("aria-current", String(k === newsIdx)));
+    const go = $(".to-fn-news-go", news);
+    go.textContent = "Play this";
+    go.setAttribute("aria-label", `Play ${NEWS[newsIdx].title}: ${NEWS[newsIdx].tag}`);
   }
+  /* Tapping a card turns to the next one; only "Play this" switches the
+     mode, map and backdrop to the story's (user, 2026-10-31: "the
+     background and boxes changing when you keep clicking through the
+     news"). */
+  const newsGo = $(".to-fn-news-go", news);
   for (const c of cards) {
     const n = NEWS[+c.dataset.i];
     if (n.art) $("img", c).src = n.art; else setMapShot($("img", c), n.map, "320px");
-    c.addEventListener("click", () => {
-      if (n.mode) { const b = $(`#to-lo-mode [data-mode="${n.mode}"]`); if (b && !b.disabled) b.click(); }
-      if (n.side && royaleSide?.().id !== n.side) switchRoyaleSide?.();
-      setPlaylist(n.playlist);
-      $(".to-fn-go", play).focus();
-    });
+    c.setAttribute("aria-label", `${n.title}: ${n.tag}. Next story`);
+    c.addEventListener("click", () => { showNews(newsIdx + 1); restartNews(); });
   }
+  newsGo.addEventListener("click", () => {
+    const n = NEWS[newsIdx];
+    if (n.mode) { const b = $(`#to-lo-mode [data-mode="${n.mode}"]`); if (b && !b.disabled) b.click(); }
+    if (n.side && royaleSide?.().id !== n.side) switchRoyaleSide?.();
+    setPlaylist(n.playlist);
+    $(".to-fn-go", play).focus();
+  });
   for (const p of pips) p.addEventListener("click", () => { showNews(+p.dataset.i); restartNews(); });
   // swipe (or drag) the card left / right for the next / last (user,
   // 2026-10-30: "users should be able to swipe through the four news")
@@ -527,7 +539,7 @@ export function mountFnLobby(api) {
       restartNews();
     });
     news.addEventListener("pointercancel", () => { x0 = null; });
-    // (a swipe isn't a tap: the card's click doesn't open its mode)
+    // (a swipe isn't a tap: the card's click doesn't turn it again)
     news.addEventListener("click", (e) => { if (swiped) { e.stopPropagation(); e.preventDefault(); swiped = false; } }, true);
     // the arrow keys too, on a focused card
     news.addEventListener("keydown", (e) => {

@@ -4723,6 +4723,12 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-fn-news-card b { position: absolute; left: 12px; bottom: 26px; z-index: 1; font: italic 400 28px/1 var(--fn-display); text-transform: uppercase; text-shadow: 0 2px 8px rgba(0,0,0,.6); }
 .to-fn-news-card small { position: absolute; left: 12px; bottom: 9px; z-index: 1; font: 700 14px var(--fn-ui); color: #e9dcff; }
 .to-fn-pips { position: absolute; left: 10px; top: 8px; z-index: 2; display: flex; gap: 2px; }
+/* the one way from a story to its mode (lobby-fn.js): top right, where NEWS was */
+.to-fn-news-go { position: absolute; right: 8px; top: 7px; z-index: 2; padding: 4px 10px; border: 0; border-radius: 2px; cursor: pointer;
+  background: var(--fn-yellow, #ffe04d); color: #1b1400; font: 800 12px/1.1 var(--fn-ui, sans-serif); letter-spacing: .06em; text-transform: uppercase; }
+.to-fn-news-go:hover { filter: brightness(1.08); }
+.to-fn-news-go:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.to-fn-news-card em { display: none; }
 .to-fn-pips button { width: 18px; height: 18px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; }
 .to-fn-pips button::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.5); }
 .to-fn-pips button[aria-current="true"]::before { background: #fff; }
