@@ -2,10 +2,11 @@
 // (user, 2026-10-31: "for the iron sight it's worth moving closer so the
 // perceived sight enlarges"); optics keep their own distance. Private TDM
 // room, no bots. Per gun:optic it aims in and reads how far in front of the
-// weapon camera the gun's aim point sits.
+// weapon camera the gun's aim point sits (the MTAR, a bullpup, 0.2: its
+// cheek is on the butt).
 //
 // Usage: node tools/troll-ops-iron-ads-test.mjs [gun:optic:metres ...]
-//   (default: problem416:iron:0.3 kek:iron:0.3 kek:reflex:0.46)
+//   (default: problem416:iron:0.3 kek:iron:0.2 kek:reflex:0.46)
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -36,7 +37,7 @@ function check(name, ok, detail = "") {
 }
 
 const combos = (process.argv.slice(2).length ? process.argv.slice(2)
-  : ["problem416:iron:0.3", "kek:iron:0.3", "kek:reflex:0.46"]).map((s) => s.split(":"));
+  : ["problem416:iron:0.3", "kek:iron:0.2", "kek:reflex:0.46"]).map((s) => s.split(":"));
 const browser = await chromium.launch({ args: ["--use-angle=d3d11", "--autoplay-policy=no-user-gesture-required"] });
 const errors = [];
 for (const [gun, optic, want] of combos) {
