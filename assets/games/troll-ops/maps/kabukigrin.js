@@ -39,7 +39,7 @@ import { newState, sign, addLight, danceFloor, djStage, chandelier, bottleWall, 
 import { FL, B1, CEIL, CEILL, HALL, DANCE, DC, STAGE, DJ_WALL, DECK, TUNNEL, STAIRS as UNDER_STAIRS, WELLS, SCREENS, inOldHall, groundField, stairLink, underColliders, underMaterials, buildUnderShell, cutOldClub, underFaces } from "./kabukigrin-under.js?v=kbu1-kbc1";
 import { buildClubSigns, signFaces } from "./kabukigrin-club-signs.js?v=kcs1-kbc1";
 import { wetFloor, hangProbe } from "./wet-floor.js?v=wf1-ss1-ss2-ss3-tfm2";
-import { moneyRain } from "./club-money.js?v=mn2-kbc1";
+import { moneyRain } from "./club-money.js?v=mn2-kbc1-mn3";
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1-pm1-kco1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { buildLines } from "./kabukigrin-lines.js?v=cl1-kbc1";

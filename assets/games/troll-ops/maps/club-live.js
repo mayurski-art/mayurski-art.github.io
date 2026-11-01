@@ -29,7 +29,7 @@ import {
   signsTexture, tileGlowTexture, fringeTexture, beamTexture, facetTexture, djTexture,
 } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { BEATS } from "../sound/music-beats.js?v=bg1-sg1-zr10-jb1-nh1-hl1-or1-hh1-yb1-gr1";
-import { moneyTick, moneyDebug } from "./club-money.js?v=mn2-kbc1";
+import { moneyTick, moneyDebug } from "./club-money.js?v=mn2-kbc1-mn3";
 
 /* A build's live state: the lobby's map thumbnails and the preloader also
    run build(), so each build keeps its own and the ticker (it only runs

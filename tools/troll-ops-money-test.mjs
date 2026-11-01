@@ -51,12 +51,15 @@ await page.evaluate(async () => {
   T.player.maxHp = T.player.hp = 1e9;
 });
 await wait(15000);
-// on the floor's south edge, looking across it
-await page.evaluate(() => {
+// the club is underground (maps/kabukigrin-under.js): B2, the dance floor, at
+// FL; B1, the balcony, at B1
+const FL = -7.5, B1 = -3.6;
+// on B2 at the floor's north edge, looking across it
+await page.evaluate((FL) => {
   const T = window.__trollOps;
-  T.move.pos.set(-22, 0, 8.5); if (T.move.velocity) T.move.velocity.set(0, 0, 0);
-  T.look.yaw = Math.atan2(0, -(15 - 8.5)); T.look.pitch = 0.12;
-});
+  T.move.pos.set(-21.5, FL, 9.5); if (T.move.velocity) T.move.velocity.set(0, 0, 0);
+  T.look.yaw = Math.PI; T.look.pitch = 0.12;
+}, FL);
 const money = () => page.evaluate(() => {
   const d = window.__trollOps.builtMap().map.debug().money;
   return d && { drops: d.drops, thrown: d.thrown, landed: d.landed, spots: d.spots, air: d.air, lying: d.lying.length };
@@ -81,8 +84,9 @@ for (let t = 0; t < 60 && m2.landed - m0.landed < batch; t++) { await wait(500);
 check("every note lands (on a floor note: their targets are the floor's own)", m2.landed - m0.landed >= batch, JSON.stringify(m2));
 if (process.env.OUT) await page.screenshot({ path: path.join(process.env.OUT, "money-landed.jpg"), type: "jpeg", quality: 85 });
 // each lies 1.4 s in its note's pose, then goes (a new drop meanwhile: skip)
-await wait(2500);
-const m3 = await money();
+// (the club's own clock can throw again meanwhile: then new notes keep landing)
+let m3 = await money();
+for (let t = 0; t < 20 && m3.lying && m3.drops === m2.drops; t++) { await wait(500); m3 = await money(); }
 check("and then they're gone (the baked note where each lay)", m3.lying === 0 || m3.drops > m2.drops, JSON.stringify(m3));
 
 // the club's own track: a drop at the top of each 8-bar phrase (15 s at 128)
@@ -99,31 +103,45 @@ const full = () => page.evaluate(() => {
 for (let t = 0; t < 60; t++) { const m = await full(); if (!m.air && !m.lying.length) break; await wait(500); }
 const m5 = await full();
 check("the pool is sized by the graphics tier", { high: 160, medium: 96, low: 48 }[m5.tier] === m5.pool, `${m5.tier}: ${m5.pool}`);
-// three handfuls: at the bar top (the counter under the mezzanine, x -15),
-// over the mezzanine's deck (3 m up) and over the dance floor
-const mezz = await page.evaluate(() => {
-  // a clear spot on the mezzanine's deck (3 m up): the highest collider top
-  // under it, below a hand's height, is the deck itself
+// three handfuls: over the main bar's counter (under the east arm, x -8.1,
+// its top FL + 1.15), over the balcony's deck (B1) and over the dance floor
+const deck = await page.evaluate((B1) => {
+  // a clear spot on the north arm: the highest collider top under it, below
+  // a hand's height over B1, is the deck itself
   const cols = window.__trollOps.colliders;
-  const topAt = (x, z) => cols.reduce((b, c) => (c.max.y <= 4.3 && x >= c.min.x - 0.05 && x <= c.max.x + 0.05 && z >= c.min.z - 0.05 && z <= c.max.z + 0.05 && c.max.y > b ? c.max.y : b), 0);
-  for (let z = 5; z < 18; z += 0.5) for (let x = -13.5; x < -7; x += 0.5) if (Math.abs(topAt(x, z) - 3) < 0.1) return [x, z];
+  const topAt = (x, z) => cols.reduce((b, c) => (c.max.y <= B1 + 1.3 && x >= c.min.x - 0.05 && x <= c.max.x + 0.05 && z >= c.min.z - 0.05 && z <= c.max.z + 0.05 && c.max.y > b ? c.max.y : b), -99);
+  for (let z = 6; z < 11.5; z += 0.5) for (let x = -24; x < -12; x += 0.5) if (Math.abs(topAt(x, z) - B1) < 0.05) return [x, z];
   return null;
-});
-check("the mezzanine's deck is in the colliders", !!mezz, JSON.stringify(mezz));
-await page.evaluate((mezz) => {
+}, B1);
+check("the balcony's deck is in the colliders", !!deck, JSON.stringify(deck));
+// back on B2 by the floor (nothing is thrown more than 30 m from the camera:
+// club-money.js RANGE), and say where the camera is
+const eye = await page.evaluate((FL) => {
+  const T = window.__trollOps;
+  T.move.pos.set(-21.5, FL, 9.5); if (T.move.velocity) T.move.velocity.set(0, 0, 0);
+  T.look.yaw = Math.PI; T.look.pitch = 0.12;
+  return null;
+}, FL);
+await wait(800);
+const cam = await page.evaluate(() => window.__trollOps.camera.position.toArray().map((v) => +v.toFixed(1)));
+console.log(`INFO  camera at ${cam.join(", ")}`);
+// the bar counter's own collider (kabukigrin-under.js ghostBox, top FL + 1.15)
+const barTop = await page.evaluate((FL) => window.__trollOps.colliders.some((c) => -8.1 >= c.min.x && -8.1 <= c.max.x && 17 >= c.min.z && 17 <= c.max.z && Math.abs(c.max.y - (FL + 1.15)) < 0.05), FL);
+if (!barTop) console.log("INFO  the main bar's counter has no collider in this build: bills over it fall to B2 (kabukigrin-under.js)");
+await page.evaluate(({ deck, FL, B1 }) => {
   const d = window.__trollOps.builtMap().map.debug().money;
-  d.emit(-16.2, 1.5, 12, 1, 0.6, 0, 6, { speed: 1.2 });
-  d.emit(mezz[0], 4.2, mezz[1], 0, 0.3, 0, 6, { speed: 0.5 });
-  d.emit(-22, 2.0, 15, 0, 0.5, 0, 6, { speed: 0.8 });
-}, mezz || [-10, 10]);
+  d.emit(-8.1, FL + 1.9, 17, 0, 0.2, 0, 6, { speed: 0.3, spread: 0.1, up: 0 });
+  d.emit(deck[0], B1 + 1.2, deck[1], 0, 0.3, 0, 6, { speed: 0.4, spread: 0.2 });
+  d.emit(-21.5, FL + 2.0, 17, 0, 0.5, 0, 6, { speed: 0.8 });
+}, { deck: deck || [-18, 8], FL, B1 });
 await wait(400);
 const m6 = await full();
 check("emitMoney throws from a point", m6.emitted - m5.emitted === 18 && m6.air >= 12, JSON.stringify({ emitted: m6.emitted - m5.emitted, air: m6.air }));
 let m7 = m6;
 for (let t = 0; t < 60 && m7.lying.filter((l) => !l.spot).length < 14; t++) { await wait(500); m7 = await full(); }
 const ys = m7.lying.filter((l) => !l.spot).map((l) => +l.y.toFixed(2));
-check("they land on what's under them: the bar top, the mezzanine, the floor",
-  ys.some((y) => y > 0.7 && y < 1.4) && ys.some((y) => y > 2.5 && y < 3.4) && ys.some((y) => y < 0.1), ys.sort((a, b) => a - b).join(" "));
+check("they land on what's under them: the bar top, the balcony, the dance floor",
+  (!barTop || ys.some((y) => Math.abs(y - (FL + 1.15)) < 0.1)) && ys.some((y) => Math.abs(y - B1) < 0.1) && ys.some((y) => y < FL + 0.1), ys.sort((a, b) => a - b).join(" "));
 if (process.env.OUT) await page.screenshot({ path: path.join(process.env.OUT, "money-landed-anywhere.jpg"), type: "jpeg", quality: 85 });
 let m8 = m7;
 for (let t = 0; t < 40 && !m8.fading; t++) { await wait(500); m8 = await full(); }
@@ -131,7 +149,7 @@ check("then they fade", m8.fading > 0, `fading ${m8.fading}`);
 for (let t = 0; t < 40 && m8.lying.length; t++) { await wait(500); m8 = await full(); }
 check("and they're gone", m8.lying.length === 0 && m8.air === 0, JSON.stringify({ lying: m8.lying.length, air: m8.air }));
 // the pool: more than it holds reuses the oldest, nothing breaks
-await page.evaluate(() => window.__trollOps.builtMap().map.debug().money.emit(-22, 3, 15, 0, 1, 0, 400, { speed: 2 }));
+await page.evaluate(() => window.__trollOps.builtMap().map.debug().money.emit(-21.5, -4.5, 17, 0, 1, 0, 400, { speed: 2 }));   // over B2
 await wait(600);
 const m9 = await full();
 check("a full pool reuses notes instead of growing", m9.air <= m9.pool && m9.air >= m9.pool * 0.8, `${m9.air} of ${m9.pool} in the air`);

@@ -68,7 +68,7 @@ async function open(label, body = null) {
 async function place(page, x, z, yaw, pitch = 0) {
   await page.evaluate(({ x, z, yaw, pitch }) => {
     const T = window.__trollOps;
-    T.move.pos.set(x, 0, z); T.player.pos.x = x; T.player.pos.z = z;
+    T.move.pos.set(x, -7.5, z); T.player.pos.x = x; T.player.pos.z = z;   // B2, the club's dance floor (kabukigrin-under.js FL)
     if (T.move.velocity) T.move.velocity.set(0, 0, 0);
     T.player.spawnGuard = 999; T.player.hp = T.player.maxHp || 100;
     T.look.yaw = yaw; T.look.pitch = pitch;
@@ -126,7 +126,7 @@ const tp = await B.evaluate(() => {
   const w = new T.THREE.Vector3(); gun.getWorldPosition(w);
   return { gun: true, parent: gun.parent?.name || gun.parent?.type, y: +w.y.toFixed(2) };
 });
-check("on B's screen A's rig holds the gun", tp.gun && tp.y > 1.0, JSON.stringify(tp));
+check("on B's screen A's rig holds the gun", tp.gun && tp.y > -7.5 + 1.0, JSON.stringify(tp));
 const mB1 = await money(B);
 check("and it sprays on B's screen too (nothing more on the wire)", mB1.emitted > mB0.emitted, JSON.stringify({ emitted: mB1.emitted - mB0.emitted, air: mB1.air }));
 await shot(B, "money-gun-tp.png");

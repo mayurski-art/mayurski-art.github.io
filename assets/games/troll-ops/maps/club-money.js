@@ -36,6 +36,16 @@ const LIE = 2.5, FADE = 0.6;   // anywhere else: lies, then fades out
 const RANGE = 30;         // nothing is emitted further than this from the eye
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _qf = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _d = new THREE.Vector3();
 // lying flat on the floor turned ry about the world's up, as kb_club.py's flat() lays them
+// every note lives in world space; the pool's mesh may sit in a moved group
+// (Kabukigrin's club is underground: `under` at y FL), so its instances are
+// written relative to the parent's world position (a translation only)
+const _o = new THREE.Vector3(), _pw = new THREE.Vector3();
+function parentOffset(M) {
+  const par = M.mesh.parent;
+  if (!par) return _o.set(0, 0, 0);
+  par.updateWorldMatrix(true, false);
+  return _o.setFromMatrixPosition(par.matrixWorld);
+}
 const flatPose = (q, ry) => q.setFromEuler(_e.set(-Math.PI / 2, ry, 0, "YXZ"));
 
 // the scene the bills fall in: set by match-start.js before the map builds
@@ -191,6 +201,8 @@ function throwNotes(M, now) {
   M.drops++;
   M.lastDrop = now;
   if (DROP_LISTENERS.length) { for (const fn of DROP_LISTENERS) fn(M); return; }   // the crowd throws instead
+  // (the area, the hand height and the spots are in the pool's own frame)
+  const { x: ox, y: oy, z: oz } = parentOffset(M);
   let left = THROW;
   while (left > 0) {
     const hx = M.area.x0 + 0.6 + Math.random() * (M.area.x1 - M.area.x0 - 1.2);
@@ -206,9 +218,9 @@ function throwNotes(M, now) {
         const d = Math.hypot(s[0] - hx, s[2] - hz);
         if (d < bd) { bd = d; best = s; }
       }
-      launch(M, N, hx + (Math.random() - 0.5) * 0.3, M.hand + Math.random() * 0.3, hz + (Math.random() - 0.5) * 0.3,
+      launch(M, N, ox + hx + (Math.random() - 0.5) * 0.3, oy + M.hand + Math.random() * 0.3, oz + hz + (Math.random() - 0.5) * 0.3,
         (Math.random() - 0.5) * 1.6, 2.6 + Math.random() * 2.2, (Math.random() - 0.5) * 1.6);
-      N.spot = true; N.to = best;
+      N.spot = true; N.to = [best[0] + ox, best[1] + oy, best[2] + oz, best[3]];
       M.thrown++;
     }
   }
@@ -218,6 +230,13 @@ function throwNotes(M, now) {
 // below it (a table, the stage, a deck), else the floor
 function floorUnder(x, z, fromY) {
   return WORLD.colliders ? groundHeightAt(WORLD.colliders, x, z, fromY + 0.02, 0.04) : 0;
+}
+
+/* How far the floor drops `ahead` metres in front of someone standing at
+   (x, y, z) facing camera-yaw `yaw` (0 faces -z): a thrower at a balcony's
+   rail sees a drop to the floor below (town-npcs.js throws out over it). */
+export function dropAhead(x, y, z, yaw, ahead = 1.5) {
+  return y - floorUnder(x - Math.sin(yaw) * ahead, z - Math.cos(yaw) * ahead, y + 0.3);
 }
 
 /* Every frame (club-live.js's tick): `bp` the beat position (bars land on
@@ -245,6 +264,7 @@ export function moneyTick(S, now, dt, bp, songLevel) {
 /* The notes' motion, one frame. */
 function stepNotes(M, now, dt) {
   M.now = now;
+  const off = parentOffset(M);
   const t0 = performance.now();
   let live = false;
   M.notes.forEach((N, i) => {
@@ -263,7 +283,7 @@ function stepNotes(M, now, dt) {
         if (age > LIE) M.fade.setX(i, 1 - (age - LIE) / FADE);
         _p.set(N.to[0], N.to[1] + 0.004 + N.lift, N.to[2]);
       }
-      M.mesh.setMatrixAt(i, _m.compose(_p, flatPose(_q, N.to[3]), _s.setScalar(1)));
+      M.mesh.setMatrixAt(i, _m.compose(_p.sub(off), flatPose(_q, N.to[3]), _s.setScalar(1)));
       return;
     }
     const t = now + N.seed;
@@ -300,7 +320,7 @@ function stepNotes(M, now, dt) {
     const lie = N.to ? Math.min(1, Math.max(0, 1 - (N.p.y - N.to[1]) / 0.6)) : 0;
     _q.setFromEuler(_e.set(N.rx, N.ry, N.rz, "XYZ"));
     if (lie > 0) _q.slerp(flatPose(_qf, N.to[3]), lie);
-    M.mesh.setMatrixAt(i, _m.compose(N.p, _q, _s.setScalar(1)));
+    M.mesh.setMatrixAt(i, _m.compose(_pw.subVectors(N.p, off), _q, _s.setScalar(1)));
   });
   if (live || M.wasLive) { M.mesh.instanceMatrix.needsUpdate = true; M.fade.needsUpdate = true; }
   M.wasLive = live;

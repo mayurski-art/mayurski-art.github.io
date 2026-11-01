@@ -39,6 +39,7 @@ page.on("pageerror", (e) => errors.push(e.message));
 let fails = 0;
 const check = (name, ok, info = "") => { console.log(`${ok ? "PASS" : "FAIL"}  ${name}${info ? `  (${info})` : ""}`); if (!ok) fails++; };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const FL = -7.5, B1 = -3.6;   // the club underground: B2 the dance floor, B1 the balcony (maps/kabukigrin-under.js)
 
 await page.goto(`http://127.0.0.1:${server.address().port}/troll-ops.html?tohooks=1`, { waitUntil: "domcontentloaded", timeout: 90000 });
 await page.waitForFunction(() => !!window.__trollOps, null, { timeout: 60000 });
@@ -66,18 +67,20 @@ const money = () => page.evaluate(() => {
   return d && { drops: d.drops, thrown: d.thrown, emitted: d.emitted, air: d.air, lying: d.lying };
 });
 const c0 = await crowd();
-check("the cast flags the throwers (ravers, booths, the glass, the bar)", !!c0 && c0.throwers.length >= 12 && c0.throwers.some((t) => t.role === "Barfly") && c0.throwers.some((t) => t.y === 3),
+check("the cast flags the throwers (ravers, booths, the glass, the bar)", !!c0 && c0.throwers.length >= 12 && c0.throwers.some((t) => t.role === "Barfly") && c0.throwers.some((t) => Math.abs(t.y - B1) < 0.05),
   c0 && `${c0.throwers.length}: ${[...new Set(c0.throwers.map((t) => t.role))].join(", ")}`);
 let m0 = await money();
 for (let t = 0; t < 60 && (m0.air || m0.lying.length); t++) { await wait(500); m0 = await money(); }
 
 // a Barfly at the bar: stand across from them and watch
 const bar = c0.throwers.find((t) => t.role === "Barfly");
-await page.evaluate(({ x, z }) => {
+await page.evaluate(({ x, z, FL }) => {
   const T = window.__trollOps;
-  T.move.pos.set(x - 2.6, 0, z + 1.2); if (T.move.velocity) T.move.velocity.set(0, 0, 0);
+  // on B2 in sight of the bar (from the street the crowd isn't drawn, and an
+  // unseen NPC's throw runs out with no bills)
+  T.move.pos.set(x - 2.6, FL, z + 1.2); if (T.move.velocity) T.move.velocity.set(0, 0, 0);
   T.look.yaw = Math.atan2(-(x - (x - 2.6)), -(z - (z + 1.2))); T.look.pitch = -0.25;
-}, bar);
+}, { ...bar, FL });
 // (the crowd's own schedule and the drops are held off while one NPC is
 // driven by hand, so the count is that NPC's alone)
 await page.evaluate(() => { const N = window.__trollOps.townNpcs(); N._sched = N.scheduleThrows; N._drop = N.dropThrow; N.scheduleThrows = () => {}; N.dropThrow = () => {}; });
@@ -103,16 +106,16 @@ for (let t = 0; t < 30 && f2.throwing; t++) { await wait(500); f2 = await flicks
 check("a throw flicks four times, a dozen-odd bills, and ends", f2.flick === 4 && !f2.throwing && f2.bills >= 12 && f2.bills <= 20, `${f2.flick} flicks, ${f2.bills} bills (${m2.emitted - m0.emitted} in all)`);
 check("and nobody else threw meanwhile", m2.emitted - m0.emitted === f2.bills, `${m2.emitted - m0.emitted} vs ${f2.bills}`);
 
-// a guest on the mezzanine glass: the bills go over it and down to the floor
-const mezz = c0.throwers.find((t) => t.y === 3);
+// a guest on the balcony's rail: the bills go over it and down to B2
+const mezz = c0.throwers.find((t) => Math.abs(t.y - B1) < 0.05);
 for (let t = 0; t < 60; t++) { const m = await money(); if (!m.air && !m.lying.length) break; await wait(500); }
 const m3 = await money();
-check("a mezzanine guest can be started", await startOne(mezz.i));
+check("a balcony guest can be started", await startOne(mezz.i));
 let m4 = m3;
 for (let t = 0; t < 80 && m4.lying.length < 6; t++) { await wait(500); m4 = await money(); }
-const theirs = m4.lying.filter((l) => Math.abs(l.z - mezz.z) < 3.5 && l.x < -13.4);
+const theirs = m4.lying.filter((l) => Math.hypot(l.x - mezz.x, l.z - mezz.z) < 7);
 const lowest = theirs.length ? Math.min(...theirs.map((l) => l.y)) : NaN;
-check("a mezzanine guest's bills fall to the hall floor", m4.emitted > m3.emitted && lowest < 0.5, `lowest landed at y ${lowest.toFixed(2)} of ${theirs.length} (${m4.lying.length} lying)`);
+check("a balcony guest's bills fall to the dance floor", m4.emitted > m3.emitted && lowest < FL + 0.5, `lowest landed at y ${lowest.toFixed(2)} of ${theirs.length} (${m4.lying.length} lying)`);
 await page.evaluate(() => { const N = window.__trollOps.townNpcs(); N.scheduleThrows = N._sched; N.dropThrow = N._drop; });
 
 // a drop: the crowd throws, not the anonymous hands

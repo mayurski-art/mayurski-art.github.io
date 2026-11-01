@@ -44,7 +44,7 @@ import { SmithWork } from "./smithy.js?v=sm1b7b7dc2f1m1-gt1-gt2-cw1-zr10-bf1-sr1
 import { setReliefFace } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1-mb1-mb2-nft2531-kbc1";
 import { wearOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1-gb3-rh1";
 import { holdInstrument, poseInstrument } from "../characters/instruments.js?v=in1-bw2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-mb1-mb2-nft2531-kbc1";
-import { emitMoney, onMoneyDrop } from "./club-money.js?v=mn2-kbc1";
+import { emitMoney, onMoneyDrop, dropAhead } from "./club-money.js?v=mn2-kbc1-mn3";
 import { roomNow } from "../modes/room-clock.js?v=rc1-cd1-sh1";
 
 const WALK_MPS = 1.25;
@@ -283,6 +283,9 @@ export class TownNpcs {
       if (n.c.stops) this.roam(n, dt);
       else if (WALKERS.has(n.c.act)) this.walk(n, dt);
       n.smith?.step(dt, hidden ? Infinity : d, audio);
+      // a throw nobody can see runs its clock out unseen (no bills), or the
+      // thrower would stay mid-throw for good and never throw again
+      if (hidden && n.throwT != null && (n.throwT += dt) > THROW_SECS) n.throwT = null;
       if (hidden) continue;
       // Far off, pose a few times a second instead of every frame.
       n.poseAcc += dt;
@@ -339,9 +342,12 @@ export class TownNpcs {
       p.handR.getWorldPosition(_throwHand);
       // up and over from the floor; out and over the rail from a deck (the
       // mezzanine guests: a lob lands on the parapet, a throw clears it)
-      const deck = (c.y ?? 0) >= 2.5;
-      _throwDir.set(-Math.sin(n.yaw) * (deck ? 1.5 : 0.6), deck ? 0.7 : 1, -Math.cos(n.yaw) * (deck ? 1.5 : 0.6));
-      n.bills = (n.bills || 0) + emitMoney(_throwHand, _throwDir, 3 + Math.floor(Math.random() * 3), { speed: deck ? 4.2 : 3.2, spread: deck ? 0.5 : 0.9, up: 0.2 });
+      // (at a rail: the floor 1.5 m ahead drops away, club-money.js dropAhead;
+      // measured once a throw, off the colliders, so any layout works)
+      n.deck ??= dropAhead(n.x, c.y ?? 0, n.z, n.yaw) > 1.5;
+      const deck = n.deck;
+      _throwDir.set(-Math.sin(n.yaw) * (deck ? 2.2 : 0.6), deck ? 0.9 : 1, -Math.cos(n.yaw) * (deck ? 2.2 : 0.6));
+      n.bills = (n.bills || 0) + emitMoney(_throwHand, _throwDir, 3 + Math.floor(Math.random() * 3), { speed: deck ? 6 : 3.2, spread: deck ? 0.4 : 0.9, up: 0.2 });
     }
     rig.body?.update?.();
   }
