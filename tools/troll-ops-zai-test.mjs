@@ -305,7 +305,7 @@ async function ai() {
     const spots = await spotsFor(page);
     for (const spot of spots) {
       for (const [type, round, crawl] of [["walker", 3, false], ["walker", 15, false], ["walker", 8, true]]) {
-        const r = await R(page, (a) => window.__zsim.run(a), { player: spot, type, round, crawl, n: crawl ? 4 : 12, secs: crawl ? 70 : 45 });
+        const r = await R(page, (a) => window.__zsim.run(a), { player: spot, type, round, crawl, n: crawl ? 4 : 12, secs: +(process.env.SECS || (crawl ? 120 : 90)) });
         const got = r.zs.filter((z) => z.at != null);
         const ts = got.map((z) => z.at).sort((a, b) => a - b);
         const med = ts.length ? ts[ts.length >> 1] : null;
@@ -329,6 +329,13 @@ async function ai() {
 async function debug() {
   const page = await open(MAPS[0]);
   await installSim(page);
+  if (process.env.BOX) {
+    const [x0, x1, z0, z1] = process.env.BOX.split(",").map(Number);
+    const cs = await R(page, (b) => window.__zsim.live.colliders.filter((c) => c.max.x > b[0] && c.min.x < b[1] && c.max.z > b[2] && c.min.z < b[3] && c.max.y > -0.5)
+      .map((c) => [c.min.x, c.max.x, c.min.y, c.max.y, c.min.z, c.max.z].map((v) => +v.toFixed(2)).join(" ")), [x0, x1, z0, z1]);
+    console.log(cs.join("\n"));
+    return;
+  }
   const spots = await spotsFor(page);
   const which = (process.env.SPOTS || '1').split(',').map(Number);
   for (const i of which) {
@@ -337,7 +344,160 @@ async function debug() {
     console.log(r.traces.join("\n"));
   }
 }
-const SECTIONS = { rebuild, hud, hp, ai, debug };
+/* ---------------------------------------------------------------- turret */
+/* On each map, on the live horde (stood down, its zombies planted with
+   holdT so they stay put): a turret between two zombies goes for the one
+   by the player, not the one by itself; aims low at a crawler; and never
+   fires at one behind a wall. */
+async function turret() {
+  for (const map of MAPS) {
+    const page = await open(map);
+    const r = await R(page, async () => {
+      const T = window.__trollOps, zd = T.zdir(), run = T.zrun();
+      zd.clear(); zd.state = "idle";
+      const sleep = (ms) => new Promise((q) => setTimeout(q, ms));
+      const f = T.move.pos;
+      const ground = f.y;
+      // the open side: the direction with the longest clear run from the player
+      const H = await import(performance.getEntriesByType("resource").map((e) => e.name).find((n) => /modes\/zombies\/horde\.js/.test(n)));
+      let ang = 0, bestRun = -1;
+      for (let a = 0; a < 16; a++) {
+        const th = (a / 16) * Math.PI * 2;
+        let k = 0;
+        while (k < 14 && H.lineClear(zd.colliders, f, { x: f.x + Math.cos(th) * (k + 1), z: f.z + Math.sin(th) * (k + 1) }, ground)) k++;
+        if (k > bestRun) { bestRun = k; ang = th; }
+      }
+      const ux = Math.cos(ang), uz = Math.sin(ang);
+      const at = (d, side = 0) => ({ x: f.x + ux * d - uz * side, z: f.z + uz * d + ux * side });
+      const put = (p, crawl = false) => {
+        const z = new H.Zombie("walker", new T.THREE.Vector3(p.x, ground, p.z), T.scene, 5, {});
+        z.hp = z.maxHp = 1e7; z.holdT = 1e9;
+        if (crawl) z.makeCrawler();
+        zd.zombies.push(z);
+        return z;
+      };
+      // turret 4 m out; A beside the turret (6.5 m from the player), B 1.6 m from the player
+      const tp = at(4, 0.8);
+      const tur = run.spawn("turret", tp.x, ground, tp.z, 0);
+      const until = async (fn, ms) => { const t = performance.now(); while (!fn() && performance.now() - t < ms) await sleep(100); return fn(); };
+      await until(() => tur.armed, 15000);
+      const A = put(at(6.5, 0.8));
+      const B = put(at(1.6, -0.9));
+      let onB = 0, onA = 0;
+      for (let i = 0; i < 40; i++) { if (tur.target === B) onB++; else if (tur.target === A) onA++; await sleep(80); }
+      const pick1 = { onB, onA, shots: tur.shots };
+      // a crawler: aimed low
+      A.dispose(T.scene); B.dispose(T.scene); zd.zombies = [];
+      const C = put(at(2.4, 0.8), true);
+      await until(() => tur.target === C, 8000);
+      const aimY = tur.target === C ? +(tur.aimPoint(C).y - ground).toFixed(2) : null;
+      const crawling = !!C.crawling;
+      C.dispose(T.scene); zd.zombies = [];
+      // a real wave on the move: every shot checked against the map's boxes
+      // on its own (a 3D segment-box test), so none goes into a wall
+      const boxes = zd.colliders.filter((c) => !c.deploy);
+      const blocked = (a, b) => {
+        for (const c of boxes) {
+          const inA = a.x > c.min.x && a.x < c.max.x && a.y > c.min.y && a.y < c.max.y && a.z > c.min.z && a.z < c.max.z;
+          const inB = b.x > c.min.x && b.x < c.max.x && b.y > c.min.y && b.y < c.max.y && b.z > c.min.z && b.z < c.max.z;
+          if (inA || inB) continue;
+          let t0 = 0, t1 = 1, ok = true;
+          for (const k of ["x", "y", "z"]) {
+            const d = b[k] - a[k];
+            if (Math.abs(d) < 1e-9) { if (a[k] < c.min[k] || a[k] > c.max[k]) { ok = false; break; } continue; }
+            let u = (c.min[k] - a[k]) / d, v = (c.max[k] - a[k]) / d;
+            if (u > v) [u, v] = [v, u];
+            t0 = Math.max(t0, u); t1 = Math.min(t1, v);
+            if (t0 > t1) { ok = false; break; }
+          }
+          // a hit only counts well short of the target (its own feet's box aside)
+          if (ok && t0 < 0.93) return true;
+        }
+        return false;
+      };
+      let wallShots = 0, waveShots = 0;
+      const fire = tur.fire.bind(tur);
+      tur.fire = () => {
+        waveShots++;
+        if (blocked(tur.muzzle, tur.aimPoint(tur.target).clone())) wallShots++;
+        fire();
+      };
+      zd.startRound(8);
+      await sleep(15000);
+      zd.clear(); zd.state = "idle";
+      const hiddenTarget = false;
+      return { pick1, aimY, crawling, wallShots, waveShots, run: bestRun };
+    });
+    console.log(map, JSON.stringify(r));
+    check(r.pick1.onB > r.pick1.onA * 3 && r.pick1.shots > 0, `${map}: the turret shoots the one by the player, not the one by itself`, JSON.stringify(r.pick1));
+    check(r.aimY != null && r.aimY < 0.6, `${map}: a crawler is aimed at low`, `aim ${r.aimY} m up`);
+    check(r.waveShots > 0 && r.wallShots === 0, `${map}: a wave on the move, no shot into a wall`, `${r.wallShots} of ${r.waveShots} shots blocked`);
+    await page.screenshot({ path: path.join(SHOTS, `zai-turret-${map}.png`) });
+    check(!page.errors.length, `${map}: no page errors`, page.errors.slice(0, 3).join(" | "));
+    await page.close();
+  }
+}
+
+/* ---------------------------------------------------------------- spawns */
+/* Each map's entry points, picked 40 times from each test spot by the
+   director, against the old pick (four random draws, farthest past 6 m):
+   how many land in the player's sight within 18 m, the nearest, and how
+   many different points get used. */
+async function spawns() {
+  for (const map of MAPS) {
+    const page = await open(map);
+    await installSim(page);
+    const spots = await spotsFor(page);
+    const r = await R(page, (spots) => {
+      const S = window.__zsim, H = S.H, live = S.live;
+      const dir = new H.ZombieDirector(new window.__trollOps.THREE.Scene(), live.arena, live.colliders, S.layout);
+      const old = (feet) => {
+        const floor = dir.floorOf(feet.y, feet.x, feet.z);
+        const here = dir.windows.filter((w) => dir.floorOf(w.y + 0.2, w.x, w.z) === floor);
+        const pool = here.length ? here : dir.windows;
+        const ideal = S.layout.preferDist || 0;
+        let best = null, bs = -Infinity;
+        for (let i = 0; i < (ideal ? 6 : 4); i++) {
+          const w = pool[Math.floor(Math.random() * pool.length)];
+          const d = Math.hypot(w.x - feet.x, w.z - feet.z);
+          const sc = ideal ? (d < 7 ? d - 100 : -Math.abs(d - ideal)) : (d > 6 ? d : -d);
+          if (sc > bs) { bs = sc; best = w; }
+        }
+        return best;
+      };
+      const rate = (pick, feet) => {
+        let seen = 0, near = Infinity, repeat = 0, last = null;
+        const used = new Set();
+        for (let i = 0; i < 40; i++) {
+          const w = pick(feet);
+          const d = Math.hypot(w.x - feet.x, w.z - feet.z);
+          near = Math.min(near, d);
+          if (d < 18 && H.lineClear(live.colliders, feet, w, Math.min(feet.y, w.y))) seen++;
+          if (w === last) repeat++;
+          last = w;
+          used.add(w);
+        }
+        return { seen, near: +near.toFixed(1), used: used.size, repeat };
+      };
+      return { total: dir.windows.length, rows: spots.map((sp) => {
+        const feet = { x: sp.x, y: sp.y + 0.2, z: sp.z };
+        dir.recentSpawns = [];
+        return { spot: sp.name, before: rate(old, feet), after: rate((f) => dir.spawnPointFor(f), feet) };
+      }) };
+    }, spots);
+    console.log(`${map}: ${r.total} entry points`);
+    for (const row of r.rows) {
+      console.log(`  ${row.spot.padEnd(22)} before ${JSON.stringify(row.before)}  after ${JSON.stringify(row.after)}`);
+      check(row.after.seen <= row.before.seen && row.after.seen <= 4, `${map} ${row.spot}: spawns out of sight (in sight ${row.before.seen}/40 -> ${row.after.seen}/40)`);
+      check(row.after.near >= 6, `${map} ${row.spot}: none on top of the player`, `nearest ${row.after.near} m`);
+      check(row.after.repeat <= 2, `${map} ${row.spot}: not the same point twice running`, `repeats ${row.before.repeat} -> ${row.after.repeat}`);
+    }
+    check(!page.errors.length, `${map}: no page errors`, page.errors.slice(0, 3).join(" | "));
+    await page.close();
+  }
+}
+
+const SECTIONS = { rebuild, hud, hp, ai, debug, turret, spawns };
 if (!SECTIONS[section]) { console.log(`unknown section ${section}: ${Object.keys(SECTIONS).join(" ")}`); process.exit(2); }
 try { await SECTIONS[section](); } catch (e) { check(false, "threw", String(e?.stack || e)); }
 await browser.close();
