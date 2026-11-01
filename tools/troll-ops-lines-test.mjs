@@ -137,7 +137,8 @@ function segHitsBox(a, b, B) {
 }
 // eye points: anywhere in the room a player can be (not over a table); a
 // ray the table itself blocks says nothing about the props on it
-const tableBox = ([x, z, w, d]) => [x - w / 2, 0.3, z - d / 2, x + w / 2, 0.75, z + d / 2];
+// (a ray skimming within 2 cm of a table top is the table's own grazing view, not a prop's)
+const tableBox = ([x, z, w, d]) => [x - w / 2, 0.3, z - d / 2, x + w / 2, 0.77, z + d / 2];
 const overTable = (x, z) => TABLES.some(([tx, tz, w, d]) => Math.abs(x - tx) < w / 2 + 0.25 && Math.abs(z - tz) < d / 2 + 0.25);
 const eyes = [];
 for (let x = -31.3; x <= -24.4; x += 0.45) for (let z = 24.5; z <= 29.6; z += 0.45) for (const h of [0.62, 0.95, 1.6]) if (!overTable(x, z)) eyes.push([x, 0.3 + h, z]);
@@ -177,7 +178,7 @@ l = await LS(A);
 check("leaning in: the eye drops and the camera pitches down at the mirror", l.eye < 1.2 && l.cam.pitch < -0.6, JSON.stringify({ eye0, eye: l.eye, cam: l.cam }));
 const tb0 = (await tables(A))[0];
 check("the table's props run for the line (started, by me, hand hidden in first person)", !!tb0.st.start && tb0.st.by === "me" && tb0.st.hideHand, JSON.stringify(tb0.st));
-const beatShots = [["02-candle", 1.0], ["03-crush", 1.75], ["04-cut", 3.3], ["05-bill", 4.15], ["06-snort", 4.7], ["07-snap", 5.15]];
+const beatShots = [["02-candle", 1.0], ["03-crush", 1.75], ["04-cut", 3.3], ["05-bill", 4.15]];
 for (const [name, t] of beatShots) {
   await A.evaluate((t) => window.__trollLines.setT(t), t);
   await pumpAll([A], 350);
@@ -185,13 +186,21 @@ for (const [name, t] of beatShots) {
 }
 console.log("fp arms:", JSON.stringify(await A.evaluate(() => { const T = window.__trollOps; const a = T.streakArms.userData.arms; return { ...T.socialArms(), vis: T.streakArms.visible, rods: a.map((x) => x.rod.visible), hands: a.map((x) => x.hand.position.toArray().map((v) => +v.toFixed(2))) }; })));
 // the body in third person, mid-cut
-await A.evaluate(() => { window.__trollLines.setT(3.3); window.__trollOps.toggleThirdPerson(); });
-await pumpAll([A], 400);
+await A.evaluate(() => { window.__trollLines.setT(2.6); window.__trollOps.toggleThirdPerson(); });
+await pumpAll([A], 200);
+await A.evaluate(() => window.__trollLines.setT(2.9));
+await pumpAll([A], 120);
 await shot(A, "08-body-3p");
-await A.evaluate(() => { window.__trollLines.setT(4.6); });
-await pumpAll([A], 300);
+await A.evaluate(() => { window.__trollLines.setT(4.4); });
+await pumpAll([A], 120);
 await shot(A, "09-body-3p-snort");
 await A.evaluate(() => window.__trollOps.toggleThirdPerson());
+await A.evaluate(() => window.__trollLines.setT(4.7));
+await pumpAll([A], 200);
+await shot(A, "06-snort");
+await A.evaluate(() => window.__trollLines.setT(5.15));
+await pumpAll([A], 150);
+await shot(A, "07-snap");
 await A.evaluate(() => window.__trollLines.setT(5.7));
 await until([A], async () => (await LS(A)).done >= 1, 4000);
 l = await LS(A);

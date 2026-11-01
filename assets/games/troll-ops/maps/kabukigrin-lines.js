@@ -15,7 +15,7 @@
 // (the local user in first person holds their own card and bill).
 //
 // Rule 9: it all lies on the table tops (0.75); the stand is the tallest
-// piece at 6 cm (a kneeling eye by the tank grazed taller ones). The test raycasts the room's eye points at the koi tank,
+// piece at under 2 cm (a kneeling eye by the tank grazed anything taller). The test raycasts the room's eye points at the koi tank,
 // the noren, the lattice window and the doors against these boxes.
 
 import * as THREE from "three";
@@ -259,21 +259,24 @@ function lineGeometry(seedN = 5) {
    tray and the stand sit in a frame with +x along it. `stand`: where you
    stand to use it (the open end, or the side clear of the cushions), the
    camera yaw facing the table. `cushions`: the rp seats beside it. */
+// Each stand sits at the table edge away from the doors (rule 9: a
+// kneeling eye by the tank looks across the table middle at their feet).
 // The tray frame's +x runs left-to-right as seen from `at`, so the line
 // always lies across the user's view (`ry` turns the frame; the tray and
 // the stand are placed in it). Tables 1 and 2 are used from their east
 // end, facing west; table 3 from its west side (its east is the wall).
 export const LINE_TABLES = [
-  { x: -29.9, z: 25.9, top: 0.75, floor: 0.3, ry: Math.PI / 2, tray: [0, 0.26], stand: [0, -0.04], at: { x: -28.95, z: 25.9, yaw: Math.PI / 2 }, cushions: [[-29.9, 25.2], [-29.9, 26.6]] },
-  { x: -29.9, z: 28.3, top: 0.75, floor: 0.3, ry: Math.PI / 2, tray: [0, 0.26], stand: [0, -0.04], at: { x: -28.95, z: 28.3, yaw: Math.PI / 2 }, cushions: [[-29.9, 27.6], [-29.9, 29.0]] },
-  { x: -24.9, z: 27.0, top: 0.75, floor: 0.3, ry: -Math.PI / 2, tray: [0, 0.1], stand: [0.4, -0.08], at: { x: -25.78, z: 27.0, yaw: -Math.PI / 2 }, cushions: [[-24.9, 26.0], [-24.9, 28.0]] },
+  { x: -29.9, z: 25.9, top: 0.75, floor: 0.3, ry: Math.PI / 2, tray: [0, 0.26], stand: [-0.17, -0.04], at: { x: -28.95, z: 25.9, yaw: Math.PI / 2 }, cushions: [[-29.9, 25.2], [-29.9, 26.6]] },
+  { x: -29.9, z: 28.3, top: 0.75, floor: 0.3, ry: Math.PI / 2, tray: [0, 0.26], stand: [0.17, -0.04], at: { x: -28.95, z: 28.3, yaw: Math.PI / 2 }, cushions: [[-29.9, 27.6], [-29.9, 29.0]] },
+  { x: -24.9, z: 27.0, top: 0.75, floor: 0.3, ry: -Math.PI / 2, tray: [0, 0.1], stand: [0.3, -0.08], at: { x: -25.78, z: 27.0, yaw: -Math.PI / 2 }, cushions: [[-24.9, 26.0], [-24.9, 28.0]] },
 ];
 
+const KIT_SCALE = 1.5;
 const CANDLES = [   // the stand, left to right: [height, red?]
-  [0.02, false], [0.03, false], [0.024, true], [0.038, false], [0.046, false],
+  [0.016, false], [0.024, false], [0.019, true], [0.03, false], [0.037, false],
 ];
 const TAKEN = 4;    // the tall one on the right is the one you take
-const CANDLE_W = 0.011, WICK = 0.006, BASE_H = 0.012, GRAINS = 120, STRAYS = 36;
+const CANDLE_W = 0.009, WICK = 0.006, BASE_H = 0.003, GRAINS = 120, STRAYS = 36;
 
 let MATS = null;
 export function materials() {
@@ -336,6 +339,9 @@ function buildTable(T, M, i) {
   const g = new THREE.Group();
   g.position.set(T.x, T.top, T.z);
   g.rotation.y = T.ry;
+  // a touch bigger than life, so it reads from where you stand (the
+  // stand's candles are shorter to keep it under 9 cm all told)
+  g.scale.setScalar(KIT_SCALE);
   const [tx, tz] = T.tray;
   const [sx, sz] = T.stand;
 
@@ -350,15 +356,19 @@ function buildTable(T, M, i) {
   glass.position.set(tx, 0.0045, tz);
   g.add(back, rim, glass);
 
-  // the candle stand: an acrylic base, five candles stepping up, the red dip in the middle
-  const base = new THREE.Mesh(new THREE.BoxGeometry(0.13, BASE_H, 0.05), M.acrylic);
+  // the candle box: a shallow acrylic tray, five candles laid side by side
+  // in it longest last, the red dip in the middle (flat: rule 9, an upright
+  // stand on a table this low crossed some kneeling sightline to a door)
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.06, BASE_H, 0.075), M.acrylic);
   base.position.set(sx, BASE_H / 2, sz);
   base.renderOrder = 2;
   g.add(base);
   const slots = [];
   CANDLES.forEach(([h, red], k) => {
     const c = candle(h, red, M);
-    c.position.set(sx - 0.048 + k * 0.024, BASE_H, sz);
+    // lying along -x from its base end (the roll turns its length that way)
+    c.position.set(sx + 0.025, BASE_H + CANDLE_W / 2, sz - 0.028 + k * 0.014);
+    c.rotation.z = Math.PI / 2;
     slots.push(c.position.clone());
     if (k === TAKEN) c.userData.taken = true;
     g.add(c);
@@ -440,19 +450,19 @@ function poseTable(P, st, now, cam) {
   if (!S.active || finished) {
     c.visible = true;
     c.position.copy(P.slot);
-    c.rotation.set(0, 0, 0);
+    c.rotation.set(0, 0, Math.PI / 2);
     c.scale.setScalar(1);
     if (S.done && t < BEATS.end + 0.4) { const k = (t - BEATS.end) / 0.4; c.scale.setScalar(0.2 + 0.8 * k); }   // pops back up
   } else {
     const k = S.pick, h = c.userData.h;
     c.visible = S.gone < 1;
-    // from upright in its slot to lying on its side on the glass, mid-way up in an arc
-    c.position.set(P.slot.x + (P.tx - P.slot.x) * k, P.slot.y + (0.0045 + CANDLE_W / 2 - P.slot.y) * k + Math.sin(k * Math.PI) * 0.06, P.slot.z + (P.tz - P.slot.z) * k);
-    c.rotation.set(0, 0, Math.PI / 2 * k);
-    // lying along x: the body's local y runs along -x after the roll; its origin is the base, so shift by half its length
-    c.position.x += (h / 2) * k;
+    // out of the box and onto the glass in an arc, still lying along x,
+    // centred on the tray (its origin is the base end, so half its length over)
+    const gx = P.tx + h / 2;
+    c.position.set(P.slot.x + (gx - P.slot.x) * k, P.slot.y + (0.0045 + CANDLE_W / 2 - P.slot.y) * k + Math.sin(k * Math.PI) * 0.06, P.slot.z + (P.tz - P.slot.z) * k);
+    c.rotation.set(0, 0, Math.PI / 2);
     const sq = 1 - 0.85 * S.squash;
-    c.scale.set(1 + 0.7 * S.squash, sq, 1 + 0.7 * S.squash);
+    c.scale.set(1 - 0.75 * S.squash, 1 + 0.25 * S.squash, 1 + 0.9 * S.squash);   // lying: local x is up, pressed flat and spread
     c.children[0].material.transparent = false;
   }
   // the powder
