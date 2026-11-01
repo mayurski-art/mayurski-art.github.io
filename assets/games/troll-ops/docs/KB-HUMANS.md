@@ -1,10 +1,12 @@
-# Moving humans in Kabukigrin (the club and the streets)
+# Moving humans in Kabukigrin and Troll Beach
 
 The user (2026-10-31): "i would like the mannequins to look like they are
 real in the sense that they move you know. reach for things bend down and
 what not ... lets have this in trolling loud club and here and there
 sprinkle some trolls and humans in the streets and what not other spots
-hanging around outside."
+hanging around outside." And later: "we should also have humans and
+trolls interacting in the troll beach and imagine getting to play with a
+human or troll in tennis and basketball" (section 6b).
 
 So the people in Kabukigrin's Socialize crowd become a mix of trolls and
 real-looking humans, like Hollowgrin's mannequins. These humans move,
@@ -13,7 +15,7 @@ reach for things and bend down: a bottle off the shelf, a can from the
 vending machine's slot, a bill off the floor, a lighter, a phone. The club
 gets most of them, and small groups hang around outside on the streets.
 
-Status: draft, waiting on the user's picks (section 9).
+Status: draft, waiting on the user's picks (section 9). Nothing is built yet.
 
 ## 1. What we already have
 
@@ -165,6 +167,77 @@ hands:
 About 20 more NPCs outside, half human. The street's NPCs stay where
 versus players never are: Socialize only, as the crowd is today.
 
+## 6b. Troll Beach: humans and trolls together, and on the courts
+
+Troll Beach already has a crowd (`maps/grinbeach-social.js`) and three
+court games with NPCs you play against or with
+(docs/GRIN-BEACH-COURTS.md). Hoops has a ladder: three regulars under the
+south hoop, then Hoops Hank, Crossover Carla and Big Grin. Tennis has the
+club pros Deuce Dominguez and Ace Alvarez. Volleyball has four ballers who
+make up a 2v2. The games already drive those NPCs through `takeOver`, with
+the dribbles, crossovers, dunks and strokes posed on the stick rig. So a
+human body plays the same game with nothing changed in the game code: it
+follows the rig like it does for the club acts.
+
+**On the courts: play a human or a troll.**
+
+- **Hoops:** the ladder alternates. Regular 1 troll, regular 2 human,
+  regular 3 troll, then Hoops Hank human (post moves), Crossover Carla
+  human (handles), Big Grin stays a troll (the dunker, the boss). A 2v2
+  filler is whichever is next, so you get mixed teams.
+- **Tennis:** Deuce Dominguez is a human (the first match), Ace Alvarez
+  a troll (the hard one). Hold X at the umpire's chair still picks "the
+  next pro", and the prompt names who.
+- **Volleyball:** two of the four are human, one on each side.
+- **What makes a human opponent read as real:** the elbows and knees
+  bend into a crossover, the wrist flicks on a jumper, the hips turn
+  through a forehand and the legs split-step before a return. That's the
+  driver's full solve, and court opponents always get it whatever the
+  distance (they're never more than a court away). The ball and the racket
+  sit in the human's fingers: `ballInHands` and the racket mount read the
+  body's hand bones, not the stick rig's, while a human holds them.
+- **Between points:** a fist bump or high five with your 2v2 teammate
+  after a bucket (the `hand` act's meet-in-the-middle, two hands in
+  place of one handing over), a handshake at the net after a tennis
+  match, the loser jogging to fetch the ball. Trolls and humans do it with
+  each other the same way.
+
+**Around the beach: mixed, with things to do together.** Roughly half
+the beach crowd human, the pairs mixed:
+
+- **The stalls:** Sno Cone Sal (troll) hands a shaved ice to a human
+  customer, who takes it (`hand`). A human browses the tees (`shelf`,
+  holding one up).
+- **The sand:** sunbathers on the loungers and towels, mixed; one sits
+  up to put on sunscreen and lies back down. A human and a troll toss a
+  frisbee or a football by the water (`hand` thrown long: an arc between
+  two hands, caught on the room clock).
+- **Muscle Beach:** a human lifter curling, Spotter Steve (troll)
+  spotting him with his hands under the bar.
+- **The lifeguard tower:** Lifeguard Lenny stays a troll; a human
+  lifeguard leans on the rail beside him with binoculars.
+- **The surfers:** at the racks, mixed, one waxing a board (bend over
+  it, the hand going back and forth). Out on the water the surf code
+  rides them; humans ride the same way.
+- **The bleachers:** mixed watchers who stand and cheer a made basket
+  or a tennis point (the games already tell the room when they happen).
+
+**Beach looks (4 more, built in the same file):**
+
+| look | who |
+|---|---|
+| `beach_m` | board shorts, open shirt or bare chest, sunglasses, barefoot |
+| `beach_f` | one-piece or bikini top with a sarong, sun hat, sandals |
+| `baller` | jersey, long shorts, headband, high-tops (hoops, volleyball in a tank) |
+| `tennis` | tennis whites (a polo and shorts, or a dress and visor), wristbands |
+
+Bare arms and legs show the bend more than clothes do, so these looks get
+their elbows, knees and shoulders checked in a four-view sheet mid-move (a
+crossover, a serve, a squat), not just standing.
+
+Rule 9 at the beach is the same test: no NPC in front of the scoreboards,
+the stall signs or the hoop's backboard from a reachable eye point.
+
 ## 7. Rule 9 (nothing blocks anything)
 
 No NPC stands in front of a screen, sign, window or doorway face from any
@@ -188,7 +261,14 @@ stays clear while the act plays. The `photo` and `selfie` NPCs face
    person.
 4. **The other 4 looks and the other acts.**
 5. **The streets:** the groups in section 6, with the rule-9 test.
-6. **The club:** section 5, after the underground club merges.
+6. **The beach looks and the courts:** the four beach looks, the human
+   opponents and teammates in hoops, tennis and volleyball, with the ball
+   and racket in human hands, plus the fist bumps and the net handshake.
+   Tested by playing a full game against each human, with screenshots
+   mid-crossover and mid-serve.
+7. **The beach crowd:** section 6b's pairs, the cheering, the rule-9
+   test.
+8. **The club:** section 5, after the underground club merges.
 
 Each phase lands as its own commit with its own targeted test, in a
 private room, with screenshots before I show it.
@@ -206,3 +286,10 @@ private room, with screenshots before I show it.
 4. **The club's timing:** build the bodies, the driver, the acts and the
    streets now, and the club once the underground club merges
    (recommended), or wait to do it all together.
+5. **Who's human on the courts:** the split in section 6b
+   (recommended: half the hoops ladder, Deuce human and Ace a troll, two
+   of four in volleyball), or let you pick troll or human at the chair and
+   the hoop each time, or humans only.
+6. **The beach's order:** after the Kabukigrin streets (recommended, so
+   the driver and acts are proven first), or the courts first, since that's
+   the part you play.
