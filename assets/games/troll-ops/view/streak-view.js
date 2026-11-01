@@ -191,7 +191,7 @@ export function updateStreakView(dt) {
   // Tablet: rises from low with both hands, screen tipping up to the eye,
   // then settles with a slight idle drift. A UAV/gunship call gets a right-
   // thumb press on CONFIRM and the page flips; the strike tablet just holds.
-  const calling = ["uav", "counteruav", "vsat", "gunship", "k9", "warship", "swarm", "dragonfire", "samturret"].includes(game.streakScreen);
+  const calling = ["uav", "counteruav", "vsat", "gunship", "k9", "warship", "swarm", "dragonfire", "samturret", "sentrygun"].includes(game.streakScreen);
   const pk = calling ? (game.streakHoldElapsed - TABLET_PRESS_AT) / 0.22 : -1;
   const press = pk > 0 && pk < 1 ? Math.sin(pk * Math.PI) : 0;
   const confirmed = calling && pk >= 0.5;

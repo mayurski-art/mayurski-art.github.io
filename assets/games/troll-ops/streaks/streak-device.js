@@ -333,11 +333,11 @@ function overlay() {
 
 const TITLES = { uav: "UAV // RECON", counteruav: "COUNTER-UAV // JAMMER", vsat: "ORBITAL VSAT // UPLINK", gunship: "GUNSHIP // AIR SUPPORT", strike: "LIGHTNING STRIKE",
   k9: "K9 UNIT // RELEASE", warship: "VTOL WARSHIP // GUNNER", swarm: "SWARM // HK DRONES",
-  dragonfire: "DRAGONFIRE // PILOT LINK", samturret: "SAM TURRET // AIR DEFENSE" };
+  dragonfire: "DRAGONFIRE // PILOT LINK", samturret: "SAM TURRET // AIR DEFENSE", sentrygun: "SENTRY GUN // AREA DENIAL" };
 const CONFIRMED = { uav: "UAV ONLINE", counteruav: "JAMMING ENEMY", vsat: "SATELLITE ONLINE", gunship: "CONFIRMED — INBOUND", k9: "DOGS RELEASED", warship: "CONFIRMED — BOARDING", swarm: "SWARM INBOUND",
-  dragonfire: "LINK UP — LAUNCHING", samturret: "DEPLOYED — ARMED" };
+  dragonfire: "LINK UP — LAUNCHING", samturret: "DEPLOYED — ARMED", sentrygun: "DEPLOYED — GUARDING" };
 const ASSET = { uav: "RQ-7 SHADOW", counteruav: "RQ-7 / ECM POD", vsat: "AEHF-4 SAT", gunship: "AH-64E", strike: "F-35A x3", k9: "MWD TEAM x6", warship: "CV-22 GUNSHIP", swarm: "SWITCHBLADE x24",
-  dragonfire: "QUAD / LMG", samturret: "AVENGER POD" };
+  dragonfire: "QUAD / LMG", samturret: "AVENGER POD", sentrygun: "AUTO SENTRY / 6-BBL" };
 
 /* Redraw the tablet screen. `mode` is what's being called: "uav",
    "gunship", "strike", or anything else for the idle feed. `t` is seconds
@@ -357,7 +357,7 @@ export function drawTabletScreen(device, mode, t, confirmed) {
   g.translate(0, MAP_Y);
   const me = game.move?.pos ? base.to(game.move.pos.x, game.move.pos.z) : [W / 2, MAP_H / 2];
   const yaw = game.look?.yaw || 0;
-  if (mode === "uav" || mode === "samturret" || mode === "counteruav") {
+  if (mode === "uav" || mode === "samturret" || mode === "sentrygun" || mode === "counteruav") {
     // the radar sweep from where we stand, a wedge fading behind its edge
     const a = t * 2.6 - Math.PI / 2;
     const r = Math.max(W, MAP_H);

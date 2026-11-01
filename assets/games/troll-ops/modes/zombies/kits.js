@@ -8,7 +8,7 @@
 // Distances are metres. Zombie Rush quotes studs (about 0.28 m): its
 // turret's 56-stud range is ~16 m, the barrel's 19-stud blast ~5.3 m.
 // Health and damage are tuned to our zombies (healthForRound: 150 HP on
-// wave 1, ~1,000 by wave 10, ~7,000 by wave 30), not copied.
+// wave 1, ~800 by wave 10, ~2,300 by wave 30), not copied.
 
 export const DEPLOYABLES = {
   turret: {
@@ -18,7 +18,7 @@ export const DEPLOYABLES = {
     hp: 280,
     range: 16, fireRate: 6, damage: 18,   // ~108 DPS at level 1
     turn: 5.5,                       // rad/s the head slews
-    size: { w: 0.9, d: 0.9, h: 1.05 },
+    size: { w: 1.05, d: 1.05, h: 1.3 },   // the BO2-size sentry gun (models/build_zkit)
     levelUp: { damage: 0.1, hp: 0.1, range: 0.04 },
   },
   barricade: {

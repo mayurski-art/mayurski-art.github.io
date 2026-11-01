@@ -2348,7 +2348,7 @@ function animate() {
       targetMeshes = remotes.hitMeshes(ffa ? null : net.team);
       for (const e of streakEntities.values()) {
         if (e instanceof K9Pack && k9Hostile(e)) targetMeshes.push(...e.hitMeshes());
-        else if (e instanceof SamTurret && streakHostileToMe(e)) targetMeshes.push(...e.hitMeshes());
+        else if ((e instanceof SamTurret || e.groundKit) && streakHostileToMe(e)) targetMeshes.push(...e.hitMeshes());
       }
       for (const a of enemyAirFor(net.team, net.id)) {
         if (a.e instanceof Dragonfire) targetMeshes.push(...a.e.hitMeshes());

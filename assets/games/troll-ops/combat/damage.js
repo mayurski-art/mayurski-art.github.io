@@ -69,6 +69,7 @@ const STREAK_KILL_NAMES = {
   warship: "VTOL Warship",
   swarm: "Swarm",
   dragonfire: "Dragonfire",
+  sentrygun: "Sentry Gun",
   bomb: "Bomb",
   zone: "the Cringe",
 };

@@ -60,6 +60,7 @@ export const run = {
 /* Match setup, once the director exists and the loadout is equipped. */
 export function startZombieRun() {
   run.live = true;
+  if (game.move) game.move.mantleFromGround = true;
   run.won = false;
   run.downed = false;
   run.bleedT = 0;
@@ -114,6 +115,7 @@ export function startZombieRun() {
 /* The run is over (game over, quit, a new match): HUD off. */
 export function stopZombieRun() {
   run.live = false;
+  if (game.move) game.move.mantleFromGround = false;
   run.waiting = false;
   game.player.downed = false;
   game.player.out = false;

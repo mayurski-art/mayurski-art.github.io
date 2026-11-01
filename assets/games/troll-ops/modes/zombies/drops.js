@@ -36,6 +36,7 @@ export const DROPS = {
   kaboom: { name: "Kaboom", color: "#ff4a3a", weight: 1, what: "Every zombie drops · +400" },
   onetap: { name: "One Tap", color: "#ffe14a", weight: 1.2, secs: 20, what: "Any hit kills for 20 s", chip: "Any hit kills" },
   double: { name: "Double Points", color: "#7dff4f", weight: 1.2, secs: 20, what: "Every point pays double for 20 s", chip: "Points ×2" },
+  // only drops while a deployable is hurt (the roll's kinds filter)
   rebuild: { name: "Rebuild", color: "#4aa8ff", weight: 0.8, what: "Every deployable back to full" },
   firesale: { name: "Fire Sale", color: "#ff9a2a", weight: 0.8, secs: 30, what: "Walls, ammo, frags and deployables half price for 30 s", chip: "Half price" },
   maxammo: { name: "Max Ammo", color: "#e8f1ff", weight: 1.4, what: "Every gun's reserve full · four frags" },
@@ -165,7 +166,7 @@ function roll(z) {
 
 function pickKind() {
   if (state.forceKind) return state.forceKind;
-  const kinds = Object.entries(DROPS).filter(([id]) => id !== "rebuild" || state.hooks?.deployables().length);
+  const kinds = Object.entries(DROPS).filter(([id]) => id !== "rebuild" || state.hooks?.deployables().some((e) => e.hp < e.maxHp));
   let r = Math.random() * kinds.reduce((a, [, d]) => a + d.weight, 0);
   for (const [id, d] of kinds) if ((r -= d.weight) <= 0) return id;
   return kinds[0][0];
@@ -245,7 +246,7 @@ export function onDropMessage(p, m) {
 
 /* ------------------------------------------------------------ each frame */
 
-/* `hooks`: { banner(text), rebuild(host), deployables(), canTake() }, from run.js. */
+/* `hooks`: { banner(text, sub), rebuild(host), deployables(), canTake() }, from run.js. */
 export function startDrops(hooks) {
   resetDrops();
   state.hooks = hooks;

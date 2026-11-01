@@ -174,8 +174,8 @@ function botAirTargets(b) {
   const list = enemyAirFor(b.team, b.id).filter((a) => !(a.e instanceof VtolWarship));
   const ffa = !!game.currentMode().ffa;
   for (const e of streakEntities.values()) {
-    if (!(e instanceof SamTurret) || !e.alive) continue;
-    const owner = e.botId || (e.owned ? game.net.id : null);
+    if (!(e instanceof SamTurret || e.groundKit) || !e.alive) continue;
+    const owner = e.botId || (e.owned ? game.net.id : e.ownerId || null);
     if (ffa ? owner !== b.id : (e.botTeam || e.team) !== b.team) list.push({ id: e.id, pos: e.pos.clone().setY(e.pos.y + 1.1), e });
   }
   return list;
@@ -210,7 +210,7 @@ export function updateBotAntiAir(dt) {
     if (b.aaT > 0) continue;
     const diff = b.diff || {};
     b.aaT = (diff.interval ?? 0.85) * (0.8 + Math.random() * 0.4);
-    const kind = a.e instanceof HunterDrone ? "drone" : a.e instanceof Dragonfire ? "dragonfire" : a.e instanceof HelicopterGunship ? "heli" : a.e instanceof SamTurret ? "sam" : "recon";
+    const kind = a.e instanceof HunterDrone ? "drone" : a.e instanceof Dragonfire ? "dragonfire" : a.e instanceof HelicopterGunship ? "heli" : a.e instanceof SamTurret || a.e.groundKit ? "sam" : "recon";
     const d = a.pos.distanceTo(_aaEye);
     const hit = Math.random() < (diff.hit ?? 0.45) * BOT_AA_SIZE[kind] * Math.max(0.35, 1 - d / 140);
     const fwdX = -Math.sin(b.yaw), fwdZ = -Math.cos(b.yaw);

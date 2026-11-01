@@ -134,7 +134,10 @@ export function mountZombiesHud(h) {
   els.boss.innerHTML = '<span class="zh-boss-n"></span><span class="zh-boss-bar"><i></i></span>';
   els.bossN = els.boss.querySelector(".zh-boss-n");
   els.bossBar = els.boss.querySelector("i");
-  els.top.append(els.left, els.boss, els.wave);
+  // how many of this wave are still to kill, the ones not in yet included
+  els.count = el("span", "zh-count");
+  els.count.setAttribute("aria-live", "off");
+  els.top.append(els.left, els.boss, els.wave, els.count);
 
   els.skip = el("button", "zh-skip");
   els.skip.type = "button";
@@ -350,6 +353,12 @@ export function updateZombiesHud(dt, s) {
     const who = boss >= s.final ? "Final boss" : "Boss";
     els.left.innerHTML = s.wave >= s.final ? "<b>Final wave</b>"
       : togo === 1 ? `${who} <b>next wave</b>` : `${who} in <b>${togo}</b> waves`;
+  }
+  const left = s.between ? -1 : Math.max(0, s.left | 0);
+  if (left !== shown.left) {
+    shown.left = left;
+    els.count.hidden = left < 0;
+    els.count.innerHTML = `<b>${left}</b> ${left === 1 ? "zombie" : "zombies"} left`;
   }
   const breakS = s.between ? Math.ceil(Math.max(0, s.breakT)) : -1;
   if (s.between !== shown.between || breakS !== shown.breakS) {
