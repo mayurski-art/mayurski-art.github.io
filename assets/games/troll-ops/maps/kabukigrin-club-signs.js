@@ -20,7 +20,8 @@ import { FL, B1, HALL } from "./kabukigrin-under.js?v=kbu1";
 
 // the canopy over the front stair (S1's well: x -27.5 .. -24.5, z 4.5 .. 9.9)
 const CANOPY = { x0: -27.9, x1: -24.1, z0: 3.9, z1: 10.3, y: 3.0 };
-const PYLON = { x: -29.4, z: 6.4 };
+// (its board's east edge on the front stair's west wall, x -27.75: the square's west lane stays 2.75 m clear)
+const PYLON = { x: -28.5, z: 6.4 };
 // (clear of the corner kanban's front, z -31.9 .. -28.2, and over the shop bands, y 2.8 .. 3.3)
 const BLADE = { x: -23.75, z: -27 };
 const ARROWS_Z = [-25, -15, -5];
