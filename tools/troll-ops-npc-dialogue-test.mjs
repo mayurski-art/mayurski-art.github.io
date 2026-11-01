@@ -61,24 +61,30 @@ async function open(opts) {
     window.__trollTalk.resetFlags();
   });
   await wait(+(process.env.SETTLE || 15000));
-  // out of the line, a wristband on, at the bar across from North
-  await page.evaluate(() => {
+  await findBar(page);
+  // out of the line (it can join late on a slow load: leave until it stays
+  // left a second), a wristband on
+  await page.evaluate(async () => {
     const C = window.__trollClub;
-    if (C && C.club.phase !== "none") C.leave();
-    if (C) { C.band(); C.club.band = C.BAND.guest; }
+    if (!C) return;
+    for (let calm = 0, i = 0; calm < 4 && i < 120; i++) {
+      if (C.club.phase !== "none") { C.leave(); calm = 0; } else calm++;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    C.band(); C.club.band = C.BAND.guest;
   });
   return page;
 }
 // stand at (x, z) on the club floor looking along yaw, eye level
-const stand = (page, x, z, yaw, pitch = -0.05) => page.evaluate(async ([x, z, yaw, pitch]) => {
+const stand = (page, x, z, yaw, pitch = -0.05) => page.evaluate(async ([x, y, z, yaw, pitch]) => {
   const T = window.__trollOps;
   T.keys.clear();
-  T.move.pos.set(x, 0, z); T.move.velocity?.set(0, 0, 0);
+  T.move.pos.set(x, y, z); T.move.velocity?.set(0, 0, 0);
   T.look.yaw = yaw; T.look.pitch = pitch;
   await new Promise((r) => setTimeout(r, 400));
   T.look.yaw = yaw; T.look.pitch = pitch;
   await new Promise((r) => setTimeout(r, 150));
-}, [x, z, yaw, pitch]);
+}, [x, FLOOR, z, yaw, pitch]);
 const state = (page) => page.evaluate(() => window.__trollTalk.state());
 const key = async (page, code, ms = 60) => { await page.keyboard.down(code); await wait(ms); await page.keyboard.up(code); await wait(80); };
 // pick option `k` once the line has finished typing
@@ -90,8 +96,23 @@ async function pick(page, k) {
 }
 const until = (page, fn, ms = 10000) => page.waitForFunction(fn, null, { timeout: ms, polling: 50 }).then(() => true, () => false);
 const optIndex = (s, text) => s.opts.findIndex((t) => t === text);
-const NORTH = { x: -14.9, z: 12.2 };
-const AT_BAR = { x: -16.7, z: 12.2, yaw: Math.atan2(-1, 0) };   // across the counter, looking +x at him
+// where the bar is comes from the cast (maps/kabukigrin-social.js): North,
+// Pourtia beside him, and a spot 2.3 m out in front of him across the counter
+let NORTH, POURTIA, AT_BAR, FLOOR = 0;
+async function findBar(page) {
+  // (a busy machine can take a while to spawn the crowd)
+  await page.waitForFunction(() => window.__trollOps.townNpcs()?.list.some((x) => x.c.talk === "north"), null, { timeout: 120000, polling: 250 });
+  const c = await page.evaluate(() => {
+    const L = window.__trollOps.townNpcs().list;
+    const at = (n) => ({ x: n.x, z: n.z, y: n.c.y ?? 0, yaw: n.yaw });
+    return { n: at(L.find((x) => x.c.talk === "north")), p: at(L.find((x) => x.c.name === "Pourtia")) };
+  });
+  NORTH = c.n; POURTIA = c.p; FLOOR = c.n.y;
+  const fx = -Math.sin(c.n.yaw), fz = -Math.cos(c.n.yaw);   // the way he faces
+  AT_BAR = { x: c.n.x + fx * 2.3, z: c.n.z + fz * 2.3, yaw: c.n.yaw + Math.PI };
+}
+// across from Pourtia: the same distance out, level with her
+const atPourtia = () => ({ x: POURTIA.x + (AT_BAR.x - NORTH.x), z: POURTIA.z + (AT_BAR.z - NORTH.z) });
 
 /* Every option row inside the screen, none overlapping another or the line. */
 const measure = (page) => page.evaluate(async () => {
@@ -141,7 +162,7 @@ const measure = (page) => page.evaluate(async () => {
   check("looking at North: Talk to North", pr.p?.name === "North" && /Talk to North/.test(pr.label), JSON.stringify(pr));
   await stand(page, AT_BAR.x, AT_BAR.z, AT_BAR.yaw + Math.PI);
   check("looking away: no prompt", !(await page.evaluate(() => window.__trollTalk.prompt())));
-  await stand(page, AT_BAR.x, 14.4, AT_BAR.yaw);
+  await stand(page, atPourtia().x, atPourtia().z, AT_BAR.yaw);
   check("looking at Pourtia (doesn't talk): no prompt", !(await page.evaluate(() => window.__trollTalk.prompt())));
 
   // hold X
@@ -279,6 +300,17 @@ for (const [w, h, name] of [[812, 375, "812x375"], [667, 375, "667x375"]]) {
   const page = await open({ viewport: { width: w, height: h }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   await stand(page, AT_BAR.x, AT_BAR.z, AT_BAR.yaw);
   const ok = await page.evaluate(() => window.__trollTalk.open());
+  if (!ok) {
+    const why = await page.evaluate(() => {
+      const T = window.__trollOps, n = T.townNpcs().list.find((x) => x.c.talk === "north");
+      const p = T.move.pos;
+      return { pos: [p.x, p.y, p.z].map((v) => +v.toFixed(2)), north: [n.x, n.c.y, n.z], seen: n.rig.root.visible, yaw: +T.look.yaw.toFixed(2),
+        club: window.__trollClub?.club.phase, cam: [T.camera.position.x, T.camera.position.y, T.camera.position.z].map((v) => +v.toFixed(2)) };
+    });
+    check(`phone ${name}: opens`, false, JSON.stringify(why));
+    await page.context().close();
+    continue;
+  }
   await wait(800);
   await page.evaluate(() => window.__trollTalk.finish());
   await wait(200);
