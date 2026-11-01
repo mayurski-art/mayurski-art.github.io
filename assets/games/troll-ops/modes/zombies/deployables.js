@@ -70,6 +70,7 @@ export const depWire = { add: null, hp: null, gone: null };
 let didc = 0;
 
 const _v = new THREE.Vector3();
+const _aimTo = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _ray = new THREE.Raycaster();
 
@@ -80,8 +81,11 @@ function buildModel(id, stats) {
   const root = new THREE.Group();
   loadModel(MODEL[id], {}).then((obj) => {
     // the kit faces Blender +Y, which lands on +Z here: turn it to face -Z,
-    // the way the root is yawed (the gun downrange, the stakes at the horde)
-    obj.rotation.y = Math.PI;
+    // the way the root is yawed (the stakes at the horde). The sentry gun
+    // is the exception: its barrels run along Blender +Y, which glTF lands
+    // on -Z, already downrange (a half turn had them backwards while the
+    // rounds went forwards).
+    obj.rotation.y = id === "turret" ? 0 : Math.PI;
     root.add(obj);
     root.userData.model = obj;
     root.userData.onModel?.(obj);
@@ -432,6 +436,10 @@ class Turret extends Deployable {
     this.armT = 0;             // the head coming up after the unfold
     this.headY = 0;
     this.muzzle = new THREE.Vector3(this.pos.x, this.pos.y + 0.9, this.pos.z);
+    // the barrels' line runs through the trunnion: it sees and aims from
+    // there, not the swinging tip (which can end up behind cover as it turns)
+    this.pivot = new THREE.Vector3(this.pos.x, this.pos.y + 0.98, this.pos.z);
+    this.axis = new THREE.Vector3();
   }
 
   get armed() { return this.armT >= TURRET_ARM; }
@@ -457,10 +465,19 @@ class Turret extends Deployable {
   canSee(z) {
     if (!z.alive || z.dying || z.riseT > 0) return false;
     const p = this.aimPoint(z);
-    const dist = p.distanceTo(this.muzzle);
+    const dist = p.distanceTo(this.pivot);
     if (dist > this.stats.range) return false;
-    _dir.copy(p).sub(this.muzzle).normalize();
-    return raycastWorld(walls(), this.muzzle, _dir, dist) >= dist - 0.3;
+    _dir.copy(p).sub(this.pivot).normalize();
+    return raycastWorld(walls(), this.pivot, _dir, dist) >= dist - 0.3;
+  }
+
+  /* Where the barrels point, off the model: the cluster's hub to the tip. */
+  barrelAxis() {
+    if (!this.barrels || !this.muzzleNode) return null;
+    this.root.updateMatrixWorld(true);
+    this.muzzleNode.getWorldPosition(this.muzzle);
+    this.barrels.getWorldPosition(this.pivot);
+    return this.axis.copy(this.muzzle).sub(this.pivot).normalize();
   }
 
   /* The one to shoot (user, 2026-10-31: "turrets need to be smarter"):
@@ -511,10 +528,10 @@ class Turret extends Deployable {
         this.head.position.y = this.headY - (1 - k) * 0.18;
         this.head.rotation.y = this.headYaw - (1 - k * k) * Math.PI;
       }
-      if (this.gun) this.gun.rotation.x = (1 - k) * 0.5;
+      if (this.gun) this.gun.rotation.x = -(1 - k) * 0.5;   // barrels drooping, coming up
       return;
     }
-    if (this.muzzleNode) this.muzzleNode.getWorldPosition(this.muzzle);
+    this.barrelAxis();
     this.retargetT -= dt;
     if (this.retargetT <= 0 || (this.target && (!this.target.alive || this.target.dying))) {
       this.retargetT = RETARGET;
@@ -532,11 +549,17 @@ class Turret extends Deployable {
       let d = Math.atan2(Math.sin(want - this.headYaw), Math.cos(want - this.headYaw));
       const step = this.stats.turn * dt;
       this.headYaw += Math.max(-step, Math.min(step, d));
-      const flat = Math.hypot(p.x - this.muzzle.x, p.z - this.muzzle.z);
-      const pitch = Math.atan2(p.y - this.muzzle.y, flat);
-      this.gunPitch += (pitch - this.gunPitch) * Math.min(1, dt * 10);
+      const flat = Math.hypot(p.x - this.pivot.x, p.z - this.pivot.z);
+      const pitch = Math.atan2(p.y - this.pivot.y, flat);
+      this.gunPitch += (pitch - this.gunPitch) * Math.min(1, dt * 14);
       off = Math.abs(Math.atan2(Math.sin(want - this.headYaw), Math.cos(want - this.headYaw)));
-      // only with a clear line this instant: never a round into a wall
+      // fire only with the barrels themselves on it (yaw and pitch, read
+      // off the model) and a clear line this instant: never a round into a
+      // wall, never one leaving off the barrels' line
+      if (this.head) this.head.rotation.y = this.headYaw;
+      if (this.gun) this.gun.rotation.x = this.gunPitch;
+      const axis = this.barrelAxis();
+      if (axis) off = axis.angleTo(_aimTo.copy(p).sub(this.muzzle).normalize());
       if (off < AIM_OK && this.fireT <= 0) {
         if (this.canSee(this.target)) this.fire();
         else { this.target = null; this.retargetT = 0; }
@@ -548,9 +571,9 @@ class Turret extends Deployable {
     }
     if (this.head) this.head.rotation.y = this.headYaw;
     if (this.gun) {
-      // the model is turned half round (buildModel): its barrels run along +Z
-      this.gun.rotation.x = -this.gunPitch;
-      this.gun.position.z = this.gunZ - this.kick * 0.05;   // recoil back along the barrels
+      // the barrels run along -Z: a positive turn about X lifts them
+      this.gun.rotation.x = this.gunPitch;
+      this.gun.position.z = this.gunZ + this.kick * 0.05;   // recoil back along the barrels
     }
     // the barrels spin up while it fires and wind down after (about their
     // own axis, the model's Z once it's in)

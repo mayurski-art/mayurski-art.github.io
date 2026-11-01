@@ -11,7 +11,8 @@
 //   ai        a wave on each map: zombies spread out (no conga line), keep
 //             up their speed, reach the player on every floor; crawlers
 //             climb the stairs
-//   turret    a turret shoots what is about to hurt you, never into a wall
+//   turret    a turret shoots what is about to hurt you, never into a wall,
+//             always along its barrels (not backwards)
 //   perch     every spot a player can stand on: can a zombie get to them?
 //   spawns    each map's entry points: out of sight, spread round the map
 // SHOTS_DIR=<dir> for the screenshots.
@@ -417,10 +418,17 @@ async function turret() {
         }
         return false;
       };
-      let wallShots = 0, waveShots = 0;
+      let wallShots = 0, waveShots = 0, worstBarrel = 0;
       const fire = tur.fire.bind(tur);
+      const V = T.THREE.Vector3;
       tur.fire = () => {
         waveShots++;
+        // the barrels' own line off the model (cluster hub to muzzle) vs the round's
+        tur.root.updateMatrixWorld(true);
+        const tip = tur.muzzleNode.getWorldPosition(new V());
+        const axis = tip.clone().sub(tur.barrels.getWorldPosition(new V())).normalize();
+        const shot = tur.aimPoint(tur.target).clone().sub(tip).normalize();
+        worstBarrel = Math.max(worstBarrel, axis.angleTo(shot) * 180 / Math.PI);
         if (blocked(tur.muzzle, tur.aimPoint(tur.target).clone())) wallShots++;
         fire();
       };
@@ -428,12 +436,13 @@ async function turret() {
       await sleep(15000);
       zd.clear(); zd.state = "idle";
       const hiddenTarget = false;
-      return { pick1, aimY, crawling, wallShots, waveShots, run: bestRun };
+      return { pick1, aimY, crawling, wallShots, waveShots, worstBarrel: +worstBarrel.toFixed(1), run: bestRun };
     });
     console.log(map, JSON.stringify(r));
     check(r.pick1.onB > r.pick1.onA * 3 && r.pick1.shots > 0, `${map}: the turret shoots the one by the player, not the one by itself`, JSON.stringify(r.pick1));
     check(r.aimY != null && r.aimY < 0.6, `${map}: a crawler is aimed at low`, `aim ${r.aimY} m up`);
     check(r.waveShots > 0 && r.wallShots === 0, `${map}: a wave on the move, no shot into a wall`, `${r.wallShots} of ${r.waveShots} shots blocked`);
+    check(r.waveShots > 0 && r.worstBarrel < 10, `${map}: every round leaves along the barrels`, `worst ${r.worstBarrel} deg off the barrel line`);
     await page.screenshot({ path: path.join(SHOTS, `zai-turret-${map}.png`) });
     check(!page.errors.length, `${map}: no page errors`, page.errors.slice(0, 3).join(" | "));
     await page.close();
