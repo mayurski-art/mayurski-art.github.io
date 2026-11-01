@@ -227,7 +227,29 @@ export function mountFnLobby(api) {
   play.append(news);   // (the event tile stands over the mode card)
   // its height, for the party box over it (style.css: a sideways phone's
   // party grid takes all the room down to it)
-  new ResizeObserver(() => root.style.setProperty("--fn-play-h", `${play.offsetHeight}px`)).observe(play);
+  // The event tile stands between the party box and the mode card; a taller
+  // card (Socialize's map row, Royale's team size) or a fuller party leaves
+  // it less room, so it shrinks, then goes, rather than covering the party
+  // (user, 2026-10-31: the Party box was under the news). --fn-news-h sizes
+  // the tile and sets the party box's bottom (style.css).
+  const NEWS_H = [140, 88];
+  function roomForNews() {
+    root.style.setProperty("--fn-play-h", `${play.offsetHeight}px`);
+    const party = $(".to-bo2-party", root);
+    if (!party || party.offsetParent !== play.offsetParent || !play.offsetParent) return;
+    // too little even for the party: its rows drop the level line (measured
+    // full first, so the squeeze can't flip back and forth)
+    root.classList.remove("fn-party-tight");
+    const room = play.offsetTop - party.offsetTop - 24;
+    root.classList.toggle("fn-party-tight", party.scrollHeight > room);
+    const free = room - party.scrollHeight;
+    const h = NEWS_H.find((n) => n <= free) || 0;
+    root.style.setProperty("--fn-news-h", `${h}px`);
+    news.classList.toggle("is-off", !h);
+  }
+  const newsRoom = new ResizeObserver(roomForNews);
+  newsRoom.observe(play);
+  queueMicrotask(() => { const party = $(".to-bo2-party", root); if (party) newsRoom.observe(party); });
   const picker = document.createElement("div");
   picker.className = "to-fn-glass to-fn-picker";
   picker.setAttribute("role", "dialog");
