@@ -17,7 +17,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { addInkRim } from "../view/rim-light.js?v=sr1";
-import { blacklit } from "../view/blacklight.js?v=bl1";
+import { blacklit } from "../view/blacklight.js?v=bl1-kbc1";
 import { buildWatch, buildWristband, wristOf } from "./wristwear.js?v=ww1c2m1-or1";
 import { syncHeadwear } from "./pumpkin-head.js?v=pk1-mb1-mb2";
 import { sampleGait, applyClip, GAME_CLIPS, CLIP_HIPS, CLIP_SPINE, CLIP_ARM_L, CLIP_ARM_R } from "./clips.js?v=rc1";

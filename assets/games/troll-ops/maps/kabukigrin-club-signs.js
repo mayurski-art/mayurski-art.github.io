@@ -15,8 +15,8 @@
 
 import * as THREE from "three";
 import { place } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
-import { sign } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1-hh1-yb1-kbt1-dj2-mn1-gr1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
-import { FL, B1, HALL } from "./kabukigrin-under.js?v=kbu1";
+import { sign } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1-hh1-yb1-kbt1-dj2-mn1-gr1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-kbc1";
+import { FL, B1, HALL } from "./kabukigrin-under.js?v=kbu1-kbc1";
 
 // the canopy over the front stair (S1's well: x -27.5 .. -24.5, z 4.5 .. 9.9)
 const CANOPY = { x0: -27.9, x1: -24.1, z0: 3.9, z1: 10.3, y: 3.0 };
