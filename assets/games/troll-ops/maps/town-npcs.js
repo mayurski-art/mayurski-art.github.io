@@ -44,6 +44,8 @@ import { SmithWork } from "./smithy.js?v=sm1b7b7dc2f1m1-gt1-gt2-cw1-zr10-bf1-sr1
 import { setReliefFace } from "../characters/blocky-body.js?v=bk1-cw1-zr10-bf1-sr1-nf1-nx1-or1-nf2-em2-nb2-sb1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-gt1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-rb1-fg3-hd1-rc1-rc3-rc4-rc5-ls1-ut1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-hl1-mg1-sp1-rh1-ci6-pm1-mb1-mb2-nft2531";
 import { wearOutfit } from "../characters/outfits.js?v=of1m1-nc1-cd1-sh1-hr2-zp1-sr1-or1-gb3-rh1";
 import { holdInstrument, poseInstrument } from "../characters/instruments.js?v=in1-bw2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-mb1-mb2-nft2531";
+import { emitMoney, onMoneyDrop } from "./club-money.js?v=mn2";
+import { roomNow } from "../modes/room-clock.js?v=rc1-cd1-sh1";
 
 const WALK_MPS = 1.25;
 const _lean = new THREE.Vector3(), _poleL = new THREE.Vector3(-1, -1, 0.3);
@@ -61,6 +63,11 @@ const DANCE_BEAT = [[1 / 3.6, 0.5], [1 / 4.4, 0], [1 / 2.6, 0.25], [1 / 3.08, 0]
 const TAG_COLOR = "#ffd28a";   // townsfolk tags read warm, players' white
 const _hand = new THREE.Vector3(), _poleR = new THREE.Vector3(1, -1, 0.3), _poleL2 = new THREE.Vector3(-1, -1, 0.3);
 const WALKERS = new Set(["walk", "carry"]);
+// money (doc MONEY-RAIN.md 2): a throw's length, one lone thrower per slot
+// of this many seconds, and when in a throw the wrist lets bills go
+const THROW_SECS = 2.4, THROW_SLOT = 35;
+const THROW_FLICKS = [0.55, 0.85, 1.15, 1.45];
+const _throwHand = new THREE.Vector3(), _throwDir = new THREE.Vector3();
 
 /* The kitchen's props: a tool in the right fist (on the grip mount), or a
    tray of food carried in front (on the chest). Shared materials. */
@@ -150,6 +157,11 @@ export class TownNpcs {
     this.material = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.7, metalness: 0.1 });
     this.list = cast.map((c, i) => this.spawn(c, i));
     this.t = 0;
+    // the crowd that throws money (`throws` on a cast entry): on the club's
+    // drops, and one of them every so often between (doc MONEY-RAIN.md 2)
+    this.throwers = this.list.map((n, i) => (n.c.throws ? i : -1)).filter((i) => i >= 0);
+    this.throwSlot = -1;
+    this.offDrop = this.throwers.length ? onMoneyDrop(() => this.dropThrow()) : null;
   }
 
   spawn(c, i) {
@@ -257,6 +269,7 @@ export class TownNpcs {
     this.audio = audio;
     this.eye = eye;
     this.t += dt;
+    if (this.throwers.length) this.scheduleThrows();
     const from = this.view ? this.view.zoneOf(eye.x, eye.y, eye.z) : null;
     for (const n of this.list) {
       const d = Math.hypot(n.x - eye.x, n.z - eye.z);
@@ -276,8 +289,61 @@ export class TownNpcs {
       const every = d < NEAR ? 0 : 0.12;
       if (n.poseAcc < every) continue;
       this.pose(n, n.poseAcc);
+      if (n.throwT != null) this.throwPose(n, n.poseAcc);
       n.poseAcc = 0;
     }
+  }
+
+  /* ---- money (doc MONEY-RAIN.md 2). Everyone in the room sees the same
+     NPC throw at the same moment: the picks come off the room clock
+     (room-clock.js), so nothing is sent. */
+  scheduleThrows() {
+    // between drops: one thrower in each slot, at a seeded moment in it
+    const now = roomNow() / 1000, slot = Math.floor(now / THROW_SLOT);
+    if (slot === this.throwSlot || now < slot * THROW_SLOT + 3 + hash01("mr" + slot) * (THROW_SLOT - 10)) return;
+    this.throwSlot = slot;
+    this.startThrow(this.throwers[Math.floor(hash01("mt" + slot) * this.throwers.length)]);
+  }
+  /* A beat drop (club-money.js onMoneyDrop): two to four of them go. */
+  dropThrow() {
+    const seed = Math.floor(roomNow() / 8000), n = 2 + Math.floor(hash01("md" + seed) * 3);
+    const picks = new Set();
+    for (let i = 0; i < n * 3 && picks.size < n; i++) picks.add(this.throwers[Math.floor(hash01("mp" + seed + i) * this.throwers.length)]);
+    for (const i of picks) this.startThrow(i);
+  }
+  startThrow(i) {
+    const n = this.list[i];
+    if (!n || n.off || n.override || n.throwT != null) return false;
+    n.throwT = 0; n.flick = 0;
+    return true;
+  }
+  /* Over the base pose: the right arm goes up and out, the wrist fans
+     three or four times, a few bills leave the hand on each flick. */
+  throwPose(n, dt) {
+    const { rig, c } = n, p = rig.parts;
+    const t = n.throwT += dt;
+    if (t > THROW_SECS) { n.throwT = null; if (n.drink) n.drink.visible = true; return; }
+    const up = t < 0.4 ? t / 0.4 : t > THROW_SECS - 0.5 ? (THROW_SECS - t) / 0.5 : 1;
+    const u = up * up * (3 - 2 * up);
+    const flick = Math.sin(t * 14) * 0.35 * u;
+    p.armR.rotation.set(2.45 * u, 0, -0.4 * u);
+    p.elbowR.rotation.set(0.5 * u + Math.max(0, flick), 0, 0);
+    p.gripR.rotation.set(flick, 0, 0);
+    p.headPivot.rotation.x = -0.3 * u;
+    setHandPose(rig, 1, u > 0.5 ? "open" : "fist");
+    if (n.drink) n.drink.visible = u < 0.3;   // the glass is put down for it
+    // the flicks: a fan of bills out of the hand, up and forward
+    if (t >= (THROW_FLICKS[n.flick] ?? Infinity)) {
+      n.flick++;
+      rig.root.updateMatrixWorld(true);
+      p.handR.getWorldPosition(_throwHand);
+      // up and over from the floor; out and over the rail from a deck (the
+      // mezzanine guests: a lob lands on the parapet, a throw clears it)
+      const deck = (c.y ?? 0) >= 2.5;
+      _throwDir.set(-Math.sin(n.yaw) * (deck ? 1.5 : 0.6), deck ? 0.7 : 1, -Math.cos(n.yaw) * (deck ? 1.5 : 0.6));
+      n.bills = (n.bills || 0) + emitMoney(_throwHand, _throwDir, 3 + Math.floor(Math.random() * 3), { speed: deck ? 4.2 : 3.2, spread: deck ? 0.5 : 0.9, up: 0.2 });
+    }
+    rig.body?.update?.();
   }
 
   /* A roamer (`stops`): its time at a stop runs down, then it walks
@@ -650,6 +716,7 @@ export class TownNpcs {
   }
 
   dispose() {
+    this.offDrop?.();
     for (const n of this.list) {
       n.rig.root.parent?.remove(n.rig.root);
       n.smith?.dispose();
