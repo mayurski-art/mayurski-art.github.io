@@ -260,7 +260,8 @@ function buildClub(api) {
     probe: { at: [DC.x, FL + 1.2, DC.z], box: [HALL.x0, FL - 0.1, HALL.z0, HALL.x1, CEIL, HALL.z1] } });
   buildUnderShell(UK, UN, M, UM);
   const signs0 = S.signs.length;
-  danceFloor(UK, M, UN, PLAN_L, { edgeY: 0.01 });
+  // (the tiles burn brighter than they did in the old red room: nothing else down here is lit)
+  danceFloor(UK, M, UN, PLAN_L, { edgeY: 0.01, tileK: 0.9 });
   djStage(UK, M, UN, UHN, S, PLAN_L, { stage: true, booth: false, wall: { w: 10, h: 5.5 }, arches: { a: 6.4, h: 6.6, n: 5, step: 0.35, drop: 0.24 } });
   underCeiling(UK, M, UN, UHN, PLAN_L, CEILL - 0.3);
   chandelier(UK, M, UHN, S, PLAN_L, { top: 6.2, ball: { y: 5.0, r: 0.5 } });
@@ -494,6 +495,9 @@ export const KABUKIGRIN = {
      mezzanine, and a ground haze on the wet Mains */
   // the dug ground (core/ground-field.js): the hall's floor under the square
   groundField: groundField(),
+  // the club's UV tubes light the white faces (view/blacklight.js; doc pick 5):
+  // a player is always findable down there
+  blacklight: { box: [HALL.x0, FL - 0.5, HALL.z0, HALL.x1, CEIL, HALL.z1], k: 1.6 },
   haze: [
     { box: [HALL.x0, FL, HALL.z0, HALL.x1, CEIL, HALL.z1], color: 0x1a0a1c, density: 0.07, falloff: 2.6, edge: 0.3 },
     { box: [A_MAIN[0], 0, A_MAIN[1], A_MAIN[2], 3, A_MAIN[3]], color: 0x2c1c44, density: 0.08, falloff: 0.8, edge: 1.5 },
