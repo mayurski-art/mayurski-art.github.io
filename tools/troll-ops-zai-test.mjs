@@ -219,6 +219,7 @@ async function installSim(page) {
         stand();
         const dir = new H.ZombieDirector(new THREE.Scene(), live.arena, live.colliders, layout);
         dir.round = round;
+        dir._caps(true);   // the noStand caps, as a wave puts them up
         dir.state = "fighting";
         const feet = { x: player.x, y: player.y, z: player.z };
         const eye = new THREE.Vector3(feet.x, feet.y + 1.6, feet.z);
@@ -276,6 +277,7 @@ async function installSim(page) {
         }
         const out = stats.map((s) => ({ at: s.at == null ? null : +s.at.toFixed(1), speed: +(s.dist / Math.max(s.moveT, 0.01)).toFixed(2), stuck: s.stuck, angle: s.angle, end: { x: +s.z.mesh.position.x.toFixed(1), y: +s.z.groundY.toFixed(2), z: +s.z.mesh.position.z.toFixed(1) }, base: +s.z.speed.toFixed(2) }));
         for (const z of dir.zombies) z.dispose(dir.scene);
+        dir._caps(false);
         const sectors = new Set(out.filter((o) => o.angle != null).map((o) => Math.floor(((o.angle + Math.PI) / (Math.PI * 2)) * 8) % 8)).size;
         return { traces, zs: out, bunch: bunchN ? +(bunchHit / bunchN).toFixed(2) : 0, hits, sectors };
       },
@@ -497,7 +499,164 @@ async function spawns() {
   }
 }
 
-const SECTIONS = { rebuild, hud, hp, ai, debug, turret, spawns };
+/* ---------------------------------------------------------------- perch */
+/* Every top a player can stand on (room for a body, headroom over it) and
+   get up onto (mantles of at most 1.55 m, chained from the floors: a
+   zombies run measures them from the ground, movement.js mantleFromGround),
+   then the worst of them by height and size: the player stood in the
+   middle, four walkers 4-6 m off, with the old horde (no climbing) and the
+   new. Each must end with a zombie in swiping reach. PERCH_N per map. */
+async function perch() {
+  const N = +(process.env.PERCH_N || 14);
+  for (const map of MAPS) {
+    const page = await open(map);
+    await installSim(page);
+    const found = await R(page, () => {
+      const S = window.__zsim, cols = S.live.colliders.filter((c) => !c.deploy && !c.moving);
+      const floors = Object.values(S.floors);
+      const A = S.live.arena;
+      const tops = [];
+      for (const c of cols) {
+        const w = c.max.x - c.min.x, d = c.max.z - c.min.z, y = c.max.y;
+        if (w < 0.7 || d < 0.7 || w * d > 120) continue;                 // a slab that big is a floor
+        if (c.min.x < A.minX || c.max.x > A.maxX || c.min.z < A.minZ || c.max.z > A.maxZ) continue;
+        if (floors.some((f) => Math.abs(y - f) < 0.35)) continue;          // a floor (or a step on one)
+        const cx = (c.min.x + c.max.x) / 2, cz = (c.min.z + c.max.z) / 2;
+        const blocked = cols.some((o) => o !== c && o.min.y < y + 1.7 && o.max.y > y + 0.05 && cx > o.min.x - 0.3 && cx < o.max.x + 0.3 && cz > o.min.z - 0.3 && cz < o.max.z + 0.3);
+        if (blocked) continue;
+        // capped for the run (layout.noStand): nobody stands there
+        if ((S.layout.noStand || []).some((b) => cx > b.x0 && cx < b.x1 && cz > b.z0 && cz < b.z1 && Math.abs(y - b.y) < 0.05)) continue;
+        tops.push({ c, x: cx, z: cz, y, w, d, ok: false });
+      }
+      // reach: from a floor (a floor height under it), then top to top
+      const gap = (a, b) => Math.max(0, a.c.min.x - b.c.max.x, b.c.min.x - a.c.max.x) + Math.max(0, a.c.min.z - b.c.max.z, b.c.min.z - a.c.max.z);
+      for (const t of tops) {
+        // the floor right under it: the highest floor-height top below its middle
+        const under = cols.reduce((m, c) => (c.max.y < t.y - 0.3 && c.max.y > m && floors.some((f) => Math.abs(c.max.y - f) < 0.35)
+          && t.x > c.min.x && t.x < c.max.x && t.z > c.min.z && t.z < c.max.z ? c.max.y : m), 0);
+        t.under = under;
+        t.rise = t.y - under;
+        t.ok = t.rise <= 1.55;
+      }
+      for (let pass = 0, more = true; more && pass < 8; pass++) {
+        more = false;
+        for (const t of tops) {
+          if (t.ok) continue;
+          // up a mantle, or down a drop of the same, never through a floor between
+          const through = (u) => floors.some((f) => f > Math.min(t.y, u.y) + 0.1 && f < Math.max(t.y, u.y) - 0.1);
+          if (tops.some((u) => u.ok && Math.abs(t.y - u.y) <= 1.55 && gap(t, u) <= 0.9 && !through(u))) { t.ok = true; more = true; }
+        }
+      }
+      // the camping spots: the middle is out of a floor zombie's swipe
+      const camp = tops.filter((t) => t.ok && (t.rise > 1.3 || Math.min(t.w, t.d) / 2 > 1.0));
+      camp.sort((a, b) => b.rise * Math.min(b.w, b.d) - a.rise * Math.min(a.w, a.d));
+      const pick = [];
+      for (const t of camp) if (!pick.some((q) => Math.hypot(q.x - t.x, q.z - t.z) < 3)) pick.push(t);
+      return { tops: tops.length, reach: tops.filter((t) => t.ok).length, camp: camp.length, pick: pick.map((t) => ({ x: +t.x.toFixed(2), y: +t.y.toFixed(2), z: +t.z.toFixed(2), rise: +t.rise.toFixed(2), under: +t.under.toFixed(2), w: +t.w.toFixed(1), d: +t.d.toFixed(1) })) };
+    });
+    const caps = await R(page, async () => {
+      const T = window.__trollOps, S = window.__zsim, m = T.move;
+      const dir = new S.H.ZombieDirector(new T.THREE.Scene(), S.live.arena, S.live.colliders, S.layout);
+      dir._caps(true);
+      const out = [];
+      const save = m.pos.clone(), g = m.grounded;
+      for (const b of S.layout.noStand || []) {
+        const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
+        let any = 0;
+        // from each side, 0.5 m off, facing in, on the ground and mid-jump
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const x = dx ? (dx > 0 ? b.x1 + 0.5 : b.x0 - 0.5) : cx, z = dz ? (dz > 0 ? b.z1 + 0.5 : b.z0 - 0.5) : cz;
+          for (const air of [0, 1.1]) {
+            m.pos.set(x, air, z); m.grounded = !air;
+            if (m.findVault(new T.THREE.Vector3(-dx, 0, -dz))) any++;
+          }
+        }
+        out.push(any);
+      }
+      m.pos.copy(save); m.grounded = g;
+      dir._caps(false);
+      return out;
+    });
+    caps.forEach((n, i) => check(n === 0, `${map}: capped top ${i}: no mantle onto it from any side`, `${n} of 8 tries`));
+    console.log(`${map}: ${found.tops} standable tops, ${found.reach} a player can reach, ${found.camp} out of a floor zombie's swipe; trying ${Math.min(N, found.pick.length)}`);
+    let before = 0, after = 0, tried = 0;
+    for (const t of found.pick.slice(0, N)) {
+      const res = await R(page, async (t) => {
+        const S = window.__zsim, H = S.H, cols = S.live.colliders;
+        // four walkers on open floor 4-6 m round it, each with a clear line in
+        const pts = [];
+        const under = t.under;
+        for (let a = 0; a < 48 && pts.length < 4; a++) {
+          const th = (a * 2.39996) % (Math.PI * 2), r = 4 + (a % 3);
+          const x = t.x + Math.cos(th) * r, z = t.z + Math.sin(th) * r;
+          const gy = cols.reduce((m, c) => (c.max.y <= under + 0.5 && x > c.min.x && x < c.max.x && z > c.min.z && z < c.max.z ? Math.max(m, c.max.y) : m), under);
+          if (Math.abs(gy - under) > 0.35) continue;
+          if (cols.some((c) => c.min.y < gy + 1.7 && c.max.y > gy + 0.4 && x > c.min.x - 0.4 && x < c.max.x + 0.4 && z > c.min.z - 0.4 && z < c.max.z + 0.4)) continue;
+          pts.push({ x, y: gy, z });
+        }
+        if (pts.length < 2) return null;
+        const out = {};
+        for (const climb of [false, true]) {
+          H.HORDE_FX.noClimb = !climb;
+          const r = await S.run({ points: pts, n: 4, secs: 30, player: { x: t.x, y: t.y, z: t.z }, stagger: 0.3 });
+          out[climb ? "after" : "before"] = r.zs.filter((q) => q.at != null).length;
+        }
+        H.HORDE_FX.noClimb = false;
+        return out;
+      }, t);
+      if (!res) { console.log(`   ${JSON.stringify(t)}  no open floor round it, skipped`); continue; }
+      tried++;
+      if (res.before) before++;
+      if (res.after) after++;
+      console.log(`   ${JSON.stringify(t)}  zombies in reach: old ${res.before}/4, new ${res.after}/4`);
+      check(res.after > 0, `${map} perch (${t.x}, ${t.y}, ${t.z}) rise ${t.rise} m: a zombie gets to you`);
+    }
+    console.log(`${map}: perches a zombie gets to: old ${before}/${tried}, new ${after}/${tried}`);
+    check(!page.errors.length, `${map}: no page errors`, page.errors.slice(0, 3).join(" | "));
+    await page.close();
+  }
+}
+
+/* ---------------------------------------------------------------- look */
+/* The sentry gun 3 m in front of the camera with a walker beside it, for
+   a look at its size and its barrels spinning (two screenshots per map). */
+async function look() {
+  for (const map of MAPS) {
+    const page = await open(map);
+    const r = await R(page, async () => {
+      const T = window.__trollOps, zd = T.zdir(), run = T.zrun();
+      zd.clear(); zd.state = "idle";
+      const sleep = (ms) => new Promise((q) => setTimeout(q, ms));
+      const H = await import(performance.getEntriesByType("resource").map((e) => e.name).find((n) => n.includes("modes/zombies/horde.js")));
+      const f = T.move.pos;
+      const d = new T.THREE.Vector3();
+      T.camera.getWorldDirection(d); d.y = 0; d.normalize();
+      const at = (k, side) => ({ x: f.x + d.x * k - d.z * side, z: f.z + d.z * k + d.x * side });
+      const tp = at(3, 0.4);
+      const tur = run.spawn("turret", tp.x, f.y, tp.z, Math.atan2(d.x, d.z));
+      const zp = at(3.4, -0.9);
+      const z = new H.Zombie("walker", new T.THREE.Vector3(zp.x, f.y, zp.z), T.scene, 3, {});
+      z.hp = z.maxHp = 1e7; z.holdT = 1e9;
+      zd.zombies.push(z);
+      const t0 = performance.now();
+      while (!tur.armed && performance.now() - t0 < 15000) await sleep(100);
+      // something to shoot at, off to the side, so the barrels spin
+      const tgt = at(9, 3.5);
+      const y = new H.Zombie("walker", new T.THREE.Vector3(tgt.x, f.y, tgt.z), T.scene, 3, {});
+      y.hp = y.maxHp = 1e7; y.holdT = 1e9;
+      zd.zombies.push(y);
+      await sleep(2500);
+      return { spin: +tur.spinV.toFixed(1), barrels: !!tur.barrels, h: +(new T.THREE.Box3().setFromObject(tur.root).max.y - f.y).toFixed(2) };
+    });
+    console.log(map, JSON.stringify(r));
+    check(r.barrels && r.spin > 10, `${map}: the barrels spin while it fires`, `${r.spin} rad/s`);
+    check(r.h > 1.15 && r.h < 1.45, `${map}: BO2 size, about 1.3 m to the camera`, `${r.h} m`);
+    await page.screenshot({ path: path.join(SHOTS, `zai-sentry-${map}.png`) });
+    await page.close();
+  }
+}
+
+const SECTIONS = { rebuild, hud, hp, ai, debug, turret, spawns, perch, look };
 if (!SECTIONS[section]) { console.log(`unknown section ${section}: ${Object.keys(SECTIONS).join(" ")}`); process.exit(2); }
 try { await SECTIONS[section](); } catch (e) { check(false, "threw", String(e?.stack || e)); }
 await browser.close();
