@@ -53,7 +53,6 @@ for (const mapId of maps) {
   await page.evaluate(async ([mapId, natural]) => {
     const T = window.__trollOps;
     if (T.state() !== "menu" && T.endMatch) { try { T.endMatch(); } catch {} }
-    T.settings.botSkill = "veteran";
     T.bots.difficulty = "veteran";
     T.setMode("tdm");
     if (T.els.noBots) T.els.noBots.checked = false;

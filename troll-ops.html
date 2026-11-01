@@ -261,6 +261,11 @@
                 <output id="to-set-fov-lobby-out">78</output>
               </label>
               <label class="to-set-row">
+                <span>HUD size</span>
+                <input type="range" id="to-set-hudsize-lobby" min="70" max="130" step="5">
+                <output id="to-set-hudsize-lobby-out">100%</output>
+              </label>
+              <label class="to-set-row">
                 <span>Graphics</span>
                 <select id="to-set-gfx-lobby">
                   <option value="auto">Auto</option>
@@ -282,15 +287,6 @@
                 <span>Show FPS</span>
                 <input type="checkbox" id="to-set-fps-lobby">
               </label>
-              <label class="to-set-row">
-                <span>Bot skill</span>
-                <select id="to-set-botskill">
-                  <option value="recruit">Recruit</option>
-                  <option value="regular" selected>Regular</option>
-                  <option value="veteran">Veteran</option>
-                </select>
-              </label>
-              <p class="to-set-hint to-set-note" id="to-set-botskill-note">Veteran bots: +10% XP</p>
               <label class="to-set-row to-set-check" id="to-set-viewmode-row" hidden>
                 <span>View mode <small class="to-set-hint">just look at the maps, no fighting</small></span>
                 <input type="checkbox" id="to-set-viewmode-lobby">
@@ -400,6 +396,11 @@
               <span>Field of view</span>
               <input type="range" id="to-set-fov" min="60" max="100" step="1">
               <output id="to-set-fov-out">78</output>
+            </label>
+            <label class="to-set-row">
+              <span>HUD size</span>
+              <input type="range" id="to-set-hudsize" min="70" max="130" step="5">
+              <output id="to-set-hudsize-out">100%</output>
             </label>
             <label class="to-set-row">
               <span>Graphics</span>

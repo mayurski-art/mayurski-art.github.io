@@ -45,11 +45,11 @@ const tabOf = (id) => TAB_OF[id] || (/^(att|gear|perk)-\d+$/.test(id) ? "locker"
 /* The playlists the mode card offers: the BO2 main list's five. `group` is
    the lobby's mode group, so the card can name the mode picked in it. */
 const PLAYLISTS = [
-  { id: "public", label: "Public Match", group: "versus", sub: "Team Deathmatch", blurb: "A versus room with whoever is online. Bots fill the gaps." },
+  { id: "public", label: "Public Match", group: "versus", pick: "tdm", sub: "Team Deathmatch", blurb: "A versus room with whoever is online. Bots fill the gaps." },
   { id: "social", label: "Socialize", group: "social", sub: "Hang out", blurb: "Troll City, Kabukigrin, Troll Beach or Undergrin. No guns, just emotes and chat." },
-  { id: "solo", label: "Solo Play", group: "solo", sub: "Ops", blurb: "Ops, Zombies or the Test Range. Just you." },
+  { id: "solo", label: "Solo Play", group: "solo", pick: "ops", sub: "Ops", blurb: "Ops, Zombies or the Test Range. Just you." },
   { id: "zombies", label: "Zombies", group: "hub", sub: "The hub", blurb: "Step on a map's pad. Up to four of you go in against the horde." },
-  { id: "private", label: "Private Match", group: "versus", sub: "Room code", blurb: "Make a room code and send it to your friends." },
+  { id: "private", label: "Private Match", group: "versus", pick: "tdm", sub: "Room code", blurb: "Make a room code and send it to your friends." },
 ];
 const PL_KEY = "tf-fn-playlist";
 
@@ -161,6 +161,12 @@ export function mountFnLobby(api) {
       <kbd class="to-fn-padkey" aria-hidden="true">RB</kbd>
     </nav>
     <div class="to-fn-me">
+      <!-- I'M NEW HERE, top right beside Menu size (user, 2026-10-31: "move the
+           im new here button to be next to the scale button") -->
+      <button type="button" class="to-fn-glass to-fn-ico to-fn-newhere" data-act="newhere" aria-haspopup="dialog" aria-label="I'm new here: how to play" title="I'm new here"><kbd class="to-fn-padkey" aria-hidden="true">Y</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.4a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.2 1-1.2 1.8v.6"/><circle cx="12" cy="17.4" r=".4"/></svg></button>
+      <button type="button" class="to-fn-glass to-fn-ico to-fn-msz" data-act="menusize" title="Menu size">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><b></b>
+      </button>
       <button type="button" class="to-fn-glass to-fn-lvl" data-act="career" aria-label="Your level">
         <span class="to-fn-pres" hidden></span><b class="to-fn-lv"></b>
       </button>
@@ -193,7 +199,7 @@ export function mountFnLobby(api) {
       <p class="to-fn-qleft"></p>
       <ol class="to-fn-qlist"></ol>
     </div>
-    <button type="button" class="to-fn-newhere" data-act="newhere" aria-haspopup="dialog"><kbd class="to-fn-padkey" aria-hidden="true">Y</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.4a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.2 1-1.2 1.8v.6"/><circle cx="12" cy="17.4" r=".4"/></svg><span>I'm new here</span></button>`;
+`;
   root.appendChild(left);
   /* I'M NEW HERE (menu/new-here.js): the tutorial, over everything */
   const help = mountNewHere(root);
@@ -205,9 +211,10 @@ export function mountFnLobby(api) {
   news.setAttribute("aria-roledescription", "carousel");
   news.setAttribute("aria-label", "News");
   news.innerHTML = `
-      ${NEWS.map((n, i) => `<button type="button" class="to-fn-news-card" data-i="${i}" ${i ? "hidden" : ""} aria-label="${esc(`${n.title}: ${n.tag}`)}">
-        <img alt="" data-map="${n.map}"><em>News</em><b>${esc(n.title)}</b><small>${esc(n.tag)}</small></button>`).join("")}
-      <div class="to-fn-pips">${NEWS.map((n, i) => `<button type="button" data-i="${i}" aria-label="News ${i + 1}: ${esc(n.title)}"></button>`).join("")}</div>`;
+      ${NEWS.map((n, i) => `<div class="to-fn-news-card" data-i="${i}" ${i ? "hidden" : ""} role="group" aria-roledescription="slide" aria-label="${esc(`${n.title}: ${n.tag}`)}">
+        <img alt="" data-map="${n.map}"><em>News</em><b>${esc(n.title)}</b><small>${esc(n.tag)}</small></div>`).join("")}
+      <div class="to-fn-pips" aria-hidden="true">${NEWS.map((n, i) => `<i data-i="${i}"></i>`).join("")}</div>
+      <button type="button" class="to-fn-news-go"></button>`;
 
   /* ── Play tab, right: the mode card and PLAY ── */
   const play = document.createElement("section");
@@ -224,14 +231,50 @@ export function mountFnLobby(api) {
   play.append(news);   // (the event tile stands over the mode card)
   // its height, for the party box over it (style.css: a sideways phone's
   // party grid takes all the room down to it)
-  new ResizeObserver(() => root.style.setProperty("--fn-play-h", `${play.offsetHeight}px`)).observe(play);
+  // The event tile stands between the party box and the mode card; a taller
+  // card (Socialize's map row, Royale's team size) or a fuller party leaves
+  // it less room, so it shrinks, then goes, rather than covering the party
+  // (user, 2026-10-31: the Party box was under the news). --fn-news-h sizes
+  // the tile and sets the party box's bottom (style.css).
+  const NEWS_H = [140, 88];
+  function roomForNews() {
+    root.style.setProperty("--fn-play-h", `${play.offsetHeight}px`);
+    const party = $(".to-bo2-party", root);
+    if (!party || party.offsetParent !== play.offsetParent || !play.offsetParent) return;
+    // too little even for the party: its rows drop the level line (measured
+    // full first, so the squeeze can't flip back and forth)
+    root.classList.remove("fn-party-tight");
+    const room = play.offsetTop - party.offsetTop - 24;
+    root.classList.toggle("fn-party-tight", party.scrollHeight > room);
+    const free = room - party.scrollHeight;
+    const h = NEWS_H.find((n) => n <= free) || 0;
+    root.style.setProperty("--fn-news-h", `${h}px`);
+    news.classList.toggle("is-off", !h);
+  }
+  const newsRoom = new ResizeObserver(roomForNews);
+  newsRoom.observe(play);
+  queueMicrotask(() => { const party = $(".to-bo2-party", root); if (party) newsRoom.observe(party); });
   const picker = document.createElement("div");
   picker.className = "to-fn-glass to-fn-picker";
   picker.setAttribute("role", "dialog");
   picker.setAttribute("aria-label", "Pick a mode");
   picker.hidden = true;
-  picker.innerHTML = `<h2>Pick a mode</h2>${PLAYLISTS.map((p) => `<button type="button" data-pl="${p.id}"><b>${esc(p.label)}</b><small>${esc(p.blurb)}</small></button>`).join("")}`;
   root.appendChild(picker);
+  /* One pick (user, 2026-10-31: "choosing game mode and map voting its
+     pretty redundantly built ... i have to choose twice"): the playlist, and
+     under the one you're on its modes (Team Deathmatch, Troll Royale...),
+     so the mode is picked here and nowhere else. */
+  function renderPicker() {
+    picker.innerHTML = `<h2>Pick a mode</h2>${PLAYLISTS.map((p) => {
+      const on = p.id === playlist;
+      const modes = on && p.pick ? modesOf(p.group) : [];
+      return `<button type="button" data-pl="${p.id}" aria-pressed="${on}"${modes.length ? ` aria-describedby="to-fn-pick-${p.id}"` : ""}><b>${esc(p.label)}</b><small>${esc(p.blurb)}</small></button>`
+        + (modes.length ? `<div class="to-fn-pick-modes" id="to-fn-pick-${p.id}" role="group" aria-label="${esc(p.label)} modes">${modes.map((m) => {
+          const lock = m.dataset.lock;
+          return `<button type="button" data-mode="${esc(m.dataset.mode)}" aria-pressed="${m.classList.contains("is-active")}"${m.disabled || lock ? " disabled" : ""} title="${esc(lock ? `Unlocks at ${lock}` : m.title || "")}">${esc(text($("span", m)))}</button>`;
+        }).join("")}</div>` : "");
+    }).join("")}`;
+  }
 
   /* ── Play tab, below: every mode as a tile (scroll down, or All modes) ── */
   const more = document.createElement("button");
@@ -258,6 +301,23 @@ export function mountFnLobby(api) {
   try { const v = localStorage.getItem(PL_KEY); if (PLAYLISTS.some((p) => p.id === v)) playlist = v; } catch {}
   let tab = "play";
 
+  // the lobby's mode buttons in a playlist's group (#to-lo-mode, by its headings)
+  function modesOf(group) {
+    let g = null; const out = [];
+    for (const el of $("#to-lo-mode")?.children || []) {
+      if (el.classList.contains("to-lo-modegroup")) g = text(el).toLowerCase();
+      else if (g === group && el.dataset.mode) out.push(el);
+    }
+    return out;
+  }
+  // a playlist's mode is one of its own: the last one picked, or its default
+  function ensureMode(p) {
+    if (!p?.pick) return;
+    const list = modesOf(p.group);
+    if (list.some((b) => b.classList.contains("is-active"))) return;
+    const b = list.find((x) => x.dataset.mode === p.pick && !x.disabled) || list.find((x) => !x.disabled);
+    b?.click();
+  }
   function modeIn(group) {
     // the picked mode's name, when it's in this playlist's group
     let g = null, hit = null;
@@ -270,7 +330,7 @@ export function mountFnLobby(api) {
   function renderPlay() {
     const p = PLAYLISTS.find((x) => x.id === playlist) || PLAYLISTS[0];
     $(".to-fn-mode-name", play).textContent = p.label;
-    $(".to-fn-mode-sub", play).textContent = (p.id === "public" || p.id === "solo" ? modeIn(p.group) : null) || p.sub;
+    $(".to-fn-mode-sub", play).textContent = (p.pick ? modeIn(p.group) : null) || p.sub;
     const map = $(".to-fn-map", play), img = $("img", map);
     let active = $("#to-lo-maps .to-lo-map.is-active");
     // Socialize plays only its own maps: a pick outside them gets its first
@@ -279,7 +339,10 @@ export function mountFnLobby(api) {
     let name = "", sub = "";
     // Troll Royale: the side you start on (royale-side.js), not a vote
     const side = p.id === "public" && $('#to-lo-mode [data-mode="royale"]')?.classList.contains("is-active") && royaleSide?.();
+    // U Mad Bro?: your hero, on the card (was a row in Public Match)
+    const hero = p.pick && p.group === "versus" && $('#to-lo-mode [data-mode="umb"]')?.classList.contains("is-active") && $("#to-lo-heroes .to-lo-hero.is-active");
     if (side) { name = side.name; sub = `${side.tag === "Default" ? "Default island" : side.tag} · change`; }
+    else if (hero) { name = text($("strong", hero)) || text(hero); sub = "Your hero · change"; }
     // (Public Match: no card. The vote is on the screen PLAY opens; a "Map
     // vote" card here said it twice, user 2026-10-31: "remove this")
     else if (p.id === "public") { /* no card */ }
@@ -294,6 +357,7 @@ export function mountFnLobby(api) {
     map.hidden = !name;
     // Royale: the card switches the side (the Island row in Public Match does too)
     map.classList.toggle("is-side", !!side);
+    map.classList.toggle("is-hero", !!hero && !side);
     // Royale: Solo / Duo / Trio / Squad (royale-squads.js); none smaller
     // than the party
     const size = $(".to-fn-size", play), rs = side && royaleSize?.();
@@ -305,10 +369,12 @@ export function mountFnLobby(api) {
       b.disabled = small;
       b.title = small ? `Your party is ${rs.min}` : `Troll Royale ${b.textContent}`;
     }
-    if (side) { map.setAttribute("role", "button"); map.tabIndex = 0; map.setAttribute("aria-label", `Island: ${side.name}, ${side.tag}. Switch side`); }
+    if (side || hero) { map.setAttribute("role", "button"); map.tabIndex = 0; map.setAttribute("aria-label", side ? `Island: ${side.name}, ${side.tag}. Switch side` : `Hero: ${name}. Change hero`); }
     else { map.removeAttribute("role"); map.removeAttribute("tabindex"); map.removeAttribute("aria-label"); }
   }
   window.addEventListener("tf-royale-side", () => renderPlay());
+  // a mode or hero picked anywhere (the picker, All modes, the heroes screen)
+  for (const id of ["to-lo-mode", "to-lo-heroes"]) document.getElementById(id)?.addEventListener("click", () => setTimeout(renderPlay));
   window.addEventListener("tf-royale-size", () => renderPlay());
   addEventListener("trollforces:party", () => renderPlay());
   $(".to-fn-size", play).addEventListener("click", (e) => { const b = e.target.closest("button"); if (b && !b.disabled) royaleSize?.().pick(+b.dataset.n); });
@@ -318,37 +384,55 @@ export function mountFnLobby(api) {
     if (e.detail?.some((k) => k === PL_KEY || k === "trollops:royaleSide" || k === "trollops:achievements" || k === "trollops:challenges")) { renderPlay(); renderMe(); }
   });
   {
-    const map = $(".to-fn-map", play), flip = () => { if (map.classList.contains("is-side")) switchRoyaleSide?.(); };
+    const map = $(".to-fn-map", play), flip = () => { if (map.classList.contains("is-side")) switchRoyaleSide?.(); else if (map.classList.contains("is-hero")) menu.go("heroes"); };
     map.addEventListener("click", flip);
     map.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
   }
   function setPlaylist(id) {
     playlist = id;
     try { localStorage.setItem(PL_KEY, id); } catch {}
+    ensureMode(PLAYLISTS.find((p) => p.id === id));
     renderPlay();
   }
 
-  function openPicker(on) {
+  function openPicker(on, focusMode = false) {
+    if (on) renderPicker();
     picker.hidden = !on;
     $(".to-fn-mode", play).setAttribute("aria-expanded", String(on));
-    if (on) ($(`[data-pl="${playlist}"]`, picker) || $("button", picker)).focus();
+    if (on) ((focusMode && $(".to-fn-pick-modes button[aria-pressed=true], .to-fn-pick-modes button:not(:disabled)", picker)) || $(`[data-pl="${playlist}"]`, picker) || $("button", picker)).focus();
   }
   $(".to-fn-mode", play).addEventListener("click", () => openPicker(picker.hidden));
   picker.addEventListener("click", (e) => {
+    const m = e.target.closest("[data-mode]");
+    if (m) {
+      if (m.disabled) return;
+      const btn = $(`#to-lo-mode [data-mode="${m.dataset.mode}"]`);
+      if (btn && !btn.disabled) btn.click();
+      renderPlay();
+      openPicker(false);
+      $(".to-fn-go", play).focus();
+      return;
+    }
     const b = e.target.closest("[data-pl]");
     if (!b) return;
-    setPlaylist(b.dataset.pl);
+    const p = PLAYLISTS.find((x) => x.id === b.dataset.pl);
+    setPlaylist(p.id);
+    // a playlist with modes opens them; the rest are picked
+    if (p.pick) { openPicker(true, true); return; }
     openPicker(false);
     $(".to-fn-go", play).focus();
   });
   document.addEventListener("click", (e) => {
-    if (!picker.hidden && !picker.contains(e.target) && !e.target.closest(".to-fn-mode")) openPicker(false);
+    // (composedPath: a click that redrew the picker has a target no longer in it)
+    if (!picker.hidden && !e.composedPath().includes(picker) && !e.target.closest(".to-fn-mode")) openPicker(false);
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !picker.hidden) { e.preventDefault(); e.stopPropagation(); openPicker(false); $(".to-fn-mode", play).focus(); }
   }, true);
-  // PLAY opens the playlist's own screen: its modes, map vote, and the go button
-  $(".to-fn-go", play).addEventListener("click", () => menu.go(playlist));
+  // PLAY: Public Match is Find Match itself (menu-bo2.js findMatch: in you
+  // go, or its map vote while others are queued); the rest open their screen
+  // (a room code, a map, the hub)
+  $(".to-fn-go", play).addEventListener("click", () => { if (playlist === "public" && api.findMatch) api.findMatch(); else menu.go(playlist); });
   /* In someone else's party, or the joined squad whose leader didn't ask:
      their leader starts the match (user, 2026-10-30), so PLAY waits for
      them instead of taking you off on your own. */
@@ -436,9 +520,24 @@ export function mountFnLobby(api) {
     else openQuick(t.screen);
   }
   for (const b of tabs) b.addEventListener("click", () => goTab(b.dataset.tab));
+  /* Menu size, top right (user, 2026-10-31: "that should be a button on the
+     top right of the main menu"; was Options > Menu size): each press a
+     size smaller, 100% after 70% (view/ui-scale.js). */
+  const msz = $(".to-fn-msz", top);
+  function showMenuSize() {
+    const pct = Math.round((window.tfMenuScale?.get() || 1) * 100);
+    $("b", msz).textContent = `${pct}%`;
+    msz.setAttribute("aria-label", `Menu size ${pct}%. Press for the next size`);
+  }
+  if (window.tfMenuScale) showMenuSize(); else msz.hidden = true;
   top.addEventListener("click", (e) => {
     const act = e.target.closest("[data-act]")?.dataset.act;
-    if (act === "arcade") api.toArcade();
+    if (act === "newhere") help.open();
+    else if (act === "menusize") {
+      const s = window.tfMenuScale.sizes, i = s.indexOf(window.tfMenuScale.get());
+      window.tfMenuScale.set(s[(i + 1) % s.length]);
+      showMenuSize();
+    } else if (act === "arcade") api.toArcade();
     else if (act === "career") goTab("career");
     else if (act === "me") $(".to-bo2-party-row.is-me", root)?.click();   // Barracks, or sign in
   });
@@ -448,74 +547,38 @@ export function mountFnLobby(api) {
     else if (act) goTab(act);
   });
 
-  /* ── News: turns by itself, slowly (user, 2026-10-31: "it should auto
-     loop slowly by itself. manual control can be done as well by clicking
-     on the four circles"): a crossfade every NEWS_MS, the lit circle
-     filling as it waits; held while the pointer or focus is on it. A card
-     opens its playlist. ── */
+  /* ── News: a loop that turns by itself (user, 2026-10-31: "dont even make
+     the circles clickable really it should jsut be a continous loop that no
+     one has control of manipulating"): a crossfade every NEWS_MS, the lit
+     circle filling as it waits. No tapping, swiping, keys or hover hold;
+     the circles only show where it is. "Play this" is the one way from a
+     story to its mode, map and backdrop. ── */
   const NEWS_MS = 8000;
   news.style.setProperty("--news-ms", `${NEWS_MS}ms`);
-  let newsIdx = 0, newsTimer = 0, newsHeld = false;
-  const cards = $$(".to-fn-news-card", news), pips = $$(".to-fn-pips button", news);
+  let newsIdx = 0;
+  const cards = $$(".to-fn-news-card", news), pips = $$(".to-fn-pips i", news);
+  const newsGo = $(".to-fn-news-go", news);
+  newsGo.textContent = "Play this";
   function showNews(i) {
     newsIdx = (i + NEWS.length) % NEWS.length;
     cards.forEach((c, k) => { c.hidden = k !== newsIdx; });
-    pips.forEach((p, k) => p.setAttribute("aria-current", String(k === newsIdx)));
+    pips.forEach((p, k) => p.classList.toggle("is-on", k === newsIdx));
+    newsGo.setAttribute("aria-label", `Play ${NEWS[newsIdx].title}: ${NEWS[newsIdx].tag}`);
   }
   for (const c of cards) {
     const n = NEWS[+c.dataset.i];
     if (n.art) $("img", c).src = n.art; else setMapShot($("img", c), n.map, "320px");
-    c.addEventListener("click", () => {
-      if (n.mode) { const b = $(`#to-lo-mode [data-mode="${n.mode}"]`); if (b && !b.disabled) b.click(); }
-      if (n.side && royaleSide?.().id !== n.side) switchRoyaleSide?.();
-      setPlaylist(n.playlist);
-      $(".to-fn-go", play).focus();
-    });
   }
-  for (const p of pips) p.addEventListener("click", () => { showNews(+p.dataset.i); restartNews(); });
-  // swipe (or drag) the card left / right for the next / last (user,
-  // 2026-10-30: "users should be able to swipe through the four news")
-  {
-    let x0 = null, y0 = 0, swiped = false;
-    news.addEventListener("pointerdown", (e) => { x0 = e.clientX; y0 = e.clientY; swiped = false; });
-    news.addEventListener("pointerup", (e) => {
-      if (x0 == null) return;
-      const dx = e.clientX - x0, dy = e.clientY - y0;
-      x0 = null;
-      if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
-      swiped = true;
-      showNews(newsIdx + (dx < 0 ? 1 : -1));
-      restartNews();
-    });
-    news.addEventListener("pointercancel", () => { x0 = null; });
-    // (a swipe isn't a tap: the card's click doesn't open its mode)
-    news.addEventListener("click", (e) => { if (swiped) { e.stopPropagation(); e.preventDefault(); swiped = false; } }, true);
-    // the arrow keys too, on a focused card
-    news.addEventListener("keydown", (e) => {
-      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-      e.preventDefault();
-      showNews(newsIdx + (e.key === "ArrowRight" ? 1 : -1));
-      restartNews();
-      cards[newsIdx].focus();
-    });
-  }
-  // (one timer, restarted on every turn: a pick or a swipe gets its full wait)
-  function restartNews() {
-    clearTimeout(newsTimer);
-    news.classList.toggle("is-held", newsHeld);
-    if (newsHeld) return;
-    newsTimer = setTimeout(() => {
-      if (!title.hidden && !document.hidden && !document.body.classList.contains("tf-anim-off")) showNews(newsIdx + 1);
-      restartNews();
-    }, NEWS_MS);
-  }
-  const holdNews = (on) => { if (newsHeld !== on) { newsHeld = on; restartNews(); } };
-  news.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") holdNews(true); });
-  news.addEventListener("pointerleave", () => holdNews(news.contains(document.activeElement)));
-  news.addEventListener("focusin", () => holdNews(true));
-  news.addEventListener("focusout", (e) => { if (!news.contains(e.relatedTarget)) holdNews(news.matches(":hover")); });
+  newsGo.addEventListener("click", () => {
+    const n = NEWS[newsIdx];
+    if (n.mode) { const b = $(`#to-lo-mode [data-mode="${n.mode}"]`); if (b && !b.disabled) b.click(); }
+    if (n.side && royaleSide?.().id !== n.side) switchRoyaleSide?.();
+    setPlaylist(n.playlist);
+    $(".to-fn-go", play).focus();
+  });
+  // one steady clock: the next story every NEWS_MS while the menu is up
+  setInterval(() => { if (!title.hidden && !document.hidden) showNews(newsIdx + 1); }, NEWS_MS);
   showNews(0);
-  restartNews();
 
   /* ── The season's countdown: each minute, while the menu is up ── */
   const seasonEl = $(".to-fn-season-left", left);

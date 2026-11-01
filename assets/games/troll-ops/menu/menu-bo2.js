@@ -690,14 +690,19 @@ const screens = {
   },
   /* The pre-match lobby (menu/map-vote.js): the mode, the map vote, and
      Find Match, which readies you up when others are in the lobby. */
+  /* Finding a match: the map vote and its clock while others are in the
+     lobby, you readied up (findMatch). The mode was picked on the Play page,
+     so it isn't asked again (user, 2026-10-31: "choosing game mode and map
+     voting its pretty redundantly built ... i have to choose twice"). */
   public: () => {
     const v = publicView();
     return {
-      title: "Public Match", panel: "deploy", vote: v,
-      enter: () => { ensureGroup("versus", "tdm"); clearRoom(); },
-      // Find Match first (user, 2026-10-31: "users have to scroll down to
-      // click find match"): the mode list and the vote sit under it
-      groups: [[findRow(v)], modeItems("versus"), [heroRow(), sideRow(), sizeRow(), recordRow(), ...voteRows(v)].filter(Boolean), [back("Back to the main menu.")]],
+      title: "Finding match", panel: "deploy", vote: v,
+      enter: () => {
+        ensureGroup("versus", "tdm"); clearRoom();
+        if (arriveReady) { arriveReady = false; lobby.ready = true; pushActivity(); sheetOpen = voteSheet && !!publicView(); }
+      },
+      groups: [[findRow(v)], voteRows(v), [back("Back to the lobby. You leave the queue.")]].filter((g) => g.length),
     };
   },
   /* One public hangout room: pick a map (whoever is already there decides
@@ -714,7 +719,8 @@ const screens = {
     title: "Solo Play", panel: "deploy",
     // a code left over from a private room would make Zombies co-op
     enter: () => { ensureGroup("solo", "ops"); clearRoom(); },
-    groups: [modeItems("solo"), [mapRow()], [deployRow("Start", "Drop in."), back("Back to the main menu.")]],
+    // (the mode is the Play page's pick: Change mode)
+    groups: [[mapRow()], [deployRow("Start", "Drop in."), back("Back to the main menu.")]],
   }),
   /* Zombies (Zombie Rush P5): the hub, a public room with a pad per map
      (modes/zombies/hub.js); or a room code straight into a run, the old way. */
@@ -743,9 +749,9 @@ const screens = {
   private: () => ({
     title: "Private Match", panel: "deploy",
     enter: () => ensureGroup("versus", "tdm"),
+    // (the mode is the Play page's pick: Change mode)
     groups: [
-      modeItems("versus"),
-      [heroRow(), sideRow(), sizeRow(), recordRow(), { id: "room", label: "Room", value: $("#to-room")?.value || "Auto", desc: "Room code, bots and who's in.", go: "room" }, mapRow()].filter(Boolean),
+      [heroRow(), sideRow(), sizeRow(), { id: "room", label: "Room", value: $("#to-room")?.value || "Auto", desc: "Room code, bots and who's in.", go: "room" }, mapRow()].filter(Boolean),
       [deployRow("Start", "Open the room. Friends join with your code."), back("Back to the main menu.")],
     ],
   }),
@@ -951,25 +957,25 @@ const screens = {
         rangeRow("to-set-sens-lobby", "Look sensitivity", 10, "Mouse and touch look speed."),
         selectRow("to-set-padsens-lobby", "Stick sensitivity", "Controller look speed. 3 is the BO2 default."),
         rangeRow("to-set-fov-lobby", "Field of view", 2, "Wider sees more, narrower zooms in."),
+        rangeRow("to-set-hudsize-lobby", "HUD size", 5, "Health, ammo, minimap, streaks and the killfeed, smaller or bigger.", "%"),
         selectRow("to-set-gfx-lobby", "Graphics", "Auto picks for your device."),
       ].filter(Boolean),
       [
         checkRow("to-set-invert-lobby", "Invert look", "Flip up and down."),
         checkRow("to-set-minimap-lobby", "Minimap", "The radar in the corner."),
         checkRow("to-set-fps-lobby", "Show FPS", "Frame rate in the top corner."),
-        selectRow("to-set-botskill", "Bot skill", "Veteran bots give +10% XP."),
         checkRow("to-set-viewmode-lobby", "View mode", "Just look at the maps, no fighting."),
       ].filter(Boolean),
       [
         // (menu/online.js: your friends get a Join on you mid-match)
+        // Troll Royale's Record my match, here now the Public Match screen is gone
+        recordSupported() && { id: "royale-record", label: "Record Royale matches", value: () => (recordPref() ? "On" : "Off"),
+          desc: "Films your Troll Royale matches from the green light until you go down or win. Save the clip from the results screen.",
+          adjust: () => setRecordPref(!recordPref()) },
         { id: "friendsjoin", label: "Friends can join", value: () => (friendsCanJoin() ? "On" : "Off"), adjust: () => setFriendsCanJoin(!friendsCanJoin()),
           desc: "Friends can drop into your match while it's on, from their Friends list. Off keeps your private matches to invites only." },
         { id: "anim", label: "Animations", value: () => (animOff ? "Off" : "On"), adjust: () => toggleAnim(),
           desc: "The menu's moving parts: the news cards turning, the glow. Off is easier on a slow laptop." },
-        // (view/ui-scale.js: the menu smaller on a small screen)
-        window.tfMenuScale && { id: "menuscale", label: "Menu size", value: () => `${Math.round(window.tfMenuScale.get() * 100)}%`,
-          adjust: (dir = 1) => { const s = window.tfMenuScale.sizes, i = s.indexOf(window.tfMenuScale.get()); window.tfMenuScale.set(s[(i + (dir < 0 ? -1 : 1) + s.length) % s.length]); },
-          desc: "Shrinks the menu so more fits on a small screen. Matches aren't changed." },
         { id: "hud", label: "HUD layout", desc: "Move the buttons and the HUD.", onSelect: () => $("#to-pfp-controls [data-hud-layout]")?.click() },
         // the ?diag=1 panel (core/diag.js) where a link can't carry ?diag=1:
         // an app on the home screen has its own storage and no address bar
@@ -1114,7 +1120,7 @@ function castVote(id, m = menu) {
 function findRow(v) {
   if (v?.kind === "live") return deployRow("Join Match", `Join the match on ${v.server.mapName || "its map"}.`);
   if (v?.kind !== "vote") return deployRow("Find Match", "Join the public room for this mode.");
-  if (!v.t.inLobby.length) return { ...deployRow("Find Match", "Nobody else in the lobby: in you go, on your vote (or the top map)."), onSelect: () => dropIn(lobby.vote || v.t.winner) };
+  if (!v.t.inLobby.length) return { ...deployRow("Drop in now", "Nobody else is queued: in you go on your vote (or the top map), no waiting for the clock."), onSelect: () => dropIn(lobby.vote || v.t.winner) };
   return {
     id: "deploy", tier: "primary", label: lobby.ready ? "Cancel" : "Find Match",
     value: `${v.t.ready} ready`,
@@ -1126,6 +1132,17 @@ function findRow(v) {
       m.refresh();
     },
   };
+}
+/* PLAY on the Play page with Public Match picked: the Finding match
+   screen, readied up, with the map preview and its vote (user, 2026-10-31:
+   "i did like the UI for seeing the preview of the map"), the one place a
+   map is picked; on a phone, the vote's sheet. Everyone ready goes in on
+   the winner when the clock runs out; alone, Drop in now doesn't wait. A
+   match already on, or a mode's one map, shows that map and its Join. */
+let arriveReady = false;
+function findMatch() {
+  arriveReady = true;
+  menu.go("public");
 }
 /* Into the mode's public room on map `id`: the lobby's own map button, then
    its start, the way Find Match always went. */
@@ -1690,6 +1707,7 @@ const fn = mountFnLobby({
   switchRoyaleSide: () => sideRow()?.adjust(1),
   royaleSize,
   partyView,
+  findMatch: () => findMatch(),
 });
 
 /* ── Friends: the top bar's people button and its drawer (menu/friends.js) ── */

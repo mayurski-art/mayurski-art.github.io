@@ -57,7 +57,7 @@ const r = await page.evaluate(async () => {
     el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); return true; };
   out.fovEl = set("to-set-fov-lobby", 90);
   out.minimapEl = set("to-set-minimap-lobby", false);
-  out.skillEl = set("to-set-botskill", "veteran");
+  out.skillEl = !!document.getElementById("to-set-botskill");
   await wait(60);
   try { out.saved = JSON.parse(localStorage.getItem("trollops:settings")); } catch { out.saved = null; }
   // Hero buttons + room code.
@@ -74,7 +74,7 @@ check(`every lobby panel opens (${r.panels})`, r.panels >= 6);
 check(`mode rows built (${r.modes})`, r.modes >= 6);
 check("FOV slider saves", r.fovEl && r.saved?.fov == 90, JSON.stringify(r.saved));
 check("minimap check saves", r.minimapEl && r.saved?.minimap === false);
-check("bot skill select saves", r.skillEl && r.saved?.botSkill === "veteran");
+check("no bot skill select, none saved (bots are always Veteran)", !r.skillEl && r.saved?.botSkill === undefined);
 check(`hero buttons built (${r.heroes})`, r.heroes >= 1);
 check("room code box cleans input", r.room === undefined || r.room === "AB1X9", r.room);
 check("radio widget present", r.radio);

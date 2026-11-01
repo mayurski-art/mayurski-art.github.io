@@ -1,5 +1,5 @@
 // Troll Forces settings: the saved settings object and applySettings, which
-// pushes it into audio, FOV, the minimap, graphics and the bot skill.
+// pushes it into audio, FOV, the minimap and graphics.
 
 import { minimapCanvas } from "../core/minimap.js?v=cr1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2-jx3-jx4-jx5-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h";
 import { game } from "../core/state.js?v=st1";
@@ -7,13 +7,15 @@ import { showFps } from "../core/fps-meter.js?v=fp1-zr10";
 
 export const SETTINGS_KEY = "trollops:settings";
 export const settings = {
-  volume: 50, ambience: 60, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, botSkill: "regular", thirdPerson: false,
+  volume: 50, ambience: 60, sens: 100, padSens: 3, fov: 78, invert: false, minimap: true, thirdPerson: false, hudScale: 100,
   gfx: "auto", viewMode: false, invincible: false, fps: false,
   ...(() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; } })(),
 };
 // The minimap back on once for everyone (user, 2026-10-29: "by default the
 // minimap should be shown"); switching it off after that sticks.
 if (!settings.minimapV2) { settings.minimap = true; settings.minimapV2 = true; }
+// No Bot skill setting any more: bots are always Veteran (bots.js BOT_SKILL).
+delete settings.botSkill;
 
 export function saveSettings() {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* private mode */ }
@@ -42,6 +44,11 @@ export function applySettings() {
   set("to-set-invert", settings.invert);
   set("to-set-minimap", settings.minimap);
   set("to-set-fps", settings.fps);
+  // HUD size (user, 2026-10-31): style.css --hud-z, the layout editor re-places its pieces
+  set("to-set-hudsize", settings.hudScale, "to-set-hudsize-out", "%");
+  set("to-set-hudsize-lobby", settings.hudScale, "to-set-hudsize-lobby-out", "%");
+  document.documentElement.style.setProperty("--hud-z", String(settings.hudScale / 100));
+  dispatchEvent(new Event("trollops:hud-scale"));
 
   set("to-set-volume-lobby", settings.volume, "to-set-volume-lobby-out");
   set("to-set-ambience-lobby", settings.ambience, "to-set-ambience-lobby-out");
@@ -53,13 +60,8 @@ export function applySettings() {
   set("to-set-viewmode-lobby", settings.viewMode);
   set("to-set-invincible", settings.invincible);
   game.renderViewModeRow();
-  set("to-set-botskill", settings.botSkill);
   set("to-set-gfx", settings.gfx);
   set("to-set-gfx-lobby", settings.gfx);
   game.applyGraphics();
   showFps(settings.fps);
-  // Takes effect for bots created from here on, so a change mid-match applies
-  // as they respawn rather than rewriting the ones already in the fight.
-  game.bots.difficulty = settings.botSkill;
-  game.renderBotSkillNote();
 }
