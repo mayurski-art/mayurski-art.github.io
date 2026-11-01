@@ -32,9 +32,18 @@ export const DC = { x: -21.5, z: 17 };
 export const STAGE = { x0: -31.5, x1: -28, z0: 8, z1: 16, top: 0.6 };
 export const DJ_WALL = -31.45;
 export const DECK = { x: -29.6, z: 12 };
+// the balcony's own bar, against the north wall at the north arm's east end
+export const BALCONY_BAR = { x: -10, z: 5.6 };
+/* The hall's two video screens, on the north and south walls under the
+   arms (local y, their middles): over the booths' heads, under the decks,
+   facing each other across the dance floor; nothing stands in front of
+   them (rule 9). */
+export const SCREENS = { y: 2.5, w: 3.0, h: 1.69, pole: { x: -19 }, swish: { x: -24.5 } };
 // the balcony's three arms (B1): north, east, south
 export const ARMS = {
-  north: [-31.5, -6.5, 4.5, 12],
+  // (the north arm stops at the front stair: west of it the DJ's LED wall
+  // rises the hall's full height, nothing in front of it, rule 9)
+  north: [-27.8, -6.5, 4.5, 12],
   east: [-11, -6.5, 12, 22],
   south: [-31.5, -6.5, 22, 30],
 };
@@ -149,7 +158,8 @@ export function underColliders() {
   box(-21.25, -18.75, 34.35, 34.6, 0, PAR, 4);
   // the rails round the drop (glass, 1.05): the north arm's edge, the east
   // arm's, the south arm's either side of S5's wall; the stairs' open sides
-  box(-31.5, -14.5, 11.95, 12.05, B1, B1 + PAR, 4);
+  box(-27.8, -14.5, 11.95, 12.05, B1, B1 + PAR, 4);
+  box(-27.85, -27.75, 9.9, 12, B1, B1 + PAR, 4);
   box(-11.05, -10.95, 12, 22, B1, B1 + PAR, 4);
   box(-29.5, -22, 21.95, 22.05, B1, B1 + PAR, 4);
   box(-16.6, -11, 21.95, 22.05, B1, B1 + PAR, 4);
@@ -177,9 +187,35 @@ export function underMaterials() {
   };
 }
 
+/* The furniture you can sit on, where buildUnderShell puts it (local
+   heights: B2 = 0): booths under the north and south arms facing the
+   floor, the main bar's stools, the balcony's sofas. */
+export const FURNITURE = {
+  booths: [
+    ...[-22.5, -19, -15.5].map((x) => ({ x, z: HALL.z0 + 0.45, face: "+z" })),
+    ...[-28, -24.5, -16, -12.5].map((x) => ({ x, z: HALL.z1 - 0.45, face: "-z" })),
+  ],
+  stools: Array.from({ length: 6 }, (_, i) => ({ x: -9.4, z: 14.2 + i * 1.2 })),
+  sofas: [{ x: -21, z: 9.2, face: "+z" }, { x: -16.5, z: 9.2, face: "+z" }, { x: -26, z: 25.2, face: "-z" }, { x: -14, z: 25.2, face: "-z" }],
+};
+/* Their places, in world heights: { x, z, y (the seat), floor, face, kind, out? }. */
+export function underSeats() {
+  const out = [];
+  for (const { x, z, face } of FURNITURE.booths) {
+    const dz = face === "+z" ? 1 : -1;
+    for (const dx of [-0.8, 0, 0.8]) out.push({ x: x + dx, z: z + dz * 0.1, y: FL + 0.45, floor: FL, face, kind: "bench" });
+  }
+  for (const { x, z } of FURNITURE.stools) out.push({ x, z, y: FL + 0.76, floor: FL, face: "+x", kind: "stool", out: 0.6 });
+  for (const { x, z, face } of FURNITURE.sofas) {
+    const dz = face === "+z" ? 1 : -1;
+    for (const dx of [-0.95, 0, 0.95]) out.push({ x: x + dx, z: z + dz * 0.05, y: B1 + 0.42, floor: B1, face, kind: "bench" });
+  }
+  return out;
+}
+
 /* Draws the dug club's still pieces into `K` (a Kit on the local group:
    B2 = 0) and its glow into `N` (a Neon on it). `M` club-live's materials,
-   `UM` underMaterials(). Returns the seats the crowd can take (local y). */
+   `UM` underMaterials(). The seats are FURNITURE's. */
 export function buildUnderShell(K, N, M, UM) {
   const { x0, x1, z0, z1 } = HALL;
   const W = x1 - x0, D = z1 - z0, CX = (x0 + x1) / 2, CZ = (z0 + z1) / 2;
@@ -215,12 +251,12 @@ export function buildUnderShell(K, N, M, UM) {
   deck(...ARMS.east);
   deck(...ARMS.south);
   const uv = (x, z, w, d) => N.bar(M.neon, x, L(B1 - 0.46), z, w, 0.05, d, {}, { color: 0x6a2cff, k: 1.5, beat: 0.12 });
-  uv((-31.5 - 14.5) / 2, 11.9, 17, 0.06);
+  uv((-27.8 - 14.5) / 2, 11.9, 13.3, 0.06);
   uv(-10.9, 17, 0.06, 10);
   uv((-29.5 - 22) / 2, 22.1, 7.5, 0.06);
   uv((-16.6 - 11) / 2, 22.1, 5.6, 0.06);
   // UV tubes under the arms, over the booths and the bar
-  for (const x of [-30, -22, -16, -10]) uv(x, 8.2, 1.4, 0.06);
+  for (const x of [-22, -16]) uv(x, 8.2, 1.4, 0.06);
   for (const z of [14.5, 19.5]) uv(-8.75, z, 0.06, 1.4);
   for (const x of [-28, -24, -14, -9]) uv(x, 26, 1.4, 0.06);
   // the columns under the east arm
@@ -238,7 +274,8 @@ export function buildUnderShell(K, N, M, UM) {
       K.box(M.steel, ax + (bx - ax) * t, y, az + (bz - az) * t, 0.05, 1.0, 0.05);
     }
   };
-  rail(-31.5, 12, -14.5, 12, B1L);
+  rail(-27.8, 12, -14.5, 12, B1L);
+  rail(-27.8, 9.9, -27.8, 12, B1L);
   rail(-11, 12, -11, 22, B1L);
   rail(-29.5, 22, -22, 22, B1L);
   rail(-16.6, 22, -11, 22, B1L);
@@ -288,7 +325,6 @@ export function buildUnderShell(K, N, M, UM) {
   /* ---- the furniture (all near-black): booths under the arms on the north
      and south walls, the main bar under the east arm with its stools, the
      balcony's sofas, tables and its own small bar */
-  const seats = [];
   const booth = (x, z, face, y = 0) => {
     const dz = face === "+z" ? 1 : -1;
     K.box(UM.velvet, x, y, z, 2.5, 0.45, 0.6);                          // the seat
@@ -297,10 +333,8 @@ export function buildUnderShell(K, N, M, UM) {
     N.add(M.neon, new THREE.SphereGeometry(0.035, 6, 4).translate(x, y + 0.47, z + dz * 0.75), { color: 0xffa040, k: 1.6, beat: 0.05 });
     K.api.ghostBox(x, z - dz * 0.1, 2.5, 0.8, 1.2, { y: y + FL, pen: 3 });
     K.api.ghostBox(x, z + dz * 0.75, 1.1, 0.5, 0.45, { y: y + FL, pen: 2 });
-    for (const dx of [-0.8, 0, 0.8]) seats.push({ x: x + dx, z: z + dz * 0.1, y: y + 0.45, floor: y, face, kind: "bench" });
   };
-  for (const x of [-22.5, -19, -15.5]) booth(x, z0 + 0.45, "+z");
-  for (const x of [-28, -24.5, -16, -12.5]) booth(x, z1 - 0.45, "-z");
+  for (const b of FURNITURE.booths) booth(b.x, b.z, b.face);
   // the main bar: counter, its lit edge, stools (the bottles are club-live's)
   {
     const bx = -8.1, bz0 = 13.5, bz1 = 20.5;
@@ -308,12 +342,10 @@ export function buildUnderShell(K, N, M, UM) {
     K.box(UM.wood, bx, 1.1, (bz0 + bz1) / 2, 1.15, 0.05, bz1 - bz0 + 0.1);
     N.bar(M.neon, bx - 0.58, 1.05, (bz0 + bz1) / 2, 0.02, 0.03, bz1 - bz0, {}, { color: 0x3ff0ff, k: 1.6, chase: 0.5, chaseLen: 3, beat: 0.2 });
     K.api.ghostBox(bx, (bz0 + bz1) / 2, 1.15, bz1 - bz0 + 0.1, 1.15, { y: FL, pen: 3 });
-    for (let i = 0; i < 6; i++) {
-      const z = 14.2 + i * 1.2, x = bx - 1.3;
+    for (const { x, z } of FURNITURE.stools) {
       K.cyl(M.steel, x, 0, z, 0.18, 0.04, 0.72, 10);
       K.cyl(M.blackGloss, x, 0.72, z, 0.2, 0.2, 0.06, 12);
       K.api.ghostBox(x, z, 0.4, 0.4, 0.78, { y: FL, pen: 2 });
-      seats.push({ x, z, y: 0.76, floor: 0, face: "+x", kind: "stool", out: 0.6 });
     }
   }
   // the balcony: sofas facing the floor, cocktail tables on the east arm, the small bar on the north arm's west end
@@ -322,12 +354,8 @@ export function buildUnderShell(K, N, M, UM) {
     K.box(UM.velvet, x, y, z, 3, 0.42, 0.9);
     K.box(UM.velvet, x, y, z - dz * 0.4, 3, 0.9, 0.12);
     K.api.ghostBox(x, z - dz * 0.05, 3, 1.0, 0.95, { y: y + FL, pen: 3 });
-    for (const dx of [-0.95, 0, 0.95]) seats.push({ x: x + dx, z: z + dz * 0.05, y: y + 0.42, floor: y, face, kind: "bench" });
   };
-  sofa(-21, 9.2, "+z", B1L);
-  sofa(-16.5, 9.2, "+z", B1L);
-  sofa(-26, 25.2, "-z", B1L);
-  sofa(-14, 25.2, "-z", B1L);
+  for (const s of FURNITURE.sofas) sofa(s.x, s.z, s.face, B1L);
   for (const z of [14.5, 19.5]) {
     K.cyl(M.steel, -8.8, B1L, z, 0.22, 0.05, 0.9, 10);
     K.cyl(M.blackGloss, -8.8, B1L + 0.9, z, 0.32, 0.32, 0.04, 16);
@@ -335,14 +363,14 @@ export function buildUnderShell(K, N, M, UM) {
     K.api.ghostBox(-8.8, z, 0.6, 0.6, 0.95, { y: B1, pen: 2 });
   }
   {
-    // the balcony bar: a short counter against the west wall, bottles' glow behind it
-    K.box(M.blackGloss, -30.6, B1L, 8.2, 0.9, 1.1, 4);
-    K.box(UM.wood, -30.6, B1L + 1.1, 8.2, 1.05, 0.05, 4.1);
-    N.bar(M.neon, -30.13, B1L + 1.05, 8.2, 0.02, 0.03, 4, {}, { color: 0xff2ab4, k: 1.5, chase: 0.5, chaseLen: 3, beat: 0.2 });
-    K.add(M.backlight, place(new THREE.PlaneGeometry(4, 1.4), { x: x0 + 0.03, y: B1L + 1.9, z: 8.2, ry: Math.PI / 2 }), { shadow: false });
-    K.api.ghostBox(-30.6, 8.2, 1.05, 4.1, 1.15, { y: B1, pen: 3 });
+    // the balcony bar: a short counter at the north arm's east end, the bottles' glow on the wall behind it
+    const bx = BALCONY_BAR.x, bz = BALCONY_BAR.z;
+    K.box(M.blackGloss, bx, B1L, bz, 4, 1.1, 0.9);
+    K.box(UM.wood, bx, B1L + 1.1, bz, 4.1, 0.05, 1.05);
+    N.bar(M.neon, bx, B1L + 1.05, bz + 0.47, 4, 0.03, 0.02, {}, { color: 0xff2ab4, k: 1.5, chase: 0.5, chaseLen: 3, beat: 0.2 });
+    K.add(M.backlight, place(new THREE.PlaneGeometry(4, 1.4), { x: bx, y: B1L + 1.9, z: z0 + 0.03 }), { shadow: false });
+    K.api.ghostBox(bx, bz, 4.1, 1.05, 1.15, { y: B1, pen: 3 });
   }
-  return seats;
 }
 
 /* A flat polygon's pieces outside the rect [x0, x1, z0, z1], each still a
@@ -432,4 +460,48 @@ export function cutOldClub(scene) {
     out.computeBoundingSphere();
     o.geometry = out;
   });
+}
+
+/* For the obstruction test (tools/troll-ops-obstruction-test.mjs), what the
+   faces file Blender wrote no longer has right: everything it registered in
+   the old hall is gone (`drop`, and the old stage's floor), and the dug
+   club's faces, the furniture in front of them and its floors are added. */
+export function underFaces() {
+  const f = (id, owner, c, n, w, h) => ({ id, owner, c, n, u: [n[2] || 0, 0, -(n[0] || 0)], w, h });
+  const box = (id, lo, hi, on = null) => ({ id, on, lo, hi });
+  const faces = [
+    f("screen-pole", "code", [SCREENS.pole.x, FL + SCREENS.y, HALL.z0 + 0.07], [0, 0, 1], SCREENS.w, SCREENS.h),
+    f("screen-swish", "code", [SCREENS.swish.x, FL + SCREENS.y, HALL.z1 - 0.07], [0, 0, -1], SCREENS.w, SCREENS.h),
+    // the crystal LED wall above the DJ's booth, and the trollface on it
+    f("crystal-top", "code", [DJ_WALL + 0.03, FL + 3.95, DECK.z], [1, 0, 0], 9.6, 4.2),
+    f("bottle-wall", "code", [-6.53, FL + 2.05, 17], [-1, 0, 0], 7, 1.7),
+    f("balcony-bottles", "code", [BALCONY_BAR.x, B1 + 1.9, HALL.z0 + 0.04], [0, 0, 1], 4, 1.4),
+    f("door-tunnel", "code", [-20, B1 + 1.3, HALL.z1 - 0.02], [0, 0, -1], 2, 2.6),
+  ];
+  const props = [];
+  FURNITURE.booths.forEach(({ x, z, face }, i) => {
+    const dz = face === "+z" ? 1 : -1;
+    props.push(box(`booth-${i}`, [x - 1.25, FL, Math.min(z - dz * 0.41, z + dz * 0.3)], [x + 1.25, FL + 1.1, Math.max(z - dz * 0.41, z + dz * 0.3)]));
+    props.push(box(`booth-${i}-table`, [x - 0.55, FL, z + dz * 0.75 - 0.25], [x + 0.55, FL + 0.42, z + dz * 0.75 + 0.25]));
+  });
+  props.push(box("bar-main", [-8.675, FL, 13.45], [-7.525, FL + 1.15, 20.55]));
+  FURNITURE.stools.forEach(({ x, z }, i) => props.push(box(`stool-${i}`, [x - 0.2, FL, z - 0.2], [x + 0.2, FL + 0.78, z + 0.2])));
+  FURNITURE.sofas.forEach(({ x, z, face }, i) => {
+    const dz = face === "+z" ? 1 : -1;
+    props.push(box(`sofa-${i}`, [x - 1.5, B1, Math.min(z - dz * 0.46, z + dz * 0.45)], [x + 1.5, B1 + 0.9, Math.max(z - dz * 0.46, z + dz * 0.45)]));
+  });
+  for (const z of [14.5, 19.5]) props.push(box(`balcony-table-${z}`, [-9.12, B1, z - 0.32], [-8.48, B1 + 0.94, z + 0.32]));
+  for (const z of [12.3, 21.7]) props.push(box(`column-${z}`, [-11.45, FL, z - 0.2], [-11.05, B1 - 0.4, z + 0.2]));
+  props.push(box("balcony-bar", [BALCONY_BAR.x - 2.05, B1, BALCONY_BAR.z - 0.525], [BALCONY_BAR.x + 2.05, B1 + 1.15, BALCONY_BAR.z + 0.525], "balcony-bottles"));
+  props.push(box("dj-booth", [DECK.x - 0.45, FL + STAGE.top, DECK.z - 2.6], [DECK.x + 0.45, FL + STAGE.top + 1.1, DECK.z + 2.6], "crystal-top"));
+  const eyes = [
+    { rect: [HALL.x0, HALL.x1, HALL.z0, HALL.z1], y: FL },
+    { rect: [STAGE.x0, STAGE.x1, STAGE.z0, STAGE.z1], y: FL + STAGE.top },
+    { rect: ARMS.north, y: B1 }, { rect: ARMS.east, y: B1 }, { rect: ARMS.south, y: B1 },
+  ];
+  return {
+    drop: ([x, y, z]) => inOldHall(x, z, y),
+    dropEyes: (e) => e.y > 0.4 && e.y < 0.5 && e.rect[0] < -31,   // the old stage
+    faces, props, eyes,
+  };
 }

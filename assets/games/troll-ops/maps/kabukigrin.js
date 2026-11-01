@@ -36,7 +36,8 @@ import { applyBakedLightMap, retexture, SURFACES } from "./surface-textures.js?v
 import { Kit, place } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { U, Neon, neonMat, clubFx } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { newState, sign, addLight, danceFloor, djStage, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1-hh1-yb1-kbt1-dj2-mn1-gr1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
-import { FL, B1, CEIL, CEILL, HALL, DANCE, DC, STAGE, DJ_WALL, DECK, TUNNEL, STAIRS as UNDER_STAIRS, WELLS, inOldHall, groundField, stairLink, underColliders, underMaterials, buildUnderShell, cutOldClub } from "./kabukigrin-under.js?v=kbu1";
+import { FL, B1, CEIL, CEILL, HALL, DANCE, DC, STAGE, DJ_WALL, DECK, TUNNEL, STAIRS as UNDER_STAIRS, WELLS, SCREENS, inOldHall, groundField, stairLink, underColliders, underMaterials, buildUnderShell, cutOldClub, underFaces } from "./kabukigrin-under.js?v=kbu1";
+import { buildClubSigns, signFaces } from "./kabukigrin-club-signs.js?v=kcs1";
 import { wetFloor, hangProbe } from "./wet-floor.js?v=wf1-ss1-ss2-ss3-tfm2";
 import { moneyRain } from "./club-money.js?v=mn1";
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1-pm1-kco1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
@@ -128,8 +129,6 @@ const PLAN = {
   muffle: (p) => muffle(p),
 };
 const CLUB = clubEngine(PLAN);
-// the seats the dug club's furniture makes (buildUnderShell), for Socialize
-let SEATS = [];
 
 /* The booth heard from p (doc 3.2), [lowpass Hz, gain]: full in the hall,
    a little softer on the open mezzanine, through a wall in the office, the
@@ -259,7 +258,7 @@ function buildClub(api) {
   // spilt drinks on the black floor: pools near-mirror, the rest a touch glossier
   wetFloor(UM.floor, { rect: [HALL.x0, HALL.z0, HALL.x1, HALL.z1], cover: 0.35, scale: 1.6, edge: 0.4, pool: 0.03, dry: 0.7, dark: 0.85, env: 0.5, clamp: 0.6,
     probe: { at: [DC.x, FL + 1.2, DC.z], box: [HALL.x0, FL - 0.1, HALL.z0, HALL.x1, CEIL, HALL.z1] } });
-  SEATS = buildUnderShell(UK, UN, M, UM);
+  buildUnderShell(UK, UN, M, UM);
   const signs0 = S.signs.length;
   danceFloor(UK, M, UN, PLAN_L, { edgeY: 0.01 });
   djStage(UK, M, UN, UHN, S, PLAN_L, { stage: true, booth: false, wall: { w: 10, h: 5.5 }, arches: { a: 6.4, h: 6.6, n: 5, step: 0.35, drop: 0.24 } });
@@ -299,6 +298,10 @@ function buildClub(api) {
   }
   sign(S, N, M, "trollCyan", -5.95, 5.5, 14, 3.3, { ry: Math.PI / 2, group: 2, halo: 0x3ff0ff, haloK: 0.25, beat: 0.4 });
 
+  // the way to the club's door (docs/KB-CLUB-UNDERGROUND.md 7): the canopy
+  // and marquee over the front stair, the sign stack, the arrows, the blade
+  buildClubSigns({ root, K, N, M, S, jpSign });
+
   // the borrowed rooms (doc 3.5 b, c, d): Studio's walls, these their insides
   buildRooms({ root, K, N, M, S, jpSign, sfx: CLUB.sfx });
   // and the street's (doc 3.5 a): the pachinko parlour across the line
@@ -324,11 +327,11 @@ function buildClub(api) {
   api.prop(videoScreen({ w: 11.2, h: 5.6, px: [768, 384], x: -23.45, y: 5.65, z: -2.6, ry: -Math.PI / 2, frame: 0.32 })).castShadow = false;
   // (east of the corner's blade signs at x 14, over the shop signs)
   api.prop(videoScreen({ w: 6.67, h: 4, px: [640, 384], x: 19.3, y: 5.6, z: -33.3, ry: Math.PI, offset: 17.3, frame: 1.28 })).castShadow = false;
-  // and the hall's two, facing each other over the dance floor above the
-  // balcony's rails: the pole dancer then @Troll_'s coin on the north wall,
-  // @SwishPng's leaping trolls on the south wall (off the chandelier's line)
-  api.prop(videoScreen({ w: 4.8, h: 2.7, px: [768, 432], x: -16, y: FL + 5.4, z: HALL.z0 + 0.06, ry: 0, clips: ["pole", "coin"], fps: 24 })).castShadow = false;
-  api.prop(videoScreen({ w: 4.8, h: 2.7, px: [640, 360], x: -27, y: FL + 5.4, z: HALL.z1 - 0.06, ry: Math.PI, clips: ["swish"], fps: 24 })).castShadow = false;
+  // and the hall's two, facing each other across the dance floor over the
+  // booths under the arms: the pole dancer then @Troll_'s coin on the north
+  // wall, @SwishPng's leaping trolls on the south (kabukigrin-under.js SCREENS)
+  api.prop(videoScreen({ w: SCREENS.w, h: SCREENS.h, px: [768, 432], x: SCREENS.pole.x, y: FL + SCREENS.y, z: HALL.z0 + 0.06, ry: 0, clips: ["pole", "coin"], fps: 24 })).castShadow = false;
+  api.prop(videoScreen({ w: SCREENS.w, h: SCREENS.h, px: [640, 360], x: SCREENS.swish.x, y: FL + SCREENS.y, z: HALL.z1 - 0.06, ry: Math.PI, clips: ["swish"], fps: 24 })).castShadow = false;
 }
 
 /* The Blender models (build_kabukigrin.blender.py): each lit by its own
@@ -523,5 +526,10 @@ export const KABUKIGRIN = {
     // the pachinko parlour (modes/social-pachinko.js): its machines, who plays, its bounds
     pachinko: () => ({ machines: MACHINES, play: PLAY, minX: PARLOUR.minX }),
   },
-  debug: () => ({ ...CLUB.debug(), rooms: roomsDebug(), ropes: ROPES.map((r) => ({ ...r })), sites: KABUKIGRIN.bombSites.map((s) => ({ ...s })), under: { FL, B1, CEIL, seats: SEATS.length } }),
+  // the obstruction test's additions to models/kabukigrin-faces.json (the dug club and its signs)
+  facesMore: () => {
+    const u = underFaces(), s = signFaces();
+    return { ...u, faces: [...u.faces, ...s.faces], props: [...u.props, ...s.props] };
+  },
+  debug: () => ({ ...CLUB.debug(), rooms: roomsDebug(), ropes: ROPES.map((r) => ({ ...r })), sites: KABUKIGRIN.bombSites.map((s) => ({ ...s })), under: { FL, B1, CEIL } }),
 };
