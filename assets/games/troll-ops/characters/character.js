@@ -75,6 +75,9 @@ SAD_TEXTURE.colorSpace = THREE.SRGBColorSpace;
 const SAD_HEAD_MAT = TROLLFACE_HEAD_MAT.clone();
 SAD_HEAD_MAT.map = SAD_TEXTURE;
 SAD_HEAD_MAT.emissiveMap = SAD_TEXTURE;
+// the 3D trollface takes the sad face's own shape with it (blocky-body.js
+// setReliefFace, HEAD_MODELS.sad; user, 2026-11-01)
+SAD_HEAD_MAT.userData = { ...SAD_HEAD_MAT.userData, relief: "sad" };
 
 /* TROLLS #989's face (traits/src/face-gum.svg): the user's own drawing,
    squint, forehead lines and a kiss, no grin. The NFT's own face, worn by
@@ -197,10 +200,16 @@ export function coveringCanvas(id, art = null) {
   g.beginPath(); g.moveTo(70, 300); g.lineTo(96, 360); g.moveTo(84, 285); g.lineTo(120, 300); g.stroke();
   return c;
 }
-function coveringMaterial(id) {
-  let m = COVER_TEX.get(id);
+/* The covering's material for a face's art: the trollface's 800 x 730, or
+   the Sad trollface's (`sad`), which sits letterboxed on the board's 512 x
+   480 (SAD_CANVAS): the same bandana, drawn over that face's own art and
+   put where that face is on its canvas, so it lies over its lower face. */
+function coveringMaterial(id, sad = false) {
+  const key = `${id}${sad ? ":sad" : ""}`;
+  let m = COVER_TEX.get(key);
   if (m) return m;
-  const c = coveringCanvas(id);
+  const c = document.createElement("canvas");
+  if (sad) { c.width = SAD_CANVAS.width; c.height = SAD_CANVAS.height; } else { c.width = 800; c.height = 730; }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   m = new THREE.MeshStandardMaterial({
@@ -208,24 +217,72 @@ function coveringMaterial(id) {
     transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, roughness: 0.85,
     polygonOffset: true, polygonOffsetFactor: -2,
   });
+  const paint = (art) => {
+    const d = coveringCanvas(id, art);
+    const g = c.getContext("2d");
+    g.clearRect(0, 0, c.width, c.height);
+    if (!sad) g.drawImage(d, 0, 0);
+    else {
+      // the sad art's own box on its canvas (as SAD_CANVAS draws it)
+      const h = art ? c.width * art.height / art.width : c.width * 346 / 500;
+      g.drawImage(d, 0, (c.height - h) / 2, c.width, h);
+    }
+    t.needsUpdate = true;
+  };
+  paint(null);
   // redraw with the ink once the artwork has loaded
   const img = new Image();
-  img.onload = () => { const d = coveringCanvas(id, img); c.getContext("2d").clearRect(0, 0, 800, 730); c.getContext("2d").drawImage(d, 0, 0); t.needsUpdate = true; };
-  img.src = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
-  COVER_TEX.set(id, m);
+  img.onload = () => paint(img);
+  img.src = sad ? new URL("../ui/trollface-sad.png", import.meta.url).href : new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+  COVER_TEX.set(key, m);
   return m;
 }
-/* Wear (or take off) the covering named in the rig's face key. */
+/* Wear (or take off) the covering named in the rig's face key. On the flat
+   board it's a card in front and one behind. On the 3D trollface (blocky-
+   body.js setReliefFace, which every stick troll wears now) the cards sat
+   inside the head and only the knot poked out of its side (user,
+   2026-11-01: "the way the bandit bandana appears is weird"), so there it
+   is a skin of the face's own shape a few mm proud of it: the face's UVs
+   are the artwork's, the frame the bandana is drawn in, so it lies over the
+   nose and the grin where it should. Checked again every call: the 3D face
+   loads after the rig. */
+const COVER_OUT = 0.004;   // m the skin stands off the 3D face (before the rig's scale)
+const coverShells = new WeakMap();
+function coverShell(faceGeo) {
+  if (!coverShells.has(faceGeo)) {
+    const pos = faceGeo.attributes.position, nrm = faceGeo.attributes.normal;
+    const geo = faceGeo.clone();
+    const p = geo.attributes.position;
+    if (nrm) for (let i = 0; i < pos.count; i++) p.setXYZ(i, pos.getX(i) + nrm.getX(i) * COVER_OUT, pos.getY(i) + nrm.getY(i) * COVER_OUT, pos.getZ(i) + nrm.getZ(i) * COVER_OUT);
+    geo.userData.shared = true;
+    coverShells.set(faceGeo, geo);
+  }
+  return coverShells.get(faceGeo);
+}
 function syncCovering(rig) {
   const head = rig.parts?.head;
   if (!head || !head.userData.trollface) return;
   const id = String(rig.face || "").split(":")[2] || "";
-  if (rig.coveringShown === id) return;
+  const relief = head.children.find((o) => o.name === "relief-face" && o.userData.faceGeo) || null;
+  const on = relief || head;
+  // the Sad trollface's art (its own canvas): the bandana drawn for it
+  const sad = head.material === SAD_HEAD_MAT;
+  if (rig.coveringShown === id && rig.coveringOn === on && rig.coveringSad === sad) return;
   rig.coveringShown = id;
-  for (const o of head.userData.covering || []) head.remove(o);
+  rig.coveringOn = on;
+  rig.coveringSad = sad;
+  for (const o of head.userData.covering || []) o.parent?.remove(o);
   head.userData.covering = [];
   if (!FACE_COVERINGS[id]) return;
-  const mat = coveringMaterial(id);
+  const mat = coveringMaterial(id, sad);
+  if (relief) {
+    const o = new THREE.Mesh(coverShell(relief.userData.faceGeo), mat);
+    o.renderOrder = 1;
+    o.castShadow = true;
+    relief.add(o);
+    head.userData.covering.push(o);
+    return;
+  }
   for (const z of [0.004, -0.004]) {
     const o = new THREE.Mesh(head.geometry, mat);
     o.position.z = z;

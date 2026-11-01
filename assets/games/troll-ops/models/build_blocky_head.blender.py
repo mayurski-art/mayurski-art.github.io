@@ -75,6 +75,25 @@ VARIANTS["1718"] = dict(
         (0.59, 0.325, 0.095, 0.045, 0.004),  # lid over the eyeball (viewer's right)
         (0.50, 0.82, 0.27, 0.07, 0.006),     # chin
     ])
+# The Sad trollface (ui/trollface-sad.png, an expression anyone can pick;
+# user, 2026-11-01: "re-render it into a 3d head as well just like the
+# regular trollface one"): traits/face-sad-head.png is it letterboxed onto
+# the board's 512 x 480 as the game draws it (character.js SAD_CANVAS), so
+# the head's UVs land on the game's texture. Its own shape: the eyes sunk
+# under a heavy brow, the nose, the jowls and the hanging cheeks, the frown
+# pushed out a little, the chin.
+VARIANTS["sad"] = dict(
+    ART=os.path.join(K.HERE, "..", "traits", "face-sad-head.png"),
+    FEATURES=[
+        (0.55, 0.27, 0.30, 0.07, 0.010),     # brow, heavy over the eyes
+        (0.41, 0.335, 0.08, 0.05, -0.010),   # eye (viewer's left), sunk
+        (0.69, 0.33, 0.08, 0.05, -0.010),    # eye (viewer's right), sunk
+        (0.53, 0.47, 0.07, 0.07, 0.014),     # nose
+        (0.24, 0.56, 0.13, 0.15, 0.016),     # cheek and jowl (viewer's left), hanging
+        (0.80, 0.53, 0.10, 0.13, 0.012),     # cheek (viewer's right)
+        (0.71, 0.70, 0.14, 0.06, 0.010),     # the frown's lip, pushed out
+        (0.60, 0.79, 0.24, 0.07, 0.008),     # chin and jaw
+    ])
 ART = K.TROLLFACE_PNG
 if len(ARGS) >= 2 and ARGS[0] == "variant":
     globals().update(VARIANTS[ARGS[1]])
