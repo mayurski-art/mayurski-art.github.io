@@ -966,10 +966,6 @@ const screens = {
           desc: "Friends can drop into your match while it's on, from their Friends list. Off keeps your private matches to invites only." },
         { id: "anim", label: "Animations", value: () => (animOff ? "Off" : "On"), adjust: () => toggleAnim(),
           desc: "The menu's moving parts: the news cards turning, the glow. Off is easier on a slow laptop." },
-        // (view/ui-scale.js: the menu smaller on a small screen)
-        window.tfMenuScale && { id: "menuscale", label: "Menu size", value: () => `${Math.round(window.tfMenuScale.get() * 100)}%`,
-          adjust: (dir = 1) => { const s = window.tfMenuScale.sizes, i = s.indexOf(window.tfMenuScale.get()); window.tfMenuScale.set(s[(i + (dir < 0 ? -1 : 1) + s.length) % s.length]); },
-          desc: "Shrinks the menu so more fits on a small screen. Matches aren't changed." },
         { id: "hud", label: "HUD layout", desc: "Move the buttons and the HUD.", onSelect: () => $("#to-pfp-controls [data-hud-layout]")?.click() },
         // the ?diag=1 panel (core/diag.js) where a link can't carry ?diag=1:
         // an app on the home screen has its own storage and no address bar

@@ -161,6 +161,9 @@ export function mountFnLobby(api) {
       <kbd class="to-fn-padkey" aria-hidden="true">RB</kbd>
     </nav>
     <div class="to-fn-me">
+      <button type="button" class="to-fn-glass to-fn-ico to-fn-msz" data-act="menusize" title="Menu size">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><b></b>
+      </button>
       <button type="button" class="to-fn-glass to-fn-lvl" data-act="career" aria-label="Your level">
         <span class="to-fn-pres" hidden></span><b class="to-fn-lv"></b>
       </button>
@@ -436,9 +439,23 @@ export function mountFnLobby(api) {
     else openQuick(t.screen);
   }
   for (const b of tabs) b.addEventListener("click", () => goTab(b.dataset.tab));
+  /* Menu size, top right (user, 2026-10-31: "that should be a button on the
+     top right of the main menu"; was Options > Menu size): each press a
+     size smaller, 100% after 70% (view/ui-scale.js). */
+  const msz = $(".to-fn-msz", top);
+  function showMenuSize() {
+    const pct = Math.round((window.tfMenuScale?.get() || 1) * 100);
+    $("b", msz).textContent = `${pct}%`;
+    msz.setAttribute("aria-label", `Menu size ${pct}%. Press for the next size`);
+  }
+  if (window.tfMenuScale) showMenuSize(); else msz.hidden = true;
   top.addEventListener("click", (e) => {
     const act = e.target.closest("[data-act]")?.dataset.act;
-    if (act === "arcade") api.toArcade();
+    if (act === "menusize") {
+      const s = window.tfMenuScale.sizes, i = s.indexOf(window.tfMenuScale.get());
+      window.tfMenuScale.set(s[(i + 1) % s.length]);
+      showMenuSize();
+    } else if (act === "arcade") api.toArcade();
     else if (act === "career") goTab("career");
     else if (act === "me") $(".to-bo2-party-row.is-me", root)?.click();   // Barracks, or sign in
   });

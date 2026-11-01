@@ -4697,6 +4697,11 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .to-fn-tab-ico { display: none; }
 .to-fn-dot { position: absolute; top: 6px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--fn-yellow); }
 .to-fn-me { margin-left: auto; display: flex; align-items: center; gap: 10px; height: 100%; }
+/* Menu size, first in the row (Friends prepends itself later): the corners
+   icon over the size it's at */
+.to-fn-msz { order: -1; position: relative; align-content: center; gap: 1px; }
+.to-fn-msz svg { width: 16px; height: 16px; }
+.to-fn-msz b { font: 800 10px/1 var(--fn-ui, sans-serif); color: #fff; letter-spacing: .02em; }
 .to-fn-lvl { display: flex; align-items: center; gap: 8px; height: 100%; padding: 0 16px; cursor: pointer; white-space: nowrap; font: 800 18px var(--fn-ui); letter-spacing: .04em; }
 .to-bo2.is-fn[data-screen="main"] .to-fn-lvl { display: none; }
 .to-fn-pres { display: grid; place-items: center; min-width: 28px; height: 28px; padding: 0 4px; box-sizing: border-box; border-radius: 50%; background: var(--fn-cyan); color: #0b1430; font: 800 12px var(--fn-ui); }
@@ -7095,9 +7100,9 @@ body.to-aboard #to-touch-endstreak { display: none !important; }
 .to-fr-empty b { font: italic 400 26px/1 var(--fn-display); text-transform: uppercase; }
 .to-fr-empty p { margin: 0 0 6px; max-width: 28ch; color: #c4d1f3; font: 600 15px/1.35 var(--fn-ui); }
 
-/* the phone's top bar hides its other icon buttons; Friends stays */
+/* the phone's top bar hides its other icon buttons; Friends and Menu size stay */
 @container cab (max-aspect-ratio: 9/10) {
-  .to-fn-ico.to-fr-btn { display: grid; width: 44px; height: 44px; }
+  .to-fn-ico.to-fr-btn, .to-fn-ico.to-fn-msz { display: grid; width: 44px; height: 44px; }
   .to-fr-scrim { top: calc(56px + env(safe-area-inset-top)); }
   .to-fr { top: calc(58px + env(safe-area-inset-top)); right: 6px; bottom: calc(6px + env(safe-area-inset-bottom)); width: calc(100% - 12px); }
 }
