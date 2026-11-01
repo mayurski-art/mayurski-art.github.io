@@ -275,8 +275,8 @@ RUNS.kabukigrin = [...RUNS.grinjuku.filter((r) => r[6] !== "A Ramps steps -> dec
   [-20, -3.6, 29, 0, 1, 6, "S2: south arm -> tunnel -> yard", (r) => r.end[1] > -0.2 && r.end[2] > 40],
   [-12.75, -3.6, 11, 0, 1, 4, "G1: balcony -> floor", (r) => r.end[1] < -7.3 && r.end[2] > 17],
   [-12.75, -7.5, 17.8, 0, -1, 4, "G1: floor -> balcony", (r) => r.end[1] > -3.8 && r.end[2] < 12],
-  [-30.5, -3.6, 23, 0, -1, 4, "S4: south arm -> floor", (r) => r.end[1] < -7.3 && r.end[2] < 17],
-  [-30.5, -7.5, 16.2, 0, 1, 4, "S4: floor -> south arm", (r) => r.end[1] > -3.8 && r.end[2] > 22],
+  [-30.5, -3.6, 22.4, 0, 1, 4, "S4: south arm -> its slot -> behind the stage", (r) => r.end[1] < -7.3 && r.end[2] > 28],
+  [-30.5, -7.5, 28.7, 0, -1, 4, "S4: behind the stage -> up its slot -> south arm", (r) => r.end[1] > -3.8 && r.end[2] < 23],
   [-24, -7.5, 8, 0, 1, 5, "floor: under the north arm -> the south wall", (r) => r.end[2] > 25],
   [-9, -3.6, 13, 0, 1, 4, "east arm: north -> south", (r) => r.end[2] > 20 && r.end[1] > -3.8],
   // phase 3: both Mains end to end past the street furniture (poles, bollards, kei trucks)

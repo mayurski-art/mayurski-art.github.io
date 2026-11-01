@@ -67,7 +67,7 @@ const res = await page.evaluate(() => {
       if (s.off && on(n) && !n.leg) s.backOn = true;
       if (!facing && !n.leg && n.c.stops[n.stop].act === "phone") {
         const d = n.c.stops[n.stop];
-        facing = { yaw: n.yaw, want: Math.atan2(n.x + 29.6, n.z - 12)   /* kabukigrin-under.js DECK */, act: d.act };
+        facing = { yaw: n.yaw, want: Math.atan2(n.x + 29.6, n.z - 17)   /* kabukigrin-under.js DECK */, act: d.act };
       }
     });
   }

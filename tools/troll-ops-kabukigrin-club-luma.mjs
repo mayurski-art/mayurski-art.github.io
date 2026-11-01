@@ -38,7 +38,7 @@ const BASE = `http://localhost:${server.address().port}`;
 const SPOTS = [
   // the club, two floors under Lulz Square (docs/KB-CLUB-UNDERGROUND.md):
   // the dance floor at -7.5, the balcony at -3.6
-  ["dance floor (DJ line)", -26.5, -7.5, 12, -20.5, 12],
+  ["dance floor (DJ line)", -26.5, -7.5, 17, -20.5, 17],
   ["dance floor", -22, -7.5, 14, -18.5, 14],
   ["site A (dance floor)", -21.5, -7.5, 17, -16, 20],
   ["bar", -10.2, -7.5, 16.6, -15.5, 16.6],

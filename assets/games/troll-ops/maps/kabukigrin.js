@@ -262,7 +262,8 @@ function buildClub(api) {
   const signs0 = S.signs.length;
   // (the tiles burn brighter than they did in the old red room: nothing else down here is lit)
   danceFloor(UK, M, UN, PLAN_L, { edgeY: 0.01, tileK: 0.9 });
-  djStage(UK, M, UN, UHN, S, PLAN_L, { stage: true, booth: false, wall: { w: 10, h: 5.5 }, arches: { a: 6.4, h: 6.6, n: 5, step: 0.35, drop: 0.24 } });
+  // (wall and arches inside the DJ's end, between the balcony's arms: z 12 .. 22)
+  djStage(UK, M, UN, UHN, S, PLAN_L, { stage: true, booth: false, wall: { w: 9, h: 5.5 }, arches: { a: 4.7, h: 6.4, n: 5, step: 0.3, drop: 0.22 } });
   underCeiling(UK, M, UN, UHN, PLAN_L, CEILL - 0.3);
   chandelier(UK, M, UHN, S, PLAN_L, { top: 6.2, ball: { y: 5.0, r: 0.5 } });
   // money thrown over the floor on the drops, landing on the notes already

@@ -6,7 +6,7 @@
 // stair off the square (S1), the back stair off the yard through a tunnel
 // (S2), the side stair off the square's south-east corner (S5), and from the
 // balcony to the floor the grand stair (G1) and the service stair behind the
-// DJ (S4). Everything here is near-black: the walls, the floor, the booths.
+// DJ (S4, in a slot in the south arm). Everything here is near-black: the walls, the floor, the booths.
 // Only what gives light is bright (club-live.js draws those, in a group
 // this module hands back, whose y is the floor).
 //
@@ -29,9 +29,12 @@ export const HALL = { x0: -31.5, x1: -6.5, z0: 4.5, z1: 30 };
 export const DANCE = { x0: -27.5, x1: -15.5, z0: 11, z1: 23 };   // 12 x 12
 export const DC = { x: -21.5, z: 17 };
 // the stage against the west wall (local heights), the DJ looking east
-export const STAGE = { x0: -31.5, x1: -28, z0: 8, z1: 16, top: 0.6 };
+// (the DJ's end sits between the balcony's north and south arms, z 12 .. 22,
+// so the hall's full height rises over it and no arm crosses in front of
+// the LED wall from anywhere on the floor: rule 9)
+export const STAGE = { x0: -31.5, x1: -28, z0: 12.6, z1: 21.4, top: 0.6 };
 export const DJ_WALL = -31.45;
-export const DECK = { x: -29.6, z: 12 };
+export const DECK = { x: -29.6, z: 17 };
 // the balcony's own bar, against the north wall at the north arm's east end
 export const BALCONY_BAR = { x: -10, z: 5.6 };
 /* The hall's two video screens, on the north and south walls under the
@@ -51,14 +54,17 @@ export const ARMS = {
 export const TUNNEL = { x0: -21, x1: -19, z0: 30, z1: 34.6 };
 /* The stairs: `from` the head (street or deck) to the foot, `axis` the way
    down, each `n` risers of `rise` on treads `tread` deep, `w` wide across.
-   S1, S5 and S2 land on B1 from the street; G1 and S4 on B2 from B1. */
+   S1, S5 and S2 land on B1 from the street; G1 and S4 on B2 from B1 (S4
+   down a slot in the south arm's west end, landing behind the stage). */
 export const STAIRS = {
   S1: { x0: -27.5, x1: -24.5, z0: 4.5, axis: "+z", n: 18, rise: 0.2, tread: 0.3, top: 0, w: 3 },
   S5: { z0: 22, z1: 24, x0: -22, axis: "+x", n: 18, rise: 0.2, tread: 0.3, top: 0, w: 2 },
   S2: { x0: -21, x1: -19, z0: 40, axis: "-z", n: 18, rise: 0.2, tread: 0.3, top: 0, w: 2 },
   G1: { x0: -14.5, x1: -11, z0: 12, axis: "+z", n: 20, rise: 0.195, tread: 0.25, top: B1, w: 3.5 },
-  S4: { x0: -31.5, x1: -29.5, z0: 22, axis: "-z", n: 20, rise: 0.195, tread: 0.25, top: B1, w: 2 },
+  S4: { x0: -31.5, x1: -29.5, z0: 23, axis: "+z", n: 20, rise: 0.195, tread: 0.25, top: B1, w: 2 },
 };
+// the DJ stair's slot in the south arm's deck: [x0, x1, z0, z1]
+export const S4_SLOT = [-31.5, -29.5, 23, 28];
 // the openings cut in the street (the ground plane and its slab): [x0, x1, z0, z1]
 export const WELLS = [
   [-27.5, -24.5, 4.5, 9.9],    // S1
@@ -137,7 +143,7 @@ export function underColliders() {
   // the arms' decks (the S1 slot is cut out of the north one)
   for (const [ax0, ax1, az0, az1] of cutRects(...ARMS.north, [WELLS[0]])) box(ax0, ax1, az0, az1, B1 - 0.4, B1, 8);
   box(...ARMS.east, B1 - 0.4, B1, 8);
-  box(...ARMS.south, B1 - 0.4, B1, 8);
+  for (const r of cutRects(...ARMS.south, [S4_SLOT])) box(...r, B1 - 0.4, B1, 8);
   // the treads, each solid down to the deck or floor under it
   for (const [k, s] of Object.entries(STAIRS)) {
     const base = s.top === 0 ? B1 - 0.4 : FL - 0.1;
@@ -161,10 +167,12 @@ export function underColliders() {
   box(-27.8, -14.5, 11.95, 12.05, B1, B1 + PAR, 4);
   box(-27.85, -27.75, 9.9, 12, B1, B1 + PAR, 4);
   box(-11.05, -10.95, 12, 22, B1, B1 + PAR, 4);
-  box(-29.5, -22, 21.95, 22.05, B1, B1 + PAR, 4);
+  box(-31.5, -22, 21.95, 22.05, B1, B1 + PAR, 4);
   box(-16.6, -11, 21.95, 22.05, B1, B1 + PAR, 4);
   for (const [x, z, w, d, top] of treads(STAIRS.G1)) C.push([-14.55, z, 0.1, d, 1.0, top, 4]);
   for (const [x, z, w, d, top] of treads(STAIRS.S4)) C.push([-29.45, z, 0.1, d, 1.0, top, 4]);
+  // the S4 slot's rail on the deck beside it
+  box(-29.5, -29.4, S4_SLOT[2], S4_SLOT[3], B1, B1 + PAR, 4);
   // the two columns under the east arm's corners
   for (const z of [12.3, 21.7]) box(-11.45, -11.05, z - 0.2, z + 0.2, FL, B1 - 0.4, 4);
   return C;
@@ -249,11 +257,11 @@ export function buildUnderShell(K, N, M, UM) {
   const deck = (ax0, ax1, az0, az1) => K.box(UM.deck, (ax0 + ax1) / 2, L(B1 - 0.4), (az0 + az1) / 2, ax1 - ax0, 0.4, az1 - az0);
   for (const r of cutRects(...ARMS.north, [WELLS[0]])) deck(...r);
   deck(...ARMS.east);
-  deck(...ARMS.south);
+  for (const r of cutRects(...ARMS.south, [S4_SLOT])) deck(...r);
   const uv = (x, z, w, d) => N.bar(M.neon, x, L(B1 - 0.46), z, w, 0.05, d, {}, { color: 0x6a2cff, k: 1.5, beat: 0.12 });
   uv((-27.8 - 14.5) / 2, 11.9, 13.3, 0.06);
   uv(-10.9, 17, 0.06, 10);
-  uv((-29.5 - 22) / 2, 22.1, 7.5, 0.06);
+  uv((-31.5 - 22) / 2, 22.1, 9.5, 0.06);
   uv((-16.6 - 11) / 2, 22.1, 5.6, 0.06);
   // UV tubes under the arms, over the booths and the bar
   for (const x of [-22, -16]) uv(x, 8.2, 1.4, 0.06);
@@ -473,7 +481,7 @@ export function underFaces() {
     f("screen-pole", "code", [SCREENS.pole.x, FL + SCREENS.y, HALL.z0 + 0.07], [0, 0, 1], SCREENS.w, SCREENS.h),
     f("screen-swish", "code", [SCREENS.swish.x, FL + SCREENS.y, HALL.z1 - 0.07], [0, 0, -1], SCREENS.w, SCREENS.h),
     // the crystal LED wall above the DJ's booth, and the trollface on it
-    f("crystal-top", "code", [DJ_WALL + 0.03, FL + 3.95, DECK.z], [1, 0, 0], 9.6, 4.2),
+    f("crystal-top", "code", [DJ_WALL + 0.03, FL + 3.95, DECK.z], [1, 0, 0], 8.6, 4.2),
     f("bottle-wall", "code", [-6.53, FL + 2.05, 17], [-1, 0, 0], 7, 1.7),
     f("balcony-bottles", "code", [BALCONY_BAR.x, B1 + 1.9, HALL.z0 + 0.04], [0, 0, 1], 4, 1.4),
     f("door-tunnel", "code", [-20, B1 + 1.3, HALL.z1 - 0.02], [0, 0, -1], 2, 2.6),

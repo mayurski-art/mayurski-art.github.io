@@ -28,7 +28,7 @@ const MAP = process.env.MAP || "kabukigrin";
 // two shots' spots, each map's own
 const SPOT = {
   // (on the dug club's floor, y -7.5: docs/KB-CLUB-UNDERGROUND.md)
-  kabukigrin: { y: -7.5, a: [-22, 13], b: [-22, 20], booth: [-27.6, 12, Math.PI / 2], floor: [-19, 12, Math.PI / 2], deck: [-25.5, 12, Math.PI / 2] },
+  kabukigrin: { y: -7.5, a: [-22, 13], b: [-22, 20], booth: [-27.6, 17, Math.PI / 2], floor: [-19, 17, Math.PI / 2], deck: [-25.5, 17, Math.PI / 2] },
 }[MAP];
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
