@@ -123,9 +123,12 @@ await page.evaluate(() => {
 {
   const t0 = Date.now();
   let c;
-  while (Date.now() - t0 < 300000) {
+  // The bot picks its moment to call, the heli flies in, and only then does
+  // the 25 s give-up clock start (bot-streaks.js BOT_CRATE_GIVE_UP): 60 s
+  // was too short when the call came late.
+  while (Date.now() - t0 < 480000) {
     c = await page.evaluate(() => ({ ...window.__crate, sim: window.__stuck.sim - window.__crate.startSim }));
-    if (c.claimed || c.sim > 60) break;
+    if (c.claimed || c.sim > 120) break;
     await sleep(500);
   }
   check("a bot calls its care package", c.called, JSON.stringify(c));
