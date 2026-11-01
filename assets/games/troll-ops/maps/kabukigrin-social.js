@@ -36,11 +36,11 @@ export function kbZone(x, y, z) {
   // Lulz Square, A Heaven over it and the arcade under that: the street now
   return "street";
 }
-// (the rest of the street sees neither: the blocks stand between; the club
-// is under a slab, seen only from inside, and through the tunnel)
+// (the club is under a slab, seen only from inside and through the tunnel;
+// the tatami room's door and the office's window open onto the square)
 const SEES = {
-  aMain: ["street"], street: ["aMain", "office"], hall: ["back"], office: ["street"],
-  vip: ["back"], back: ["hall", "vip"],
+  aMain: ["street"], street: ["aMain", "office", "vip"], hall: ["back"], office: ["street"],
+  vip: ["back", "street"], back: ["hall", "vip"],
 };
 export const KB_VIEW = { zoneOf: kbZone, sees: (a, b) => a === b || SEES[a]?.includes(b) };
 
@@ -151,8 +151,10 @@ export function kbNpcs({ DC, DANCE, deck }) {
   ["phone", "guard", "phone", "dance", "phone", "phone", "guard", "phone"].forEach((act, i) =>
     extra("Clubgoer", act, { x: -29.2 + (i % 3) * 0.12, z: 1.2 - i * 0.95, y: 0, yaw: Math.PI + (i % 2 ? 0.25 : -0.2) }, act === "dance" ? { dance: 0 } : {}));
 
-  /* ---- the stair's foot on the balcony: the inside man */
-  add("Brick", "Bouncer", "guard", { x: -23.6, z: 10.9, y: B1, yaw: 0.6 }, guard);
+  /* ---- the inside man, on the front stair's east side a few treads down,
+     looking up at whoever comes through the rope (S1: 0.2 m risers on
+     0.3 m treads from z 4.5: the eighth tread's top is -1.6) */
+  add("Brick", "Bouncer", "guard", { x: -24.95, z: 6.75, y: -1.6, yaw: 0 }, guard);
 
   /* ---- the dance floor: the go-go dancer in the middle, the crowd facing
      the DJ on the west wall, the hype man on the stage. Twelve keep their
@@ -202,9 +204,11 @@ export function kbNpcs({ DC, DANCE, deck }) {
   }
   // under @SwishPng's screen on the south wall, watching it
   for (const x of [-27.6, -26.3]) extra("Clubgoer", "phone", { x, z: 27.2, y: FL, yaw: Math.PI });
-  // the staff tunnel's mouth on the south arm, and the side stair's head in the square
+  // the staff tunnel's mouth on the south arm; the tatami room's door, on
+  // the square now; the side stair's head
   add("Knuckles", "Security", "guard", { x: -18.3, z: 29.1, y: B1, yaw: 0 }, guard);
-  add("Rope", "Bouncer", "guard", { x: -22.9, z: 21.3, y: 0, yaw: FACE_YAW["-x"] }, guard);
+  add("Rope", "VIP door", "guard", { x: -28.7, z: 22.9, y: 0, yaw: 0.3 }, guard);
+  add("Deuce", "Bouncer", "guard", { x: -22.9, z: 21.3, y: 0, yaw: FACE_YAW["-x"] }, guard);
 
   /* ---- the balcony: on the glass over the floor, the sofas, the sound
      tech by the east arm's tables, a stroller along the north arm */
