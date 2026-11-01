@@ -246,6 +246,9 @@ const heavyHit = (z, dmg, isHead) => !z.type.noStagger && (isHead || dmg >= z.ma
 const CLIMB_GIVE_UP = 9;      // seconds on a stair before re-thinking the route (more for a slow one: routeFor)
 const RUN_CLIP_FROM = 2.3;    // m/s: a walker this quick plays the run clip
 const SEP_RANGE = 1.1;        // m: neighbours closer than this push apart
+const VAULT_MIN = 0.45;       // m: a zombie climbs onto tops this far above its feet...
+const VAULT_MAX = 1.65;       // ...up to this (the player mantles 1.55)
+const STONE_REACH = 2.0;      // m: a stepping stone this close to a target too high to climb at once
 const SPAWN_NEAR = 8;         // m: no zombie comes in closer to the player than this
 const SPAWN_SEEN = 18;        // m: ...nor inside this in the player's sight
 // A zombie that gets under STUCK_NET metres from where it was STUCK_WINDOW
@@ -322,7 +325,7 @@ function clearWide(field, x0, z0, x1, z1, r) {
 }
 
 /* One Tap (drops.js): while it's on, any hit kills (a boss excepted). */
-export const HORDE_FX = { instakill: false };
+export const HORDE_FX = { instakill: false, noClimb: false };   // noClimb: tests, the old horde
 
 export class Zombie {
   constructor(typeId, position, scene, round, { rise = false, hp = null, look: lookId = null, proxy = false } = {}) {
@@ -684,6 +687,7 @@ export class Zombie {
     }
     // shot dead or stunned mid-leap: it drops out of the air
     if (this.leap && (this.dying || this.stunT > 0)) this.leap = null;
+    if (this.vault && this.dying) this.vault = null;
     if (!this.leap && this.mesh.position.y > this.groundY + 0.01) {
       this.mesh.position.y = Math.max(this.groundY, this.mesh.position.y - 7 * dt);
     }
@@ -721,6 +725,12 @@ export class Zombie {
     if (this.leap) {
       this._leapStep(dt, playerPos, onAttack, arena, colliders, playerFeetY ?? this.groundY);
       if (this.body) this._animate(dt);
+      return;
+    }
+
+    if (this.vault) {
+      this._vaultStep(dt);
+      if (this.body) this._animate(dt, { moving: true, speed: 0.8 });
       return;
     }
 
@@ -811,6 +821,28 @@ export class Zombie {
       if (!this.climb && this.sep.lengthSq() > 1e-4) {
         _steer2.copy(dir).addScaledVector(this.sep, 0.9);
         if (_steer2.lengthSq() > 1e-4) dir = _steer2.normalize();
+      }
+      if (this.stone && chase && feetY - this.groundY > 0.35) {
+        _steer2.set(this.stone.x - p.x, 0, this.stone.z - p.z);
+        if (_steer2.lengthSq() > 0.01) dir = _steer2.normalize();
+      }
+      // the player up on a table, a crate, a car: it climbs up after them
+      if (chase && !this.climb && feetY - this.groundY > 0.35 && dist < 6 && this.staggerT <= 0 && !HORDE_FX.noClimb) {
+        this.vaultLookT = (this.vaultLookT || 0) - dt;
+        if (this.vaultLookT <= 0) {
+          this.vaultLookT = 0.2;
+          let v = this._vaultSpot(colliders, to);
+          // too high for one climb: up the nearest top beside them first
+          this.stone = v ? null : this._steppingStone(colliders, goal);
+          if (this.stone && !this.stone.far) { v = this.stone; this.stone = null; }
+          if (v) {
+            this.vault = { t: 0, len: 0.4 + 0.35 * (v.y - this.groundY), fx: p.x, fz: p.z, fy: this.groundY, ...v };
+            this._face(Math.atan2(-to.x, -to.z), 1);
+            this.velocity.set(0, 0, 0);
+            if (this.body) this._animate(dt, { moving: true, speed: 0.8 });
+            return;
+          }
+        }
       }
       this.velocity.x += (dir.x * this.speed - this.velocity.x) * Math.min(1, dt * 5);
       this.velocity.z += (dir.z * this.speed - this.velocity.z) * Math.min(1, dt * 5);
@@ -908,6 +940,67 @@ export class Zombie {
     this._animate(dt, { moving: this.proxySpeed > 0.15, speed: this.proxySpeed / (this.type.scale || 1) });
   }
 
+  /* A top it can climb onto just ahead (along `dir`): VAULT_MIN..VAULT_MAX
+     above its feet, room to stand on it, headroom over it. The player
+     mantles 1.55 m from the ground in a zombies run (movement.js
+     mantleFromGround), so anything they get up on, a zombie gets up on
+     too (user, 2026-10-31: a long table made you invincible). */
+  _vaultSpot(colliders, dir) {
+    const p = this.mesh.position, r = this.radius * 0.7;
+    for (const ahead of [0.55, 0.85, 1.15]) {
+      const x = p.x + dir.x * (this.radius + ahead), z = p.z + dir.z * (this.radius + ahead);
+      const top = groundHeightAt(colliders, x, z, this.groundY + VAULT_MAX, r);
+      const rise = top - this.groundY;
+      if (rise < VAULT_MIN || rise > VAULT_MAX) continue;
+      let room = true;
+      for (const c of colliders) {
+        if (c.max.y <= top + 0.05 || c.min.y >= top + 1.5) continue;
+        if (x < c.min.x - r || x > c.max.x + r || z < c.min.z - r || z > c.max.z + r) continue;
+        room = false; break;
+      }
+      if (room) return { x, z, y: top };
+    }
+    return null;
+  }
+
+  /* The way up to a target too high for one climb (a column beside a
+     crate): the climbable top within STONE_REACH of the target, nearest
+     it, as the point on it closest to us. `far`: walk to it first. */
+  _steppingStone(colliders, goal) {
+    const p = this.mesh.position, r = this.radius * 0.7;
+    let best = null, bestD = Infinity;
+    for (const c of colliders) {
+      const rise = c.max.y - this.groundY;
+      if (rise < VAULT_MIN || rise > VAULT_MAX || c.deploy) continue;
+      if (c.max.x - c.min.x < 0.6 || c.max.z - c.min.z < 0.6) continue;
+      const gx = Math.max(c.min.x - goal.x, 0, goal.x - c.max.x), gz = Math.max(c.min.z - goal.z, 0, goal.z - c.max.z);
+      const dg = Math.hypot(gx, gz);
+      if (dg > STONE_REACH || dg >= bestD) continue;
+      const x = Math.max(c.min.x + 0.3, Math.min(c.max.x - 0.3, p.x)), z = Math.max(c.min.z + 0.3, Math.min(c.max.z - 0.3, p.z));
+      if (Math.hypot(x - p.x, z - p.z) > 8) continue;
+      const top = c.max.y;
+      if (colliders.some((o) => o !== c && o.max.y > top + 0.05 && o.min.y < top + 1.5 && x > o.min.x - r && x < o.max.x + r && z > o.min.z - r && z < o.max.z + r)) continue;
+      bestD = dg;
+      best = { x, z, y: top, far: Math.hypot(x - p.x, z - p.z) > this.radius + 1.2 };
+    }
+    return best;
+  }
+
+  /* Up and over onto the top: a short hop, faster for a lower one. */
+  _vaultStep(dt) {
+    const v = this.vault, p = this.mesh.position;
+    v.t += dt;
+    const k = Math.min(1, v.t / v.len);
+    const up = Math.min(1, k / 0.6);   // up first, then over
+    const over = Math.max(0, (k - 0.35) / 0.65);
+    p.x = v.fx + (v.x - v.fx) * over;
+    p.z = v.fz + (v.z - v.fz) * over;
+    this.groundY = v.fy + (v.y - v.fy) * (1 - (1 - up) * (1 - up));
+    p.y = this.groundY;
+    // landed: look for the next climb at once, before it walks off the edge
+    if (k >= 1) { this.groundY = v.y; this.vault = null; this.vaultLookT = 0; this.velocity.set(0, 0, 0); }
+  }
+
   /* Toward a point beside the target instead of the target itself, the
      offset shrinking as it closes in: each one arcs in on its own side
      and the horde wraps round you instead of filing up one line. Straight
@@ -967,6 +1060,8 @@ export class ZombieDirector {
   /* `layout`: { windows: [{ x, y, z, rise? }], floorOf(y, x, z) -> floor id,
      floors: { id: y }, links?: [{ from, to, a: {x,z}, b: {x,z}, via? }] (a on
      `from`, b on `to`; via: where a walker comes at a's foot from),
+     noStand?: [{ x0, x1, z0, z1, y }] tops (world, y their height) a
+     zombie can't climb to, capped for the run so no player camps on them,
      support?: upper floors only open where there is
      floor under them, preferDist?: metres a spawn should ideally be from
      the player (big open maps), navCell/navPad/navStep: the flow field's
@@ -1132,6 +1227,7 @@ export class ZombieDirector {
   /* `players`: co-op's headcount. Each one past the first brings 45% more
      of the wave and room for PER_PLAYER_ALIVE more at once. */
   startRound(n, players = 1) {
+    this._caps(true);
     const extra = Math.max(0, players - 1);
     this.round = n;
     this.toSpawn = Math.round(countForRound(n) * (1 + PER_PLAYER_COUNT * extra));
@@ -1421,7 +1517,20 @@ export class ZombieDirector {
     return null;
   }
 
+  /* The layout's noStand tops: an invisible 2 m box on each while the run
+     is on (user, 2026-10-31: "either add an invisible wall or add stairs
+     that enemies climb"; this is the wall, where no climb gets there). */
+  _caps(on) {
+    const list = this.layout.noStand || [];
+    for (let i = this.colliders.length - 1; i >= 0; i--) if (this.colliders[i].noStand) this.colliders.splice(i, 1);
+    if (!on) return;
+    for (const b of list) {
+      this.colliders.push({ min: new THREE.Vector3(b.x0, b.y, b.z0), max: new THREE.Vector3(b.x1, b.y + 2, b.z1), noStand: true, surface: null });
+    }
+  }
+
   clear() {
+    this._caps(false);
     for (const z of this.zombies) z.dispose(this.scene);
     this.zombies = [];
     this.toSpawn = 0;
