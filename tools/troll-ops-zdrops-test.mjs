@@ -2,9 +2,11 @@
 // modes/zombies/drops.js). Solo, no network:
 //   1. A forced drop falls where a kill was, as a glowing trollface; walking
 //      into it takes it (banner, gone from the floor).
-//   2. Each of the five does its job: Kaboom drops every zombie on its feet
-//      and pays $400; One Tap makes a scratch kill; Double Cash doubles a
-//      kill's pay; Rebuild tops a deployable up; Fire Sale halves the price.
+//   2. Each of the six does its job: Kaboom drops every zombie on its feet
+//      and pays 400; One Tap makes a scratch kill; Double Cash doubles a
+//      kill's pay; Rebuild tops a deployable up; Fire Sale halves the price;
+//      Max Ammo fills every gun's reserve (not the mag, not before you've a
+//      gun) and gives four frags.
 //   3. The timed ones show a chip each under the wave and run out; a boss
 //      kill always drops; an ignored drop fades.
 //   4. Co-op, two tabs on a PRIVATE code (never a public room): the host's
@@ -134,6 +136,21 @@ await R(() => { const T = window.__trollOps, p = T.move.pos; const e = T.zrun().
 check(await take("rebuild"), "Rebuild taken");
 const dep = await R(() => window.__trollOps.zrun().dep.list.map((e) => [e.hp, e.maxHp]));
 check(dep.length && dep.every(([h, m]) => h === m), "Rebuild: every deployable at full", JSON.stringify(dep));
+// Max Ammo: no gun yet, nothing to fill (the placeholder stays empty); frags to four
+await R(() => { window.__trollOps.player.gear.lethal = 1; });
+check(await take("maxammo"), "Max Ammo taken (no gun yet)");
+const gunless = await R(() => { const p = window.__trollOps.player; return { gunless: !!p.gunless, reserve: Object.values(p.weapons).map((w) => w.ammoReserve), frags: p.gear.lethal }; });
+check(gunless.gunless && gunless.reserve.every((r) => r === 0) && gunless.frags === 4, "Max Ammo, gunless: still empty-handed, four frags", JSON.stringify(gunless));
+// with the Starter wall's gun, emptied: its reserve full, the mag left as it was
+await R(() => {
+  const T = window.__trollOps, W = T.zrun().walls;
+  W.buyAt(W.walls.find((q) => q.starter));
+  const w = T.currentWeapon(); w.ammoInMag = 3; w.ammoReserve = 0; T.player.gear.lethal = 0;
+});
+check(await take("maxammo"), "Max Ammo taken");
+const maxed = await R(() => { const T = window.__trollOps, w = T.currentWeapon(); return { mag: w.ammoInMag, reserve: w.ammoReserve, full: w.def.reserveMax - w.def.magSize, frags: T.player.gear.lethal, banner: document.querySelector(".zh-banner")?.textContent || "" }; });
+check(maxed.reserve === maxed.full && maxed.mag === 3 && maxed.frags === 4, "Max Ammo: reserve full, mag untouched, four frags", JSON.stringify(maxed));
+check(/Max Ammo/.test(maxed.banner), "its banner", maxed.banner);
 // Kaboom: the field drops, +$400
 await waitAlive(3);
 const before = await R(() => ({ up: window.__trollOps.zdir().zombies.filter((q) => q.alive && !q.dying).length, cash: window.__trollOps.zrun().econ.cash, x2: window.__trollOps.zrun().drops.dropFx.double > 0 }));
@@ -144,7 +161,7 @@ check(before.up >= 3 && after.up === 0, "Kaboom: every zombie on its feet drops"
 // (clearing the field can clear the wave too: its bonus rides along)
 const mult = before.x2 ? 2 : 1, wave = await R(() => window.__trollOps.zdir().round);
 const got = after.cash - before.cash;
-check(got === 400 * mult || got === (400 + 50 + 10 * wave) * mult, "Kaboom pays $400 (doubled under Double Cash)", `+${got}`);
+check(got === 400 * mult || got === (400 + Math.min(500, 25 * wave)) * mult, "Kaboom pays 400 (doubled under Double Cash)", `+${got}`);
 
 // ---- 3. timers, bosses, fading
 await R(() => { const fx = window.__trollOps.zrun().drops.dropFx; for (const k of Object.keys(fx)) if (fx[k] > 0) fx[k] = 0.2; });
