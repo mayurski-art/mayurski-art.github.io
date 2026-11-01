@@ -5,7 +5,7 @@ Troll Forces Zombies, the Rookie kit's deployables (modes/zombies/kits.js).
     blender --background --python build_zkit.blender.py -- --render <dir>
 
 Writes next to this script:
-  zk-turret.glb     tripod auto turret: turret_head (yaw pivot) > turret_gun
+  zk-turret.glb     sentry gun (Black Ops 2 style): turret_head (yaw pivot) > turret_gun
                     (pitch pivot, recoils along its -Y) > turret_muzzle (empty)
   zk-spikewall.glb  sharpened stakes lashed to a log frame, leaning at +Y
   zk-barrel.glb     a red drum with a hazard band round the top
@@ -176,61 +176,109 @@ def reset():
     random.seed(7)
 
 
-# ============================================================ Auto Turret
-# A squat sentry gun on a tripod, after Zombie Rush's Auto Turret: a pale
-# grey housing with a safety-yellow band, twin barrels, an ammo can on the
-# left, a red sensor eye. Head pivot at the top of the post.
+# ============================================================ Sentry Gun
+# Black Ops 2's sentry gun (user, 2026-11-01, with a reference render: see
+# refs/arms/sentry/NOTES.md): a six-barrel rotary gun on a boxy receiver,
+# a big ammo box on its right with a light grey camera on top at the back,
+# all on a pan head over a stout column and three straight splayed legs
+# with knee collars and flat octagonal pads. Worn dark gunmetal, the box a
+# greyer olive. Round where the real thing is (barrels, clamps, motor,
+# column, legs, lens), square where it is (receiver, box, plates).
+# Pivots: turret_head (yaw) at the pan head, turret_gun (pitch) at the
+# trunnion, turret_barrels (the cluster, spun about its axis while firing)
+# and turret_muzzle (an empty at the barrels' tips).
 
 def build_turret():
     reset()
-    steel = material("TurretSteel", hexc(0x3a3f47), rough=0.45, metal=0.6)
-    dark = material("TurretDark", hexc(0x1d2025), rough=0.5, metal=0.5)
-    shell = material("TurretShell", hexc(0xc9ced6), rough=0.55, metal=0.15)
-    yellow = material("TurretStripe", hexc(0xf2c230), rough=0.6)
-    olive = material("TurretAmmo", hexc(0x5a6b3a), rough=0.7)
-    eye = material("TurretEye", hexc(0xff2b2b), rough=0.3, emit=hexc(0xff2b2b), strength=6.0)
+    gun_m = material("SentryGunmetal", hexc(0x2b2e32), rough=0.48, metal=0.7)
+    black = material("SentryBlack", hexc(0x141517), rough=0.55, metal=0.5)
+    edge = material("SentryEdge", hexc(0x5c6168), rough=0.35, metal=0.85)
+    box_m = material("SentryBox", hexc(0x33362f), rough=0.7, metal=0.25)
+    cam_m = material("SentryCamera", hexc(0xc9cdd2), rough=0.4, metal=0.3)
+    glass = material("SentryGlass", hexc(0x0b1a24), rough=0.08, metal=0.2)
+    led = material("SentryLed", hexc(0xff2b2b), rough=0.3, emit=hexc(0xff2b2b), strength=7.0)
 
-    HEAD_Z = 0.78
-    parts = [cyl("Base", 0.2, 0.07, (0, 0, 0.12), steel, verts=6)]
-    parts.append(cyl("Post", 0.05, HEAD_Z - 0.12, (0, 0, (HEAD_Z + 0.12) / 2), steel, verts=12))
-    parts.append(cyl("Collar", 0.09, 0.06, (0, 0, HEAD_Z - 0.06), dark, verts=16))
+    PAN_Z = 0.62          # the pan head: the head's yaw pivot
+    TRUN_Z = 0.82         # the trunnion: the gun's pitch pivot
+    SCALE = 1.2           # everything above is laid out 1/1.2 size, then scaled
+
+    # ---- the stand: a stout column, three straight legs, octagonal pads
+    parts = [cyl("Column", 0.05, PAN_Z - 0.28, (0, 0, (PAN_Z + 0.28) / 2), gun_m, verts=20)]
+    parts.append(cyl("ColumnBand", 0.058, 0.04, (0, 0, PAN_Z - 0.08), black, verts=20))
+    parts.append(cyl("Hub", 0.085, 0.1, (0, 0, 0.32), black, verts=20))
+    parts.append(cyl("HubFoot", 0.06, 0.08, (0, 0, 0.24), gun_m, verts=16))
     for k in range(3):
         a = math.radians(90 + 120 * k)
-        foot = (math.cos(a) * 0.5, math.sin(a) * 0.5, 0.02)
-        hip = (math.cos(a) * 0.12, math.sin(a) * 0.12, 0.16)
-        parts.append(rod(f"Leg{k}", hip, foot, 0.035, dark, verts=8))
-        parts.append(box(f"Foot{k}", (0.12, 0.12, 0.03), (foot[0], foot[1], 0.015), steel))
+        c, s = math.cos(a), math.sin(a)
+        hip = (c * 0.07, s * 0.07, 0.33)
+        knee = (c * 0.27, s * 0.27, 0.17)
+        foot = (c * 0.44, s * 0.44, 0.03)
+        parts.append(rod(f"Thigh{k}", hip, knee, 0.029, gun_m, verts=12))
+        parts.append(rod(f"Shin{k}", knee, foot, 0.023, black, verts=12))
+        parts.append(rod(f"Collar{k}", knee, tuple(knee[i] + (hip[i] - knee[i]) * 0.16 for i in range(3)), 0.036, edge, verts=12))
+        parts.append(cyl(f"Pad{k}", 0.078, 0.03, (foot[0], foot[1], 0.014), black, verts=8))
+        parts.append(cyl(f"PadTop{k}", 0.03, 0.02, (foot[0], foot[1], 0.036), gun_m, verts=8))
     legs = join(parts, "turret")
 
-    # the head: housing, band, ammo can, eye
-    hp = [box("Shell", (0.36, 0.44, 0.24), (0, 0.02, HEAD_Z + 0.13), shell, bevel=0.03)]
-    hp.append(box("BandL", (0.012, 0.3, 0.07), (0.185, 0.02, HEAD_Z + 0.12), yellow))
-    hp.append(box("BandR", (0.012, 0.3, 0.07), (-0.185, 0.02, HEAD_Z + 0.12), yellow))
-    hp.append(box("Hood", (0.3, 0.22, 0.05), (0, -0.05, HEAD_Z + 0.27), steel, bevel=0.015))
-    hp.append(box("Ammo", (0.12, 0.24, 0.16), (-0.25, -0.02, HEAD_Z + 0.1), olive, bevel=0.012))
-    hp.append(box("AmmoLid", (0.13, 0.25, 0.02), (-0.25, -0.02, HEAD_Z + 0.185), dark))
-    hp.append(cyl("Eye", 0.035, 0.03, (0.1, 0.245, HEAD_Z + 0.2), eye, verts=12, rot=(math.radians(90), 0, 0)))
-    hp.append(cyl("EyeRim", 0.048, 0.02, (0.1, 0.235, HEAD_Z + 0.2), dark, verts=12, rot=(math.radians(90), 0, 0)))
+    # ---- the head: the pan head and the yoke
+    hp = [cyl("Pan", 0.085, 0.06, (0, 0, PAN_Z + 0.03), black, verts=24)]
+    hp.append(cyl("PanRim", 0.095, 0.015, (0, 0, PAN_Z + 0.005), edge, verts=24))
+    hp.append(box("Saddle", (0.2, 0.14, 0.04), (0, 0, PAN_Z + 0.075), gun_m, bevel=0.012))
+    for x in (-0.1, 0.1):
+        hp.append(box(f"Cheek{x}", (0.022, 0.12, 0.13), (x, 0, PAN_Z + 0.145), black, bevel=0.008))
+        hp.append(cyl(f"Knob{x}", 0.03, 0.025, (x + (0.022 if x > 0 else -0.022), 0, TRUN_Z), edge, verts=14, rot=(0, math.radians(90), 0)))
     head = join(hp, "turret_head")
-    set_origin(head, (0, 0, HEAD_Z))
+    set_origin(head, (0, 0, PAN_Z))
 
-    # the guns: twin barrels with a shroud and brakes, pitching about the trunnion
-    GUN_Z = HEAD_Z + 0.12
-    gp = [box("Shroud", (0.2, 0.2, 0.1), (0, 0.27, GUN_Z), steel, bevel=0.012)]
-    for x in (-0.055, 0.055):
-        gp.append(rod(f"Barrel{x}", (x, 0.3, GUN_Z), (x, 0.74, GUN_Z), 0.024, dark, verts=12))
-        gp.append(rod(f"Brake{x}", (x, 0.68, GUN_Z), (x, 0.76, GUN_Z), 0.034, steel, verts=12))
-        gp.append(rod(f"Jacket{x}", (x, 0.36, GUN_Z), (x, 0.5, GUN_Z), 0.034, steel, verts=6))
+    # ---- the gun about the trunnion (+Y downrange)
+    G = TRUN_Z
+    gp = [box("Receiver", (0.19, 0.38, 0.19), (0, 0.0, G + 0.03), gun_m, bevel=0.02)]
+    gp.append(box("TopRail", (0.07, 0.3, 0.02), (0, 0.0, G + 0.13), black, bevel=0.005))
+    gp.append(box("SideL", (0.01, 0.26, 0.12), (-0.1, 0.01, G + 0.03), black, bevel=0.003))
+    gp.append(box("Rear", (0.16, 0.05, 0.15), (0, -0.21, G + 0.03), black, bevel=0.014))
+    # the motor housing the cluster comes out of
+    gp.append(rod("Motor", (0, 0.18, G), (0, 0.27, G), 0.075, black, verts=24))
+    gp.append(rod("MotorRing", (0, 0.265, G), (0, 0.29, G), 0.082, edge, verts=24))
+    # the ammo box on the right, a feed chute into the receiver
+    gp.append(box("AmmoBox", (0.18, 0.32, 0.25), (0.2, -0.08, G + 0.04), box_m, bevel=0.014, rot=(math.radians(10), 0, 0)))
+    gp.append(box("AmmoLid", (0.19, 0.33, 0.025), (0.2, -0.1, G + 0.18), black, bevel=0.006, rot=(math.radians(10), 0, 0)))
+    gp.append(box("AmmoRib", (0.185, 0.015, 0.24), (0.2, 0.03, G + 0.05), black, rot=(math.radians(10), 0, 0)))
+    gp.append(box("AmmoLatch", (0.01, 0.06, 0.04), (0.293, -0.02, G + 0.11), edge))
+    gp.append(rod("Chute", (0.12, 0.06, G + 0.08), (0.08, 0.1, G + 0.08), 0.026, black, verts=10))
+    # the camera: a light grey box on the ammo box's top at the back, lens forward
+    gp.append(box("CamMount", (0.03, 0.04, 0.05), (0.02, -0.1, G + 0.16), black))
+    gp.append(box("Camera", (0.09, 0.16, 0.075), (0.02, -0.07, G + 0.22), cam_m, bevel=0.022))
+    gp.append(rod("CamHood", (0.02, 0.01, G + 0.22), (0.02, 0.035, G + 0.22), 0.028, black, verts=20))
+    gp.append(rod("CamLens", (0.02, 0.03, G + 0.22), (0.02, 0.039, G + 0.22), 0.021, glass, verts=20))
+    gp.append(cyl("Led", 0.008, 0.01, (0.05, 0.012, G + 0.245), led, verts=10, rot=(math.radians(90), 0, 0)))
     gun = join(gp, "turret_gun")
-    set_origin(gun, (0, 0.2, GUN_Z))
+    set_origin(gun, (0, 0, G))
+
+    # ---- the rotary cluster: six barrels round a spindle, two clamps, a
+    # muzzle ring with the bores showing; spins about its own axis
+    BR = 0.046            # the barrels' circle
+    bp = [rod("Spindle", (0, 0.28, G), (0, 0.6, G), 0.02, edge, verts=12)]
+    for i in range(6):
+        a = i * math.pi / 3
+        x, z = math.cos(a) * BR, G + math.sin(a) * BR
+        bp.append(rod(f"Barrel{i}", (x, 0.28, z), (x, 0.64, z), 0.0145, gun_m, verts=12))
+        bp.append(rod(f"Bore{i}", (x, 0.64, z), (x, 0.642, z), 0.008, black, verts=10))
+    for y, w, r in ((0.3, 0.035, 0.022), (0.46, 0.03, 0.02), (0.57, 0.05, 0.024)):
+        bp.append(rod(f"Clamp{y}", (0, y, G), (0, y + w, G), BR + r, black, verts=24))
+    barrels = join(bp, "turret_barrels")
+    set_origin(barrels, (0, 0, G))
 
     muzzle = bpy.data.objects.new("turret_muzzle", None)
     bpy.context.scene.collection.objects.link(muzzle)
-    muzzle.location = (0, 0.78, GUN_Z)
+    muzzle.location = (0, 0.65, G)
 
     parent(head, legs)
     parent(gun, head)
+    parent(barrels, gun)
     parent(muzzle, gun)
+    # BO2's size (user, 2026-11-01): barrels at a soldier's waist, 1.3 m to
+    # the camera, the tripod about as wide as it is tall
+    legs.scale = (SCALE, SCALE, SCALE)
     export(legs, "zk-turret.glb")
 
 

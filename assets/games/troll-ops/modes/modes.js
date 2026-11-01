@@ -45,7 +45,10 @@ export const MODES = {
     pvp: false,
     zombies: true,
     // Maps with a zombieLayout(); the map card's Change picks between them.
-    mapPool: ["pentagrin", "hollowgrin", "trollcity"],
+    mapPool: ["hollowgrin", "trollcity"],
+    // shown in the drawer but not playable: being rebuilt (the Pentagrin,
+    // merging with the Depot, 2026-11-01)
+    closedMaps: { pentagrin: "Under construction" },
     blurb: "Pepe and trollface, round after round, and they do not stop coming.",
   },
 

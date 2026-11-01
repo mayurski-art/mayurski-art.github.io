@@ -4,12 +4,13 @@
 //
 // A gun tier rebuilds each gun you carry from the def it started the run
 // with (attachments included), scaled up: more damage, a bigger mag, a
-// quicker reload. Reserve ammo is infinite in Zombies (Zombie Rush's
-// "7 / ∞"), so a rebuilt gun comes back with a full mag and no reserve to
-// track.
+// quicker reload. Ammo is bought (wallbuys.js), and a tier comes with a full
+// mag and reserve, as Pack-a-Punch does.
 //
-// The primary is the gun you equipped at the hub's Weapons kiosk, at its
-// level (credits.js), not your multiplayer loadout's; the secondary stays.
+// The run starts with the gun you equipped at the hub's Weapons kiosk, at
+// its level (credits.js), as an empty placeholder: wallbuys.js takes your
+// guns away until the Starter wall hands that one back. Any gun a wall sells
+// gets the run's tier too.
 
 import { MELEE_DEFS, MeleeState } from "../../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1-rb4-hp1-bx1-mg1-sp1";
 import { WeaponState } from "../../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
@@ -19,26 +20,27 @@ import { canAfford, spend } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2-zp1-dj
 import { resolveWeapon, defaultLoadoutFor } from "../../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 import { equippedGun, gunLevel, gunAtLevel } from "./credits.js?v=zc1-zc2-zf1-wb1-mt2-hb4-gc1";
 
-/* +25 max health a buy, up to 250; each buy costs half again. */
+/* +25 max health a buy, up to 250; each buy costs 30% more. Prices are in
+   the run's points (economy.js: 10 a hit, 50 a kill). */
 const HP_STEP = 25;
 const HP_CAP = 250;
-const HP_PRICE = 100;
-const HP_PRICE_GROWTH = 1.5;
+const HP_PRICE = 1000;
+const HP_PRICE_GROWTH = 1.3;
 
 /* Tier n (1-based): its price and how hard the gun hits next to the start
    of the run. Mag +10% and reload x0.95 per tier ride on top. */
 export const GUN_TIERS = [
-  { price: 250, dmg: 1.25 },
-  { price: 500, dmg: 1.55 },
-  { price: 900, dmg: 1.9 },
-  { price: 1500, dmg: 2.3 },
-  { price: 2400, dmg: 2.8 },
+  { price: 1500, dmg: 1.25 },
+  { price: 2500, dmg: 1.55 },
+  { price: 3500, dmg: 1.9 },
+  { price: 5000, dmg: 2.3 },
+  { price: 6500, dmg: 2.8 },
 ];
 
 /* The melee you start with, then these in order. */
 export const MELEE_TIERS = [
-  { id: "bat", price: 75 },
-  { id: "shovel", price: 200 },
+  { id: "bat", price: 500 },
+  { id: "shovel", price: 1500 },
 ];
 
 const up = {
@@ -80,10 +82,7 @@ export function resetUpgrades() {
   up.gunTier = 0;
   up.meleeTier = 0;
   up.base = {};
-  for (const [id, w] of Object.entries(game.player.weapons)) {
-    up.base[id] = w.def;
-    w.ammoReserve = Infinity;
-  }
+  for (const [id, w] of Object.entries(game.player.weapons)) up.base[id] = w.def;
   game.player.maxHp = 100;
 }
 
@@ -158,7 +157,8 @@ function applyGunTier(t) {
     if (!base) continue;
     const def = tieredDef(base, t);
     const w = new WeaponState(def);
-    w.ammoReserve = Infinity;
+    // still empty-handed: the placeholder stays empty (wallbuys.js)
+    if (p.gunless) { w.ammoInMag = 0; w.ammoReserve = 0; }
     p.weapons[id] = w;
   }
   // the gun in your hands is the one you see

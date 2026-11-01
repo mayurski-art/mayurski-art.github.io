@@ -198,6 +198,7 @@ export function shootDownAir(eid, byId, announce = false) {
     if (e instanceof HelicopterGunship && mine) showWaveBanner("GUNSHIP SHOT DOWN", 1600);
     if (e instanceof VtolWarship && mine) showWaveBanner("WARSHIP SHOT DOWN", 1600);
     if (e instanceof SamTurret && mine) showWaveBanner("SAM TURRET DESTROYED", 1600);
+    else if (e.downBanner && mine) showWaveBanner(e.downBanner, 1600);
     e.dispose();
     streakEntities.delete(eid);
   } else {

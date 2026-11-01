@@ -4549,6 +4549,11 @@ export const HOLLOWGRIN = {
       { from: "ground", to: "mansion", a: { x: 69.0, z: 28.2 }, b: { x: 63.4, z: 28.2 } },
       // the coaster's brake deck: up the maintenance stair
       { from: "ground", to: "brake", a: { x: 82.2, z: -20.1 }, b: { x: 82.2, z: -33.0 } }],
+    // the box boxed in by the rail, the crate and the wall west of the
+    // graveyard: zombies can't get round to climb it
+    noStand: [{ x0: -47.3, x1: -45.6, z0: 4.9, z1: 6.4, y: 1.35 },
+      // the barn's two stacked crates
+      { x0: 26.57, x1: 27.43, z0: 20.95, z1: 22.25, y: 1.5 }],
     support: true,
     preferDist: 17,
     navCell: 0.55,

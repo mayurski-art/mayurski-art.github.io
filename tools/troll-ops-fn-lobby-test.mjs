@@ -69,6 +69,17 @@ for (const [tab, screen] of Object.entries(want)) {
   const c = await cur(page), t = await onTab(page);
   check(c === screen && t === tab && await shown(page, ".to-bo2-menu") && !(await shown(page, ".to-fn-play")), `${tab} tab opens ${screen}`, `${c} / ${t}`);
 }
+// the Leaderboards' Board option: Weekly, Monthly, All-time, round again
+await page.click('.to-fn-tab[data-tab="compete"]');
+await sleep(250);
+const boardRow = () => page.evaluate(() => document.querySelector('.tr-menu-item[data-id="period"]')?.textContent.replace(/\s+/g, " ").trim() || null);
+const boards = [await boardRow()];
+for (let i = 0; i < 3; i++) {
+  await page.evaluate(() => document.querySelector('.tr-menu-item[data-id="period"]')?.click());
+  await sleep(250);
+  boards.push(await boardRow());
+}
+check(["Weekly", "Monthly", "All-time", "Weekly"].every((w, i) => boards[i]?.includes(w)), "the Board option turns Weekly, Monthly, All-time", boards.join(" | "));
 await page.click('.to-fn-tab[data-tab="locker"]');
 await page.evaluate(() => window.__toBo2.menu.go("classlist"));
 await sleep(250);

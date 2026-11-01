@@ -48,8 +48,9 @@ import { pickRoyaleSize } from "./mode-picker.js?v=mp1-fu1b7b7d-wb1-ar1-ar2-cl1-
 import { recordSupported, recordPref, setRecordPref } from "../modes/royale-record.js?v=rrc1-rfx1-rr2-ret1-mrg1-hd1";
 import { isNew, hasNew, markSeen } from "../progression/grants.js?v=pk1-mb1-mb2-mg2";
 import { nftScreens, nftInput, nftNote, wireNftInput, isOwnerSignedIn } from "./nft-access.js?v=nfh4-mg2-nft2531-nft2531h";
-import { makeTrollOpsProvider } from "../progression/leaderboard-rows.js?v=lr1-zh1-or1-nd2-gc1";
+import { makeTrollOpsProvider, PERIOD_NAME, BOARDS_SINCE } from "../progression/leaderboard-rows.js?v=lr1-zh1-or1-nd2-gc1-za1";
 const lbProvider = makeTrollOpsProvider();
+const LB_NEXT = { week: "month", month: "all", all: "week" };   // the Board option's turn
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1";
 import { STREAK_DEFS } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1";
 import { renderClassPreview } from "./class-preview.js?v=cp1-rb4-hp1-bx1-sp1-sam1-rfx1-mrg1-mrc1-tw1-p416-mt2-sk1-hb4-gc1";
@@ -943,8 +944,8 @@ const screens = {
   leaders: () => ({
     title: "Leaderboards", panel: "deploy", detail: true, lb: true,
     groups: [[
-      { id: "period", label: "Board", value: lbProvider.period === "month" ? "Monthly" : "Weekly", desc: "Weekly resets every Monday, monthly on the 1st. Your all-time stats are on your profile card.",
-        onSelect: (_, m) => { lbProvider.setPeriod(lbProvider.period === "month" ? "week" : "month"); window.TrollLeaderboard?.refresh?.("troll-ops"); m.refresh(); } },
+      { id: "period", label: "Board", value: PERIOD_NAME[lbProvider.period], desc: `Weekly resets every Monday, monthly on the 1st. All-time adds up everything since ${BOARDS_SINCE}.`,
+        onSelect: (_, m) => { lbProvider.setPeriod(LB_NEXT[lbProvider.period]); window.TrollLeaderboard?.refresh?.("troll-ops"); m.refresh(); } },
       back("Back to the main menu."),
     ]],
   }),

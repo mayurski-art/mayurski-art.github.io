@@ -65,7 +65,10 @@ const baseColliders = await page.evaluate(() => {
   zd.breakLen = 9999;
   T.player.hp = 1e9;
   T.zrun().giveCash(20000);
-  return T.colliders.filter((c) => !c.deploy).length;
+  // the map's own: not deployables, nor the run's doors and fences (doors.js
+  // `zdoor`, `zfence`),
+  // which the run puts up and takes down with itself
+  return T.colliders.filter((c) => !c.deploy && !c.zdoor && !c.zfence).length;
 });
 await page.waitForFunction(() => window.__trollOps.zdir().state === "between", null, { timeout: 30000 });
 await page.evaluate(() => { const zd = window.__trollOps.zdir(); zd.zombies.forEach((z) => z.dispose(zd.scene)); zd.zombies = []; });
@@ -114,7 +117,7 @@ const col = await page.evaluate(() => ({
   head: document.querySelector(".zh-dep .zh-col-h")?.textContent,
 }));
 check(col.cards.length === 3, "three deployable cards", col.cards.join(" | "));
-check(/^Turret \$120 0 \/ 3/.test(col.cards[0] || "") && /^Barricade \$150/.test(col.cards[1] || "") && /^Barrel \$90/.test(col.cards[2] || ""), "turret $120, barricade $150, barrel $90");
+check(/^Turret 1,000 0 \/ 3/.test(col.cards[0] || "") && /^Barricade 750/.test(col.cards[1] || "") && /^Barrel 500/.test(col.cards[2] || ""), "turret 1,000, barricade 750, barrel 500");
 check(col.head === "Deployables", "the column says Deployables");
 
 // ---- picking: a tap of 7 picks the turret, held 8 picks the barricade in grid mode
@@ -154,8 +157,8 @@ const placed = await page.evaluate(() => {
   const e = R.dep.list.find((q) => q.id === "barricade");
   return { ok, paid: before - R.econ.cash, next: R.deployOffers()[1].price, colliders: T.colliders.filter((c) => c.deploy).length, blockers: T.zdir().blockers.length, pos: e && { x: e.pos.x, z: e.pos.z }, yaw: e?.yaw };
 });
-check(placed.ok && placed.paid === 150, "the barricade costs $150", String(placed.paid));
-check(placed.next === 180, "the next one costs $180", String(placed.next));
+check(placed.ok && placed.paid === 750, "the barricade costs 750", String(placed.paid));
+check(placed.next === 860, "the next one costs 860", String(placed.next));
 check(placed.colliders >= 2 && placed.blockers === placed.colliders, "it stands as colliders and blockers", `${placed.colliders}/${placed.blockers}`);
 
 // a tough zombie on the far side, walking at us through it
@@ -201,13 +204,13 @@ const tur = await page.evaluate(() => {
   return { ok, x: e?.pos.x, z: e?.pos.z, yaw: e?.yaw, next: R.deployOffers()[0].price };
 });
 check(tur.ok, "the turret goes down");
-check(tur.next === 160, "the next turret costs $160", String(tur.next));
+check(tur.next === 1250, "the next turret costs 1,250", String(tur.next));
 const cashBefore = await page.evaluate(() => window.__trollOps.zrun().econ.cash);
 const tz = await zombieAt(tur.x - Math.sin(tur.yaw) * 8, tur.z - Math.cos(tur.yaw) * 8);
 const killed = await page.waitForFunction((id) => !window.__trollOps.zdir().zombies.some((q) => q.id === id && q.alive && !q.dying), tz, { timeout: 15000 }).then(() => true).catch(() => false);
 check(killed, "the turret kills a zombie 8 m out");
 const paid = await page.evaluate((c) => window.__trollOps.zrun().econ.cash - c, cashBefore);
-check(paid >= 15, "its kill pays", `+$${paid}`);
+check(paid >= 50, "its kill pays", `+${paid}`);
 const tag = await page.evaluate(() => [...document.querySelectorAll(".zh-wtag")].filter((e) => e.offsetParent && e.textContent).map((e) => e.textContent));
 check(tag.includes("Lvl. 1"), "the turret carries Lvl. 1", tag.join(","));
 // a second, tough one: catch it mid-burst for the picture
@@ -243,7 +246,7 @@ const after = await page.evaluate(({ c, id }) => {
 }, { c: cashB, id: vz });
 check(after.barrels === 0, "both barrels went up (the second one chained)", String(after.barrels));
 check(after.deployColliders === 0, "and left no colliders");
-check(after.dead && after.paid >= 15, "the zombie by them died and paid", `+$${after.paid}`);
+check(after.dead && after.paid >= 50, "the zombie by them died and paid", `+${after.paid}`);
 check(after.hp === 1e9, "the blast spares you");
 await clearZombies();
 
@@ -255,7 +258,7 @@ check(poor === false, "no cash, no turret");
 await page.evaluate(() => { const R = window.__trollOps.zrun(); R.econ.cash = 5000; R.spawn("turret", window.__trollOps.move.pos.x + 3, window.__trollOps.move.pos.y, window.__trollOps.move.pos.z, 0); });
 await page.evaluate(() => { const T = window.__trollOps; T.damagePlayer(1e12, null, null, false, null); T.zrun().run.bleedT = 0.05; });
 await page.waitForFunction(() => window.__trollOps.state() === "gameover", null, { timeout: 15000 }).catch(() => {});
-const end = await page.evaluate(() => ({ list: window.__trollOps.zrun().dep.list.length, deploy: window.__trollOps.colliders.filter((c) => c.deploy).length, base: window.__trollOps.colliders.filter((c) => !c.deploy).length }));
+const end = await page.evaluate(() => ({ list: window.__trollOps.zrun().dep.list.length, deploy: window.__trollOps.colliders.filter((c) => c.deploy).length, base: window.__trollOps.colliders.filter((c) => !c.deploy && !c.zdoor && !c.zfence).length }));
 check(end.list === 0 && end.deploy === 0, "game over clears the deployables");
 check(end.base === baseColliders, "and leaves the map's colliders as they were", `${end.base}/${baseColliders}`);
 
