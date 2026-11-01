@@ -1,6 +1,7 @@
 # Security room: CCTV and candle lines v2 (Kabukigrin, Socialize) — DESIGN DOC
 
-Status: DRAFT 2026-11-01, awaiting picks (section 10). Builds on
+Status: APPROVED 2026-11-01 with all five recommended picks (the office,
+trays removed, 8 s rush, one chair, owner + VIP bands); not built yet. Builds on
 CANDLE-LINES.md (v1, the tatami trays, live on main) and the underground
 club (KB-CLUB-UNDERGROUND.md, live on main).
 
