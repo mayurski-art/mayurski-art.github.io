@@ -129,7 +129,8 @@ export class CharacterInspector {
     // yours on your pad; off the stage (the Locker, Cosmetics) in the middle
     this.humanoid.root.position.set(this.stage ? SLOTS[0][0] : 0, 0, this.stage ? SLOTS[0][1] : 0);
     this.width = 0;   // re-read the box's size and its CSS knobs next tick
-    if (!this.stage) { this.yaw = REST_YAW; this.pitch = REST_PITCH; }
+    // (the stage is locked, so it starts square on; leaving it, too)
+    this.yaw = REST_YAW; this.pitch = REST_PITCH; this.zoomTarget = 1; this.dragging = false;
   }
 
   /* The party beside you: [{ id, name, face, body (a TROLLS token, 0 the
@@ -187,7 +188,11 @@ export class CharacterInspector {
 
     const canvas = this.canvas;
 
+    // The Play page's podiums stay put (user, 2026-10-31: "lock the moving of
+    // the standing podium thing ... users can swirl it around"): no turning,
+    // tilting or zooming on the stage; the Locker's operator still turns.
     canvas.addEventListener("pointerdown", (e) => {
+      if (this.stage) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       this.autoSpin = false;
       this.dragging = true;
@@ -225,12 +230,14 @@ export class CharacterInspector {
     canvas.addEventListener("pointerleave", release);
 
     canvas.addEventListener("wheel", (e) => {
+      if (this.stage) return;
       e.preventDefault();
       this.autoSpin = false;
       this.setZoom(this.zoomTarget * Math.exp(e.deltaY * 0.0012));
     }, { passive: false });
 
     canvas.addEventListener("dblclick", () => {
+      if (this.stage) return;
       this.zoomTarget = 1;
       this.yaw = REST_YAW;
       this.pitch = REST_PITCH;
