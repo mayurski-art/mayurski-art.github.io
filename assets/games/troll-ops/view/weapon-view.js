@@ -1361,6 +1361,7 @@ function fadeOpticGlass(mesh, adsT, w, dt) {
   for (const m of mesh.userData.reticleMats) m.opacity = op;
   return skin;
 }
+const IRON_ADS_DISTANCE = 0.3;                     // m from the eye to the irons' aim point (optics: 0.46 or their own)
 const RED_DOT_MOVING = 0.35;                       // the dot's opacity on the move
 const RED_DOT_FADE_IN = 5, RED_DOT_FADE_OUT = 9;   // damp rates: dims in ~0.4 s, back in ~0.25 s
 let redDotMoveT = 0;
@@ -1430,7 +1431,10 @@ export function updateWeaponView(dt) {
   const aimPoint = mesh.userData.aimPoint || new THREE.Vector3(0, 0, -0.4);
   // Where the sight sits in front of the weapon camera. Tube optics ask to
   // come closer so the eyepiece frames the view rather than a pinhole.
-  const adsViewDistance = -(mesh.userData.adsDistance ?? 0.46);
+  // Bare irons come in closer still (IRON_ADS_DISTANCE), so the posts and
+  // aperture read big instead of a pinhole down the receiver (user, 2026-10-31).
+  const irons = (w.def.attachments?.optic ?? w.def.sight) === "iron";
+  const adsViewDistance = -(mesh.userData.adsDistance ?? (irons ? IRON_ADS_DISTANCE : 0.46));
   const adsPos = new THREE.Vector3(-aimPoint.x, -aimPoint.y, adsViewDistance - aimPoint.z);
   const basePos = hipPos.clone().lerp(adsPos, adsSmoothT);
 
