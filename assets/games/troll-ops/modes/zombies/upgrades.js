@@ -4,41 +4,43 @@
 //
 // A gun tier rebuilds each gun you carry from the def it started the run
 // with (attachments included), scaled up: more damage, a bigger mag, a
-// quicker reload. Reserve ammo is infinite in Zombies (Zombie Rush's
-// "7 / ∞"), so a rebuilt gun comes back with a full mag and no reserve to
-// track.
+// quicker reload. Ammo is bought (wallbuys.js), and a tier comes with a full
+// mag and reserve, as Pack-a-Punch does.
 //
-// The primary is the gun you equipped at the hub's Weapons kiosk, at its
-// level (credits.js), not your multiplayer loadout's; the secondary stays.
+// The run starts with the gun you equipped at the hub's Weapons kiosk, at
+// its level (credits.js), as an empty placeholder: wallbuys.js takes your
+// guns away until the Starter wall hands that one back. Any gun a wall sells
+// gets the run's tier too.
 
 import { MELEE_DEFS, MeleeState } from "../../weapons/gear.js?v=to-hb1kb3-bk1-wst-ig1-th2-zr5-zr9-zr10-zp1-or1-rb4-hp1-bx1-mg1-sp1";
 import { WeaponState } from "../../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
-import { updateGearHud } from "../../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2-jx3-jx4-jx5-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-kbc2";
+import { updateGearHud } from "../../combat/weapons.js?v=wp1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-aa0-ar0-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2-jx3-jx4-jx5-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2";
 import { game } from "../../core/state.js?v=st1";
-import { canAfford, spend } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-zd1-wb1-mt2-sk1-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h-kbc1-kbc2";
+import { canAfford, spend } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-zd1-wb1-mt2-sk1-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h-tn13";
 import { resolveWeapon, defaultLoadoutFor } from "../../weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 import { equippedGun, gunLevel, gunAtLevel } from "./credits.js?v=zc1-zc2-zf1-wb1-mt2-hb4-gc1";
 
-/* +25 max health a buy, up to 250; each buy costs half again. */
+/* +25 max health a buy, up to 250; each buy costs 30% more. Prices are in
+   the run's points (economy.js: 10 a hit, 50 a kill). */
 const HP_STEP = 25;
 const HP_CAP = 250;
-const HP_PRICE = 100;
-const HP_PRICE_GROWTH = 1.5;
+const HP_PRICE = 1000;
+const HP_PRICE_GROWTH = 1.3;
 
 /* Tier n (1-based): its price and how hard the gun hits next to the start
    of the run. Mag +10% and reload x0.95 per tier ride on top. */
 export const GUN_TIERS = [
-  { price: 250, dmg: 1.25 },
-  { price: 500, dmg: 1.55 },
-  { price: 900, dmg: 1.9 },
-  { price: 1500, dmg: 2.3 },
-  { price: 2400, dmg: 2.8 },
+  { price: 1500, dmg: 1.25 },
+  { price: 2500, dmg: 1.55 },
+  { price: 3500, dmg: 1.9 },
+  { price: 5000, dmg: 2.3 },
+  { price: 6500, dmg: 2.8 },
 ];
 
 /* The melee you start with, then these in order. */
 export const MELEE_TIERS = [
-  { id: "bat", price: 75 },
-  { id: "shovel", price: 200 },
+  { id: "bat", price: 500 },
+  { id: "shovel", price: 1500 },
 ];
 
 const up = {
@@ -80,10 +82,7 @@ export function resetUpgrades() {
   up.gunTier = 0;
   up.meleeTier = 0;
   up.base = {};
-  for (const [id, w] of Object.entries(game.player.weapons)) {
-    up.base[id] = w.def;
-    w.ammoReserve = Infinity;
-  }
+  for (const [id, w] of Object.entries(game.player.weapons)) up.base[id] = w.def;
   game.player.maxHp = 100;
 }
 
@@ -158,7 +157,8 @@ function applyGunTier(t) {
     if (!base) continue;
     const def = tieredDef(base, t);
     const w = new WeaponState(def);
-    w.ammoReserve = Infinity;
+    // still empty-handed: the placeholder stays empty (wallbuys.js)
+    if (p.gunless) { w.ammoInMag = 0; w.ammoReserve = 0; }
     p.weapons[id] = w;
   }
   // the gun in your hands is the one you see

@@ -7,6 +7,8 @@
 -- assets/games/troll-ops/progression.js uses the same formula.
 -- Prestiging resets only that number: troll_profiles.level and .xp are never
 -- touched. prestige 1-10, then 11 = Prestige Master.
+-- 2026-11-01: superseded on the cap by troll_forces_prestige_69.sql (Master
+-- is 69 now). If you re-run this file, run that one after it.
 
 create table if not exists public.troll_forces_prestige (
   user_id    uuid primary key references auth.users(id) on delete cascade,

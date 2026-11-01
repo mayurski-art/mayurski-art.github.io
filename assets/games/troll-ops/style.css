@@ -3239,6 +3239,14 @@ body.tf-anim-off .to-radio-toggle .to-radio-ico rect { animation: none !importan
   letter-spacing: 0; text-transform: none; color: var(--pf-body);
 }
 .to-pf .to-lo-map.is-active .to-map-tag { color: var(--pf-body); }
+/* a map being rebuilt (Zombies' Pentagrin): greyed, caution tape for a schematic */
+.to-lo-map.is-closed { cursor: not-allowed; opacity: .62; }
+.to-pf .to-lo-map.is-closed:hover { border-color: rgba(234, 243, 228, .1); }
+.to-lo-map.is-closed .to-map-tag { color: #ffb347; }
+.to-map-shut {
+  display: block; width: 76px; height: 76px; border-radius: 8px;
+  background: repeating-linear-gradient(-45deg, #f2c230 0 9px, #1c1c1e 9px 18px);
+}
 .to-pf .to-lo-map::after {
   content: ""; grid-column: 3; grid-row: 1 / 3; width: 20px; height: 20px;
 }
@@ -6374,6 +6382,9 @@ body.to-zombies .to-dmg-num.is-word { color: #7dff4f; font-size: 17px; font-weig
 .zh-left { font-size: 26px; }
 .zh-left b { color: #ffe23a; }
 .zh-wave { font-size: 32px; }
+.zh-count { font-size: 26px; }
+.zh-count b { color: #ff5a4a; }
+.zh-count[hidden] { display: none; }
 .zh-skip {
   position: absolute; top: 10px; right: 18px; pointer-events: auto; cursor: pointer;
   display: grid; grid-template-columns: auto auto; column-gap: 10px; align-items: center;
@@ -6450,7 +6461,10 @@ body.to-zombies .to-dmg-num.is-word { color: #7dff4f; font-size: 17px; font-weig
   background: rgba(8, 10, 14, .72); border-left: 4px solid var(--fx); font-size: 17px; color: #fff; white-space: nowrap;
 }
 .zh-fx-n { color: var(--fx); }
+.zh-fx-w { font-size: 14px; opacity: .9; }
+.zh-fx-w:empty { display: none; }
 .zh-fx-t { font-size: 15px; opacity: .85; font-variant-numeric: tabular-nums; }
+.zh-dep.is-sale .zh-price { color: #ff9a2a; }
 .zh-fx-c i { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--fx); }
 .zh-feed {
   position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%);
@@ -6468,6 +6482,12 @@ body.to-zombies .to-dmg-num.is-word { color: #7dff4f; font-size: 17px; font-weig
 }
 .zh-banner.is-final { color: #ff4b3a; -webkit-text-stroke-color: #2a0400; }
 .zh-banner.is-on { animation: zh-banner 2.4s ease-out forwards; }
+/* a power-up's banner: what it does, under its name, and up long enough to read */
+.zh-banner.is-sub.is-on { animation-duration: 4s; }
+.zh-banner-s {
+  display: block; text-align: center; margin-top: 2px;
+  font-size: 22px; color: #fff; -webkit-text-stroke: 1.1px #10141a; letter-spacing: .02em;
+}
 @keyframes zh-banner {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(1.6); }
   12% { opacity: 1; transform: translate(-50%, -50%) scale(.96); }
@@ -6492,6 +6512,7 @@ body.to-zombies .to-dmg-num.is-word { color: #7dff4f; font-size: 17px; font-weig
   .zh-top { font-size: 22px; gap: 14px; top: 6px; }
   .zh-left { font-size: 19px; }
   .zh-wave { font-size: 24px; }
+  .zh-count { font-size: 19px; }
   .zh-col { top: 238px; gap: 6px; }
   .zh-col-h { font-size: 15px; }
   .zh-card { width: 78px; height: 80px; padding: 2px 3px 3px; }
@@ -6506,8 +6527,10 @@ body.to-zombies .to-dmg-num.is-word { color: #7dff4f; font-size: 17px; font-weig
   body.to-touch-play .zh-fx { left: 128px; bottom: 64px; }   /* (touch: no gear chips, the cash is up top) */
   .zh-fx-c { font-size: 13px; padding: 2px 7px 4px; }
   .zh-fx-t { font-size: 12px; }
+  .zh-fx-w { font-size: 11px; }
   .zh-feed { font-size: 15px; bottom: 96px; }
   .zh-banner { font-size: 40px; }
+  .zh-banner-s { font-size: 15px; -webkit-text-stroke-width: .8px; }
   .zh-down-t { font-size: 22px; }
   .zh-down-k { font-size: 14px; }
   .zh-skip { font-size: 16px; top: 6px; right: 10px; padding: 5px 10px; }
@@ -6594,6 +6617,7 @@ body.to-touch-play .zh-chip { top: auto; bottom: calc(var(--sb) + 54px); }
 /* touch: the card rows fill the middle band, so the big wave call goes up
    between the wave count and the rows */
 body.to-touch-play .zh-banner { top: calc(46px + 25px * var(--k)); font-size: calc(36px * var(--k)); }
+body.to-touch-play .zh-banner-s { font-size: calc(14px * var(--k)); }
 /* touch, down: nothing to buy or put down, and the bleed-out needs the room */
 body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
 
@@ -6621,6 +6645,22 @@ body.to-touch-play .zh.is-downed .zh-col { visibility: hidden; }
 .zh-revive .zh-down-bar i { background: linear-gradient(90deg, #39d353, #a6f05a); }
 @media (max-width: 900px), (max-height: 520px) {
   .zh-revive-t { font-size: 15px; }
+}
+
+/* Zombies wall buys (view/zombies-buy.js): the hold prompt under the
+   crosshair, and the one-line hint (first gun, low ammo) a little lower. */
+.zb-prompt { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); text-align: center; width: min(420px, 80cqw); }
+.zb-prompt[hidden], .zb-hint[hidden] { display: none; }
+.zb-t { font-size: 19px; color: #f2f4ea; -webkit-text-stroke: 1px #10141a; paint-order: stroke fill; }
+.zb-t b { color: #fff; }
+.zb-price { color: #ffd166; }
+.zb-price.is-poor { color: #ff5a4d; }
+.zb-was { opacity: .6; text-decoration-thickness: 2px; }
+.zb-prompt .zh-down-bar i { background: linear-gradient(90deg, #ffd166, #fff1b8); }
+.zb-hint { position: absolute; left: 50%; top: 65%; transform: translateX(-50%); white-space: nowrap; font-size: 15px; color: #ffd166; -webkit-text-stroke: 1px #10141a; paint-order: stroke fill; }
+@media (max-width: 900px), (max-height: 520px) {
+  .zb-t { font-size: 14px; }
+  .zb-hint { font-size: 12px; }
 }
 
 /* A TROLLS body on: its own head, so the face and covering cards are locked. */
@@ -7222,3 +7262,25 @@ body.to-aboard #to-touch-endstreak { display: none !important; }
   100% { opacity: 0; transform: translate(-50%, -50%) rotate(-8deg) scale(1.1); }
 }
 @media (prefers-reduced-motion: reduce) { .to-stonks-stamp.is-in { animation-duration: 1.2s; } }
+/* Prestige moment (progression/prestige-moment.js): prestige is automatic
+   at 69, so the new badge comes up in the middle of the screen, then goes. */
+.to-prestige-moment {
+  position: fixed; left: 50%; top: 22%; z-index: 9000; transform: translate(-50%, -8px) scale(.94);
+  width: min(420px, calc(100vw - 32px)); box-sizing: border-box; padding: 18px 20px 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  background: rgba(10,12,20,.98); border: 1px solid rgba(255,207,77,.55); border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.6);
+  color: #f3efe6; pointer-events: none; opacity: 0; visibility: hidden;
+  transition: opacity .35s, transform .35s, visibility 0s .35s;
+}
+.to-prestige-moment.is-on { opacity: 1; visibility: visible; transform: translate(-50%, 0) scale(1); transition: opacity .35s, transform .35s cubic-bezier(.2,1.4,.4,1); }
+.to-prestige-moment .to-pm-badge { line-height: 0; filter: drop-shadow(0 4px 14px rgba(255,190,60,.45)); }
+.to-prestige-moment.is-on .to-pm-badge { animation: to-pm-pop .7s cubic-bezier(.2,1.6,.4,1); }
+.to-prestige-moment small { font: 600 12px/1 "DM Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: #ffcf4d; margin-top: 6px; }
+.to-prestige-moment strong { font: 700 34px/1.05 Oswald, sans-serif; letter-spacing: .02em; text-transform: uppercase; }
+.to-prestige-moment p { margin: 4px 0 0; font: 14px/1.4 "DM Sans", system-ui, sans-serif; color: #cfc8bb; }
+@keyframes to-pm-pop { from { transform: scale(.4) rotate(-12deg); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .to-prestige-moment, .to-prestige-moment.is-on { transition: opacity .2s; transform: translate(-50%, 0); }
+  .to-prestige-moment.is-on .to-pm-badge { animation: none; }
+}

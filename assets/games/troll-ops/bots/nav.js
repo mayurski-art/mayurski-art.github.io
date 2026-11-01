@@ -278,8 +278,19 @@ export class FlowField {
       const cx = this.minX + (best % this.w + 0.5) * this.cell, cz = this.minZ + (((best / this.w) | 0) + 0.5) * this.cell;
       return out.set(cx - x, 0, cz - z).normalize();
     }
+    const j = this.next(i);
+    if (j < 0) return null;
+    // Aim at the middle of the chosen cell rather than along the axis, so a
+    // walker follows a smooth line instead of stair-stepping.
+    const cx = this.minX + (j % this.w + 0.5) * this.cell;
+    const cz = this.minZ + (((j / this.w) | 0) + 0.5) * this.cell;
+    return out.set(cx - x, 0, cz - z).normalize();
+  }
+
+  /* The routed cell one step on from cell i (the lowest neighbour), or -1. */
+  next(i) {
     const ix = i % this.w, iz = (i / this.w) | 0;
-    let best = this.dist[i], bx = 0, bz = 0;
+    let best = this.dist[i], bj = -1;
     for (let dz = -1; dz <= 1; dz++) {
       for (let dx = -1; dx <= 1; dx++) {
         if (!dx && !dz) continue;
@@ -292,14 +303,29 @@ export class FlowField {
         if (dx && dz) {
           if (this.blocked[iz * this.w + jx] || this.blocked[jz * this.w + ix]) continue;
         }
-        if (this.dist[j] < best) { best = this.dist[j]; bx = dx; bz = dz; }
+        if (this.dist[j] < best) { best = this.dist[j]; bj = j; }
       }
     }
-    if (!bx && !bz) return null;
-    // Aim at the middle of the chosen cell rather than along the axis, so a
-    // walker follows a smooth line instead of stair-stepping.
-    const cx = this.minX + (ix + bx + 0.5) * this.cell;
-    const cz = this.minZ + (iz + bz + 0.5) * this.cell;
-    return out.set(cx - x, 0, cz - z).normalize();
+    return bj;
+  }
+
+  /* Like steer, but toward the furthest of the next `n` cells down the route
+     that it can walk to in a straight line (`clear(x0, z0, x1, z1)`, this
+     field's lineClear unless given): an any-angle line round a corner
+     instead of the grid's zigzag from cell to cell. Null where steer is. */
+  ahead(x, z, n = 5, out = new THREE.Vector3(), clear = null) {
+    let i = this.openIndex(x, z);
+    if (i < 0 || !this.dist[i]) return this.steer(x, z, out);
+    const ok = clear || ((a, b, c, d) => this.lineClear(a, b, c, d));
+    let bx = null, bz = 0;
+    for (let k = 0; k < n; k++) {
+      const j = this.next(i);
+      if (j < 0) break;
+      const cx = this.minX + (j % this.w + 0.5) * this.cell, cz = this.minZ + (((j / this.w) | 0) + 0.5) * this.cell;
+      if (k && !ok(x, z, cx, cz)) break;
+      bx = cx; bz = cz; i = j;
+    }
+    if (bx == null) return this.steer(x, z, out);
+    return out.set(bx - x, 0, bz - z).normalize();
   }
 }

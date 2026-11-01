@@ -9,10 +9,11 @@
 //   4. B's turret stands on both screens, real on the host only, and its
 //      kills pay B.
 //   5. The break: B's vote alone doesn't skip it ("Votes 1/2"); both do.
+//      B buys a door: it opens on A's screen too.
 //   6. B goes down: no last stand, "a teammate can pick you up"; A holds X
 //      by B and B is back up.
 //   7. A leaves: B takes the horde over and the wave carries on.
-//   8. C joins mid-run and gets the horde; B and C both go down: the run is
+//   8. C joins mid-run and gets the horde and B's open door; B and C both go down: the run is
 //      lost on both.
 // Text-overlap scans on B's HUD in the co-op states. Screenshots for a look.
 //
@@ -97,8 +98,12 @@ const waveB = await R(b, () => document.querySelector("#to-zh .zh-wave")?.textCo
 check(waveB === "Wave 1", "B's HUD reads Wave 1", waveB);
 
 // ---- 2. the same horde
-const total = await R(a, () => { const z = window.__trollOps.zdir(); return z.toSpawn + z.aliveCount; });
-check(total >= 8, "a two-player wave 1 is bigger than solo's 6", String(total));
+// solo's wave 1 is 7 (horde.js countForRound); each extra player adds 45%:
+// 10. B may still be loading in when A starts it, so it grows once B counts.
+const waveTotal = () => R(a, () => { const z = window.__trollOps.zdir(); return z.toSpawn + z.aliveCount + z.zombies.filter((q) => q.dying).length; });
+await until(a, () => { const z = window.__trollOps.zdir(); return z.toSpawn + z.aliveCount + z.zombies.filter((q) => q.dying).length >= 10; }, null, 10000);
+const total = await waveTotal();
+check(total >= 10, "a two-player wave 1 is bigger than solo's 7", String(total));
 check(await until(a, () => window.__trollOps.zdir().zombies.filter((q) => q.alive && !q.dying && q.riseT <= 0).length >= 2, null, 60000), "the host has zombies up");
 await sleep(1200);
 // the host read before and after B: B's copy should be on the way between
@@ -137,7 +142,8 @@ const killed = await R(b, () => {
   return z.nid;
 });
 check(await until(a, (nid) => { const z = window.__trollOps.zdir().zombies.find((q) => q.nid === nid); return !z || z.dying; }, killed, 5000), "B's kill drops it on the host");
-check(await until(b, (c) => window.__trollOps.zrun().econ.cash > c, cb, 5000), "...and pays B");
+// (the shot's 10 at once, as a hit; the kill's 50+ when the host says it died)
+check(await until(b, (c) => window.__trollOps.zrun().econ.cash >= c + 60, cb, 5000), "...and pays B the hit and the kill", String(await R(b, () => window.__trollOps.zrun().econ.cash)));
 let [ca2, cb2] = await cash();
 check(ca2 === ca, "...not A", `${ca} -> ${ca2}`);
 console.log(`  B ${cb} -> ${cb2}`);
@@ -191,6 +197,17 @@ await page_shot(b, "zcoop-vote");
 await R(a, () => window.__trollOps.zrun().skip());
 check(await until(b, () => window.__trollOps.zdir().round >= 2, null, 8000), "both voted: wave 2 on B");
 
+// ---- 5b. a door: B buys it, it opens for A too (doors.js)
+const doorId = await R(b, () => {
+  const T = window.__trollOps, D = T.zrun().doors, d = D.st.doors.find((q) => q.between.some((a) => D.st.open.has(a)));
+  if (!d) return null;
+  T.zrun().econ.cash += d.price;
+  return D.buyDoor(d) ? d.id : null;
+});
+check(!!doorId, "B buys a door", String(doorId));
+check(await until(a, (id) => !!window.__trollOps.zrun().doors.st.doors.find((q) => q.id === id)?.open, doorId, 5000), "it opens on A's screen too", String(doorId));
+check(await R(a, (id) => { const T = window.__trollOps, d = T.zrun().doors.st.doors.find((q) => q.id === id); return !!d && !d.cols.some((c) => T.colliders.includes(c)); }, doorId), "...and isn't solid there either");
+
 // ---- 6. down, and picked up
 await R(b, () => { const T = window.__trollOps; T.player.spawnGuard = 0; T.damagePlayer(9999); });
 await until(b, () => /teammate/.test(document.querySelector("#to-zh .zh-down-k")?.textContent || ""), null, 5000);
@@ -219,6 +236,9 @@ check(took.proxies === 0 && took.round === before, "B carries on the same wave w
 check(await until(b, () => window.__trollOps.zdir().zombies.some((q) => q.alive && !q.dying && !q.proxy && q.nid?.startsWith(window.__trollOps.net.id.slice(0, 4))), null, 30000), "B spawns the rest");
 
 // ---- 8. a late joiner, and the loss
+// B waits alone while C loads (~45 s): the horde would down a player who
+// just stands there, and a lone co-op player down is a lost run. Keep B up.
+await R(b, () => { const T = window.__trollOps; window.__keepUp = setInterval(() => { if (!T.zrun().run.downed) T.player.hp = T.player.maxHp; }, 200); });
 const c = await open("C");
 await start(c, "trollcity", true);
 await loaded(c);
@@ -228,8 +248,9 @@ const cJoined = await until(c, (r) => window.__trollOps.zdir().round === r, befo
 const bView = await R(b, async () => { const T = window.__trollOps; const f0 = T.zdir().zombies.map((q) => q.mesh.position.x).join(); const r0 = await new Promise((r) => { let n = 0; const t = performance.now(); const tick = () => { n++; if (performance.now() - t < 1000) requestAnimationFrame(tick); else r(n); }; requestAnimationFrame(tick); }); return { vis: document.visibilityState, rafPerSec: r0, conn: T.net.connected, state: T.state(), peers: [...T.net.peers.values()].filter((p) => !p.isBot).map((p) => p.id), sinceA: T.net.since }; });
 check(cJoined, "C joins on the run's wave", JSON.stringify(await cRole()) + " B: " + JSON.stringify(bView));
 check(await until(c, () => window.__trollOps.zdir().zombies.some((q) => q.proxy), null, 15000), "C gets the horde");
+check(!doorId || await until(c, (id) => !!window.__trollOps.zrun().doors.st.doors.find((q) => q.id === id)?.open, doorId, 10000), "...and B's door, open", String(doorId));
 console.log("  B with C in", JSON.stringify(await R(b, () => { const T = window.__trollOps; return { conn: T.net.connected, kind: T.net.transport?.kind, room: T.net.room, peers: [...T.net.peers.values()].filter((p) => !p.isBot).map((p) => p.id) }; })), "C room", await R(c, () => window.__trollOps.net.room));
-await R(b, () => { const T = window.__trollOps; T.player.spawnGuard = 0; T.damagePlayer(9999); });
+await R(b, () => { clearInterval(window.__keepUp); const T = window.__trollOps; T.player.spawnGuard = 0; T.damagePlayer(9999); });
 await R(c, () => { const T = window.__trollOps; T.player.spawnGuard = 0; T.damagePlayer(9999); });
 check(await until(b, () => window.__trollOps.state() === "gameover", null, 10000), "both down: B's run is lost");
 check(await until(c, () => window.__trollOps.state() === "gameover", null, 10000), "...and C's");

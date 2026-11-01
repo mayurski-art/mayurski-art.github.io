@@ -42,7 +42,9 @@ export const HEADS = [
 export function canWearHead(id) {
   if (!id) return true;
   const h = HEADS.find((x) => x.id === id);
-  return !!h && (!h.item || ownsItem(h.item));
+  // the owner wears every head, event ones too (user, 2026-11-01: "having
+  // the owner badge should mean i have access to everything in the game")
+  return !!h && (!h.item || username() === OWNER || ownsItem(h.item));
 }
 const EXPR_IDS = new Set(EXPRESSIONS.map((e) => e.id));
 // Bodies: the stick troll, or a TROLLS NFT's look (blocky-body.js

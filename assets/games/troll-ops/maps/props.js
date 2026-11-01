@@ -343,6 +343,8 @@ export function wallBuy(api, { x, z, y, rot = 0, tint = 0x2a2c28 }) {
   g.add(card, gun, mag);
   g.position.set(x, y + 1.5, z);
   g.rotation.y = rot;
+  // a Zombies run hangs real ones here (modes/zombies/wallbuys.js hides this)
+  g.userData.wallBuyProp = true;
   api.prop(g);
   return g;
 }

@@ -163,6 +163,22 @@ const SCENARIOS = {
     await sleep(20000);
     return { A, B };
   },
+  /* The host's tab freezes once for 3 s (a shader compile on landing) and
+     is quick again: one hitch is not "slow", so A keeps the bots, the same
+     set. It used to hand them to B, who hitched building a fresh set and
+     handed them back (user, 2026-10-31: lag in Royale duos with a friend). */
+  async hitch(ctx, errors) {
+    const { A, B } = await SCENARIOS.plain(ctx, errors);
+    await A.evaluate(() => {
+      const T = window.__trollOps;
+      window.__hitch = { ids: T.bots.bots.map((b) => b.id).join(), flips: 0, host: T.net.hostId() };
+      const watch = () => { const h = T.net.hostId(); if (h !== window.__hitch.host) { window.__hitch.flips++; window.__hitch.host = h; } requestAnimationFrame(watch); };
+      requestAnimationFrame(watch);
+    });
+    await A.evaluate(() => { const end = performance.now() + 3000; while (performance.now() < end) { /* busy */ } });
+    await sleep(4000);
+    return { A, B };
+  },
   /* A hosts Grin Site; B asked for Cul-de-Grin. */
   async othermap(ctx, errors) {
     const A = await tab(ctx, "A", errors, { map: "grinsite" });
@@ -275,6 +291,11 @@ for (const name of pick.length ? pick : Object.keys(SCENARIOS)) {
     } else {
       check(`${name}: the bot watch stays quiet`, watch.length === 0, watch.join(" | "));
     }
+    if (name === "hitch") {
+      const h = await A.evaluate(() => ({ ...window.__hitch, now: window.__trollOps.bots.bots.map((b) => b.id).join(), frameMs: Math.round(window.__trollOps.net._frameMs) }));
+      check(`${name}: one 3 s hitch keeps the bots with the host, the same set`, sa.isHost && h.flips === 0 && h.now === h.ids, `flips ${h.flips}, same set ${h.now === h.ids}, A's frame average ${h.frameMs} ms`);
+    }
+    if (name === "slowhost") check(`${name}: a host at 1 frame a second hands the bots over`, sb.isHost, `B hosts: ${sb.isHost}`);
     if (!A.isClosed() && name !== "hostquit" && !TAKEOVER.has(name)) {
       const [ha, hb] = [await status(A), await status(B)];
       check(`${name}: both tabs agree who runs the bots`, ha.host === hb.host, `A says ${ha.host}, B says ${hb.host}`);

@@ -24,13 +24,13 @@
 
 import * as THREE from "three";
 import { game } from "../../core/state.js?v=st1";
-import { DEPLOYABLES, KITS, DEFAULT_KIT, statsAt, priceOf } from "./kits.js?v=zr6-zr9-zr10-zd1-wb1";
-import { canAfford, spend } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-zd1-wb1-mt2-sk1-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h-kbc1-kbc2";
+import { DEPLOYABLES, KITS, DEFAULT_KIT, statsAt, priceOf } from "./kits.js?v=zr6-zr9-zr10-zd1-wb1-tn13";
+import { canAfford, spend } from "./economy.js?v=zr5-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-zd1-wb1-mt2-sk1-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h-tn13";
 import { kitLevels } from "./credits.js?v=zc1-zc2-zf1-wb1-mt2-hb4-gc1";
 import { raycastWorld } from "../../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
-import { groundHeightAt } from "../../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1-hb4";
+import { groundHeightAt } from "../../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1-hb4-tn13";
 import { loadModel } from "../../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
-import { areaDamage, explosionFx } from "../../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-kbc2";
+import { areaDamage, explosionFx } from "../../combat/throwables.js?v=th1-kc2-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-kc1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-dom1-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2";
 import { WEAPON_DEFS } from "../../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 
 const MODEL = { turret: "zk-turret", barricade: "zk-spikewall", barrel: "zk-barrel" };
@@ -40,6 +40,7 @@ const GRID = 1;               // metres, in grid mode
 const SPIKE_TICK = 0.25;      // seconds between spike bites
 const RETARGET = 0.25;        // seconds between a turret's target checks
 const AIM_OK = 0.12;          // radians off target a turret will still fire at
+const BARREL_SPIN = 28;       // rad/s, the rotary cluster at full spin
 /* Put down (P7): it unfolds up out of the ground with a little overshoot;
    a turret's head comes up and spins round onto the sweep before it may fire. */
 export const DEPLOY_TIME = 0.5;
@@ -69,6 +70,7 @@ export const depWire = { add: null, hp: null, gone: null };
 let didc = 0;
 
 const _v = new THREE.Vector3();
+const _aimTo = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _ray = new THREE.Raycaster();
 
@@ -79,8 +81,11 @@ function buildModel(id, stats) {
   const root = new THREE.Group();
   loadModel(MODEL[id], {}).then((obj) => {
     // the kit faces Blender +Y, which lands on +Z here: turn it to face -Z,
-    // the way the root is yawed (the gun downrange, the stakes at the horde)
-    obj.rotation.y = Math.PI;
+    // the way the root is yawed (the stakes at the horde). The sentry gun
+    // is the exception: its barrels run along Blender +Y, which glTF lands
+    // on -Z, already downrange (a half turn had them backwards while the
+    // rounds went forwards).
+    obj.rotation.y = id === "turret" ? 0 : Math.PI;
     root.add(obj);
     root.userData.model = obj;
     root.userData.onModel?.(obj);
@@ -367,6 +372,15 @@ function hurtZombie(z, dmg, point, dir, by = null) {
   }
 }
 
+/* Where the people a turret guards stand (feet): us, and in co-op the
+   horde's other targets (zdir.targets). */
+function turretPeople() {
+  const t = game.zdir?.targets;
+  if (t?.length) return t.map((q) => ({ x: q.pos.x, y: q.feetY, z: q.pos.z }));
+  const m = game.move?.pos;
+  return m ? [{ x: m.x, y: m.y, z: m.z }] : [];
+}
+
 /* The map's own walls, for a turret's line of sight (deployables don't block it). */
 let mapWalls = null;
 let mapWallsLen = -1;
@@ -417,10 +431,15 @@ class Turret extends Deployable {
     this.fireT = 0;
     this.headYaw = 0;          // relative to the base
     this.gunPitch = 0;
+    this.spinV = 0;            // rad/s the barrels turn
     this.kick = 0;
     this.armT = 0;             // the head coming up after the unfold
     this.headY = 0;
     this.muzzle = new THREE.Vector3(this.pos.x, this.pos.y + 0.9, this.pos.z);
+    // the barrels' line runs through the trunnion: it sees and aims from
+    // there, not the swinging tip (which can end up behind cover as it turns)
+    this.pivot = new THREE.Vector3(this.pos.x, this.pos.y + 0.98, this.pos.z);
+    this.axis = new THREE.Vector3();
   }
 
   get armed() { return this.armT >= TURRET_ARM; }
@@ -428,30 +447,74 @@ class Turret extends Deployable {
   onModel(m) {
     this.head = m.getObjectByName("turret_head");
     this.gun = m.getObjectByName("turret_gun");
+    this.barrels = m.getObjectByName("turret_barrels");   // the sentry's rotary cluster
     this.muzzleNode = m.getObjectByName("turret_muzzle");
     this.gunZ = this.gun?.position.z ?? 0;
     this.headY = this.head?.position.y ?? 0;
   }
 
+  /* Where on it to shoot: the chest, the back of a crawler (low), or
+     the body in the air mid-leap. */
   aimPoint(z) {
-    return _v.set(z.mesh.position.x, z.groundY + z.type.height * 0.62, z.mesh.position.z);
+    const p = z.mesh.position;
+    if (z.crawling) return _v.set(p.x, z.groundY + 0.3, p.z);
+    if (z.leap) return _v.set(p.x, p.y + z.type.height * 0.5, p.z);
+    return _v.set(p.x, z.groundY + z.type.height * 0.62, p.z);
   }
 
   canSee(z) {
     if (!z.alive || z.dying || z.riseT > 0) return false;
     const p = this.aimPoint(z);
-    const dist = p.distanceTo(this.muzzle);
+    const dist = p.distanceTo(this.pivot);
     if (dist > this.stats.range) return false;
-    _dir.copy(p).sub(this.muzzle).normalize();
-    return raycastWorld(walls(), this.muzzle, _dir, dist) >= dist - 0.3;
+    _dir.copy(p).sub(this.pivot).normalize();
+    return raycastWorld(walls(), this.pivot, _dir, dist) >= dist - 0.3;
+  }
+
+  /* Where the barrels point, off the model: the cluster's hub to the tip. */
+  barrelAxis() {
+    if (!this.barrels || !this.muzzleNode) return null;
+    this.root.updateMatrixWorld(true);
+    this.muzzleNode.getWorldPosition(this.muzzle);
+    this.barrels.getWorldPosition(this.pivot);
+    return this.axis.copy(this.muzzle).sub(this.pivot).normalize();
+  }
+
+  /* The one to shoot (user, 2026-10-31: "turrets need to be smarter"):
+     the worst threat it can see, not just the nearest to itself. Close
+     to a player counts most, then mid-swing at someone, then the late
+     waves' specials (a leaper, a spitter; a bloater while it's still far
+     enough off to pop safely), then a hurt one it can finish. One a
+     teammate's turret is already finishing is left to it. The current
+     target is kept unless another is clearly worse (no flicking about). */
+  threat(z, people) {
+    const p = z.mesh.position;
+    let near = Infinity;
+    for (const q of people) near = Math.min(near, Math.hypot(q.x - p.x, q.z - p.z) + Math.abs(q.y - z.groundY) * 2);
+    let score = near + Math.hypot(p.x - this.pos.x, p.z - this.pos.z) * 0.3;
+    if (z.bite || z.attackT > 0) score -= 4;
+    const id = z.type.id;
+    if (id === "leaper" || id === "spitter") score -= 2.5;
+    if (id === "bloater") score += near > 5 ? -3 : 3;
+    if (z.type.boss) score -= 1;
+    score -= 2 * (1 - z.hp / Math.max(1, z.maxHp));
+    return score;
   }
 
   pick() {
-    let best = null, bestD = Infinity;
+    const people = turretPeople();
+    let best = null, bestS = Infinity, curS = Infinity;
     for (const z of game.zdir?.zombies || []) {
       const d = Math.hypot(z.mesh.position.x - this.pos.x, z.mesh.position.z - this.pos.z);
-      if (d < bestD && d <= this.stats.range && this.canSee(z)) { best = z; bestD = d; }
+      if (d > this.stats.range + 1) continue;
+      // already dead on its feet from another turret's fire
+      if (z !== this.target && z.turretClaim > performance.now() && z.hp <= this.stats.damage * 2) continue;
+      if (!this.canSee(z)) continue;
+      const sc = this.threat(z, people);
+      if (z === this.target) curS = sc;
+      if (sc < bestS) { bestS = sc; best = z; }
     }
+    if (this.target && curS < Infinity && curS - bestS < 3) return this.target;
     return best;
   }
 
@@ -465,14 +528,15 @@ class Turret extends Deployable {
         this.head.position.y = this.headY - (1 - k) * 0.18;
         this.head.rotation.y = this.headYaw - (1 - k * k) * Math.PI;
       }
-      if (this.gun) this.gun.rotation.x = (1 - k) * 0.5;
+      if (this.gun) this.gun.rotation.x = -(1 - k) * 0.5;   // barrels drooping, coming up
       return;
     }
-    if (this.muzzleNode) this.muzzleNode.getWorldPosition(this.muzzle);
+    this.barrelAxis();
     this.retargetT -= dt;
     if (this.retargetT <= 0 || (this.target && (!this.target.alive || this.target.dying))) {
       this.retargetT = RETARGET;
-      if (!this.target || !this.canSee(this.target)) this.target = this.pick();
+      if (this.target && !this.canSee(this.target)) this.target = null;
+      this.target = this.pick();
     }
     this.fireT = Math.max(0, this.fireT - dt);
     this.kick = Math.max(0, this.kick - dt * 9);
@@ -485,11 +549,21 @@ class Turret extends Deployable {
       let d = Math.atan2(Math.sin(want - this.headYaw), Math.cos(want - this.headYaw));
       const step = this.stats.turn * dt;
       this.headYaw += Math.max(-step, Math.min(step, d));
-      const flat = Math.hypot(p.x - this.muzzle.x, p.z - this.muzzle.z);
-      const pitch = Math.atan2(p.y - this.muzzle.y, flat);
-      this.gunPitch += (pitch - this.gunPitch) * Math.min(1, dt * 10);
+      const flat = Math.hypot(p.x - this.pivot.x, p.z - this.pivot.z);
+      const pitch = Math.atan2(p.y - this.pivot.y, flat);
+      this.gunPitch += (pitch - this.gunPitch) * Math.min(1, dt * 14);
       off = Math.abs(Math.atan2(Math.sin(want - this.headYaw), Math.cos(want - this.headYaw)));
-      if (off < AIM_OK && this.fireT <= 0) this.fire();
+      // fire only with the barrels themselves on it (yaw and pitch, read
+      // off the model) and a clear line this instant: never a round into a
+      // wall, never one leaving off the barrels' line
+      if (this.head) this.head.rotation.y = this.headYaw;
+      if (this.gun) this.gun.rotation.x = this.gunPitch;
+      const axis = this.barrelAxis();
+      if (axis) off = axis.angleTo(_aimTo.copy(p).sub(this.muzzle).normalize());
+      if (off < AIM_OK && this.fireT <= 0) {
+        if (this.canSee(this.target)) this.fire();
+        else { this.target = null; this.retargetT = 0; }
+      }
     } else {
       // nothing in sight: a slow sweep
       this.headYaw += dt * 0.6;
@@ -497,15 +571,22 @@ class Turret extends Deployable {
     }
     if (this.head) this.head.rotation.y = this.headYaw;
     if (this.gun) {
-      // the model is turned half round (buildModel): its barrels run along +Z
-      this.gun.rotation.x = -this.gunPitch;
-      this.gun.position.z = this.gunZ - this.kick * 0.05;   // recoil back along the barrels
+      // the barrels run along -Z: a positive turn about X lifts them
+      this.gun.rotation.x = this.gunPitch;
+      this.gun.position.z = this.gunZ + this.kick * 0.05;   // recoil back along the barrels
     }
+    // the barrels spin up while it fires and wind down after (about their
+    // own axis, the model's Z once it's in)
+    const firing = this.target && this.fireT > 0;
+    this.spinV += ((firing ? BARREL_SPIN : 0) - this.spinV) * Math.min(1, dt * (firing ? 6 : 1.5));
+    if (this.barrels) this.barrels.rotation.z += this.spinV * dt;
   }
 
   fire() {
     const z = this.target;
     this.fireT = 1 / this.stats.fireRate;
+    z.turretClaim = performance.now() + 400;   // pick(): others leave the finish to us
+    this.shots++;
     this.kick = 1;
     const p = this.aimPoint(z).clone();
     const dir = p.clone().sub(this.muzzle).normalize();
@@ -525,7 +606,7 @@ class Turret extends Deployable {
     this.flashT = FLASH_TIME;
     this.flash.visible = true;
     game.spawnImpactBurst(this.muzzle, 0xffd166, 3);
-    if (++this.shots % 3 === 0) game.impactFx.puff(this.muzzle, dir, 0.7);
+    if (this.shots % 3 === 0) game.impactFx.puff(this.muzzle, dir, 0.7);
     game.audio.shot(TURRET_FX_DEF, 0.32, this.muzzle);
   }
 }

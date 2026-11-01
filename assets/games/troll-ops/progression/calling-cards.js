@@ -8,7 +8,7 @@
 // that the card is one you may wear. Keep CARDS and cleanClan() in step with
 // it. Guests keep nothing, so they wear the default card and no tag.
 
-import { prestigeUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1";
+import { prestigeUnlocked } from "./progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn13";
 
 const ART = (file) => new URL(`../ui/cards/${file}`, import.meta.url).href;
 
@@ -33,7 +33,7 @@ export const CARDS = [
   { id: "p8", name: "You Have a Problem", src: ART("p8.jpg"), prestige: 8, desc: "Prestige 8. Remind me later." },
   { id: "p9", name: "Genesis Block", src: ART("p9.jpg"), prestige: 9, desc: "Prestige 9. Chancellor on brink of getting trolled." },
   { id: "p10", name: "Troll Inc.", src: ART("p10.jpg"), prestige: 10, desc: "Prestige 10. Suit, tie, controlling stake." },
-  { id: "master", name: "Prestige Master", src: ART("master.jpg"), prestige: 11, desc: "Prestige Master. Nothing left to prove. Proves it anyway." },
+  { id: "master", name: "Prestige Master", src: ART("master.jpg"), prestige: 69, desc: "Prestige Master. Nothing left to prove. Proves it anyway." },
 ];
 export const DEFAULT_CARD = "hitman";
 

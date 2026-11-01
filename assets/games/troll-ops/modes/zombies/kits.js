@@ -8,22 +8,22 @@
 // Distances are metres. Zombie Rush quotes studs (about 0.28 m): its
 // turret's 56-stud range is ~16 m, the barrel's 19-stud blast ~5.3 m.
 // Health and damage are tuned to our zombies (healthForRound: 150 HP on
-// wave 1, ~1,000 by wave 10, ~7,000 by wave 30), not copied.
+// wave 1, ~800 by wave 10, ~2,300 by wave 30), not copied.
 
 export const DEPLOYABLES = {
   turret: {
     id: "turret", name: "Auto Turret", short: "Turret", kind: "turret",
-    price: 120, priceGrowth: 1.35,   // each one you put down costs more
+    price: 1000, priceGrowth: 1.25,  // points; each one you put down costs more
     max: 3,                          // standing at once
     hp: 280,
     range: 16, fireRate: 6, damage: 18,   // ~108 DPS at level 1
     turn: 5.5,                       // rad/s the head slews
-    size: { w: 0.9, d: 0.9, h: 1.05 },
+    size: { w: 1.05, d: 1.05, h: 1.3 },   // the BO2-size sentry gun (models/build_zkit)
     levelUp: { damage: 0.1, hp: 0.1, range: 0.04 },
   },
   barricade: {
     id: "barricade", name: "Barricade", short: "Barricade", kind: "barricade",
-    price: 150, priceGrowth: 1.2,
+    price: 750, priceGrowth: 1.15,
     max: 6,
     hp: 340,
     spikeDps: 30,                    // to a zombie pressed against it
@@ -32,7 +32,7 @@ export const DEPLOYABLES = {
   },
   barrel: {
     id: "barrel", name: "Explosive Barrel", short: "Barrel", kind: "barrel",
-    price: 90, priceGrowth: 1,       // a consumable: always the same
+    price: 500, priceGrowth: 1,      // a consumable: always the same
     max: 6,
     hp: 28,                          // two swings and it goes up
     damage: 750, minDamage: 150, radius: 5.4,

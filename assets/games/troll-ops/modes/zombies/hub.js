@@ -24,15 +24,15 @@
 
 import * as THREE from "three";
 import { game } from "../../core/state.js?v=st1";
-import { HUB, hallFx, CARVE_BASE } from "./hub-hall.js?v=zh1-sr1-or1-dm1-zf1-wb1-mt2";
+import { HUB, hallFx, CARVE_BASE } from "./hub-hall.js?v=zh1-sr1-or1-dm1-zf1-wb1-mt2-tn13";
 import { SEASON, seasonLeft, halloween } from "../../core/season.js?v=zf1-wb1";
 import { setRareLooks } from "../../characters/zombie-models.js?v=zr4c-zp1-or1-zf1-ze1-ze2-wb1";
-import { MAPS } from "../../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-hgb5-hgb6-hgb8-hgb9-tw1-op1-hgo1-wb1-mt2-hb4-kbc1-kbc2";
-import { makeRoomCode } from "../../net/net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-pl2-nf1-or1-bw2-bt1-dom1-jb3-jb4-sp1-gb4-gb6-gb8-gb9-tfb8-rfx3-tw1-sqd1-lmg1-wb1-kbc1-kbc2";
+import { MAPS } from "../../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-hgb5-hgb6-hgb8-hgb9-tw1-op1-hgo1-wb1-mt2-hb4-tn13";
+import { makeRoomCode } from "../../net/net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-pl2-nf1-or1-bw2-bt1-dom1-jb3-jb4-sp1-gb4-gb6-gb8-gb9-tfb8-rfx3-tw1-sqd1-lmg1-wb1-hs1-tn13";
 import { roomNow } from "../room-clock.js?v=rc1-cd1-sh1";
-import { openKiosk, closeKiosk, kioskOpen } from "../../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-kbc2";
+import { openKiosk, closeKiosk, kioskOpen } from "../../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2";
 import { credits, zsave, setZsave, payRun, gunAction, kitAction, setRunEvent, RUN_EVENTS } from "./credits.js?v=zc1-zc2-zf1-wb1-mt2-hb4-gc1";
-import { fetchRows, hasBackend, monthWindow, weekWindow, windowFor, timeLeft, tallyPlayers } from "../../progression/leaderboard-rows.js?v=lr1-zh1-or1-nd2-gc1";
+import { fetchRows, hasBackend, windowFor, timeLeft, tallyPlayers, PERIOD_NAME, BOARDS_SINCE } from "../../progression/leaderboard-rows.js?v=lr1-zh1-or1-nd2-gc1-za1-tn13";
 
 export const HUB_T = {
   countdown: 30,     // s from the owner stepping on
@@ -98,9 +98,15 @@ function liveClaims() {
     if (now - c.at > HUB_T.claimFresh || !game.net.peers.has(id)) { hub.claims.delete(id); continue; }
     if (c.pad) out.push({ id, ...c });
   }
-  if (hub.pad) out.push({ id: me(), pad: hub.pad, s: hub.since, py: myParty() });
+  if (hub.pad && !closedPad(hub.pad)) out.push({ id: me(), pad: hub.pad, s: hub.since, py: myParty() });
   return out;
 }
+
+/* A pad whose map is being rebuilt (hub-hall.js `closed`): you can stand on
+   it and read why, but it gathers no party and starts nothing. */
+const closedPad = (id) => !!padById(id)?.closed;
+const OPEN_MAP = "hollowgrin";   // where a run goes when the map it asked for is shut
+const openMap = (id) => (HUB.pads.some((p) => p.map === id && p.closed) ? OPEN_MAP : id);
 
 function myParty() { return hub.pad === HUB.private.id ? (hub.invite || (hub.privCode ||= makeRoomCode())) : null; }
 
@@ -134,7 +140,7 @@ function send(m) {
 }
 function sendClaim() {
   hub.sendT = SEND_EVERY;
-  send({ t: "zP", pad: hub.pad, s: hub.since, py: myParty(), inv: hub.pad === HUB.private.id && !!hub.invite ? 1 : 0 });
+  send({ t: "zP", pad: closedPad(hub.pad) ? null : hub.pad, s: hub.since, py: myParty(), inv: hub.pad === HUB.private.id && !!hub.invite ? 1 : 0 });
 }
 
 export function onHubMessage(p, m) {
@@ -145,7 +151,7 @@ export function onHubMessage(p, m) {
     const ids = Array.isArray(m.m) ? m.m : [];
     if (padById(m.pad)) hub.flash.set(m.pad, { text: "Lobby ready!", until: performance.now() + 4000 });
     for (const id of ids) hub.claims.delete(id);
-    if (ids.includes(me()) && hub.pad === m.pad && !hub.launched && MAPS[m.map]) launch(clean(m.code), m.map, m.pad);
+    if (ids.includes(me()) && hub.pad === m.pad && !hub.launched && MAPS[m.map]) launch(clean(m.code), openMap(m.map), m.pad);
   }
 }
 
@@ -155,7 +161,7 @@ function go(padId) {
   const party = partyOn(padId, padId === HUB.private.id ? myParty() : null);
   if (party.owner !== me() || hub.launched) return;
   const pad = padById(padId);
-  const map = pad.map || game.loadout.poolMapId || "pentagrin";
+  const map = openMap(pad.map || game.loadout.poolMapId || OPEN_MAP);
   const code = makeRoomCode();
   send({ t: "zG", pad: padId, code, map, m: party.members.map((c) => c.id) });
   launch(code, map, padId);
@@ -305,13 +311,15 @@ function drawSign(s, lines) {
 
 /* ------------------------------------------------------------ the boards */
 
-// Highest Wave and Total Kills, weekly and monthly in turn (BOARD_FLIP), like
-// the reference's tabs. Every Zombies run a logged-in player finishes is a
-// troll-ops row (match-end.js; leaderboard-rows.js reads them): this month's
-// are fetched once a minute, and each board adds up its window per player,
-// the best wave and the kills summed. Guests aren't filed.
-const BOARD_EVERY = 60000;   // ms between re-reads
-const BOARD_FLIP = 8000;     // ms on Weekly, then on Monthly
+// Highest Wave and Total Kills, weekly, monthly and all-time in turn
+// (BOARD_FLIP), like the reference's tabs. Every Zombies run a logged-in
+// player finishes is a troll-ops row (match-end.js; leaderboard-rows.js reads
+// them): all of them are fetched every two minutes, and each board adds up
+// its window per player, the best wave and the kills summed. Guests aren't
+// filed.
+const BOARD_EVERY = 120000;  // ms between re-reads
+const BOARD_FLIP = 8000;     // ms on each of Weekly, Monthly and All-time
+const PERIODS = ["week", "month", "all"];
 const BOARD_ROWS = 10;
 const board = { rows: null, at: 0, busy: false, drawn: "", error: false, period: null };
 
@@ -320,10 +328,7 @@ async function refreshBoards() {
   if (!hasBackend()) { board.rows = board.rows || []; board.at = performance.now(); return; }
   board.busy = true;
   try {
-    const { start, end } = monthWindow();
-    // this month holds this week, bar a week that began last month
-    const wk = weekWindow();
-    board.rows = await fetchRows({ start: wk.start < start ? wk.start : start, end, mode: "zombies" }) || [];
+    board.rows = await fetchRows({ mode: "zombies" }) || [];
     board.error = false;
   } catch (err) {
     console.warn("[zombies hub] boards", err);
@@ -345,9 +350,10 @@ function tally(rows, period = "week") {
     kills: all.filter((u) => u.zKills > 0).sort((a, b) => b.zKills - a.zKills).slice(0, BOARD_ROWS).map((u) => [u.name, u.zKills]),
   };
 }
-const boardPeriod = () => board.period || (Math.floor(Date.now() / BOARD_FLIP) % 2 ? "month" : "week");
+const boardPeriod = () => board.period || PERIODS[Math.floor(Date.now() / BOARD_FLIP) % PERIODS.length];
 
-/* One board, the reference's: a navy panel, the title, "Weekly · Ends in",
+/* One board, the reference's: a navy panel, the title, "Weekly · Ends in"
+   ("All-time · Since"),
    then rank, player and the number down the page. */
 function drawBoard(s, title, unit, rows, ends, period) {
   const { g, c } = s;
@@ -364,15 +370,15 @@ function drawBoard(s, title, unit, rows, ends, period) {
     g.fillStyle = col; g.fillText(t, x, y);
   };
   text(title, W / 2, 70, 70, "#f2cf7a", "center", 700, true);
-  text(period === "month" ? "Monthly" : "Weekly", 48, 136, 40, "#ffffff");
-  text(`Ends: ${ends}`, W - 48, 136, 40, "#7dff4f", "right");
+  text(PERIOD_NAME[period], 48, 136, 40, "#ffffff");
+  text(period === "all" ? `Since ${BOARDS_SINCE}` : `Ends: ${ends}`, W - 48, 136, 40, "#7dff4f", "right");
   g.fillStyle = "rgba(201,162,74,.45)"; g.fillRect(40, 168, W - 80, 3);
   text("Rank", 48, 198, 28, "#b9a27a", "left", 600);
   text("Player", 170, 198, 28, "#b9a27a", "left", 600);
   text(unit, W - 48, 198, 28, "#b9a27a", "right", 600);
   const top = 250, step = Math.min(62, (H - top - 30) / BOARD_ROWS);
   if (!rows.length) {
-    text(board.error ? "Board's down. Back soon." : `No runs yet this ${period}.`, W / 2, top + step * 3, 40, "#cfd8f0", "center", 600);
+    text(board.error ? "Board's down. Back soon." : period === "all" ? "No runs yet." : `No runs yet this ${period}.`, W / 2, top + step * 3, 40, "#cfd8f0", "center", 600);
     text("Be the first on it.", W / 2, top + step * 4.2, 34, "#ffd84a", "center", 600);
   }
   const RANK = ["#ffd84a", "#d9e2f2", "#e8a35c"];
@@ -409,6 +415,7 @@ function updateSigns() {
     const flash = hub.flash.get(p.id);
     const party = partyOn(p.id);
     const name = p.event ? [[RUN_EVENTS[p.event].title, "#c58cff"]] : [[MAPS[p.map]?.name || p.map, "#f2cf7a"]];
+    if (p.closed) { drawSign(built.signs.get(p.id), [name, [[p.closed, "#ffb347"]], [["Coming back bigger"]]]); continue; }
     if (flash && flash.until > now && !party.members.length) { drawSign(built.signs.get(p.id), [name, [[flash.text, "#7dff4f"]]]); continue; }
     if (!party.members.length) { drawSign(built.signs.get(p.id), [name, p.event ? [[RUN_EVENTS[p.event].blurb, "#ffb347"]] : [["Step on to play"]], [["Players: "], ["0/4", "#7dff4f"]]]); continue; }
     const secs = Math.max(0, Math.ceil((party.ends - roomNow()) / 1000));
@@ -631,7 +638,13 @@ function updateUi(dt, party) {
   const pad = padById(hub.pad);
   const inParty = party.members.some((c) => c.id === me());
   const owner = party.owner === me();
-  if (hub.pad === HUB.private.id) {
+  if (pad?.closed) {
+    ui.padH.textContent = `${MAPS[pad.map]?.name || pad.map} · ${pad.closed}`;
+    ui.padS.textContent = "It's being rebuilt, bigger. Try Hollowgrin or Troll City.";
+    ui.hold.hidden = true;
+    ui.bar.style.width = "0%";
+    return;
+  } else if (hub.pad === HUB.private.id) {
     ui.padH.textContent = `Private lobby · ${party.members.length}/${PARTY_MAX}`;
     ui.padS.textContent = owner ? "Invite Friends sends them here. Start when you're all in." : "Waiting on the host to start.";
   } else if (!inParty) {
@@ -681,7 +694,7 @@ export function updateHub(dt) {
   if (kiosk && xDown && !hub.xWas) openKiosk(kiosk.id);
   hub.xWas = xDown;
 
-  const party = hub.pad ? partyOn(hub.pad, myParty()) : null;
+  const party = hub.pad && !closedPad(hub.pad) ? partyOn(hub.pad, myParty()) : null;
   if (party && party.owner === me() && !hub.launched) {
     const held = !game.localPauseOnly && (game.keys.has("KeyX") || (game.isTouch && game.touchState?.swap) || !!game.gamepadState?.pickup);
     // real seconds, not frame time: a slow frame (clamped to 50 ms) mustn't
@@ -741,6 +754,7 @@ export function hubDebug() {
     setBoardRows: (rows) => { board.rows = rows; board.at = performance.now(); board.error = false; },
     boards: (period = "week") => tally(board.rows, period),
     setBoardPeriod: (p) => { board.period = p; },
+    boardPeriod: () => boardPeriod(),
     kioskOpen, closeKiosk, openKiosk,
     // Credits (credits.js)
     zc: { zsave, setZsave, payRun, gunAction, kitAction },

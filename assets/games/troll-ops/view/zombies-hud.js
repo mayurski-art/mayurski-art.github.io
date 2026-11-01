@@ -16,7 +16,7 @@
 // cancels; a second tap on the card places on touch).
 
 import { game } from "../core/state.js?v=st1";
-import { padHooks } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1-nf1-or1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-spd1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-mt2-sk1-hb4-jx2-jx3-jx4-jx5-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-kbc2";
+import { padHooks } from "../input/gamepad.js?v=in1-fu1b7-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-zp1-aa0-pd1-nf1-or1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-rp2-ls1-rp3-rr1-op1-ld1-an1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-ut1-gf1-tg1-tw1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mv1-sp1-ch1-chg1-kbt1-gb1-gb2-rh1-ls4-gb4-tb1-gb6-gb8-gb9-pd2-ci6-dm1-pm1-kbk2-zw1-spd1-sam1-tfp2-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-mt2-sk1-hb4-jx2-jx3-jx4-jx5-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2";
 
 let root = null;
 let hooks = { onBuy: () => {}, onSkip: () => {}, onDeploy: () => false, onPlace: () => false, onCancel: () => {} };
@@ -85,7 +85,8 @@ padHooks.zombies = {
   state: () => ({ on: pad.on, sel: pad.sel, id: padList()[pad.sel]?.id ?? null }),
 };
 
-const money = (n) => `$${Math.round(n).toLocaleString()}`;
+// the run's points (economy.js), CoD style: no currency sign
+const money = (n) => Math.round(n).toLocaleString();
 
 function el(tag, cls, html) {
   const e = document.createElement(tag);
@@ -133,7 +134,10 @@ export function mountZombiesHud(h) {
   els.boss.innerHTML = '<span class="zh-boss-n"></span><span class="zh-boss-bar"><i></i></span>';
   els.bossN = els.boss.querySelector(".zh-boss-n");
   els.bossBar = els.boss.querySelector("i");
-  els.top.append(els.left, els.boss, els.wave);
+  // how many of this wave are still to kill, the ones not in yet included
+  els.count = el("span", "zh-count");
+  els.count.setAttribute("aria-live", "off");
+  els.top.append(els.left, els.boss, els.wave, els.count);
 
   els.skip = el("button", "zh-skip");
   els.skip.type = "button";
@@ -280,10 +284,18 @@ export function showZombiesHud(on) {
 }
 
 /* The big centre text: "Wave 7" as a wave starts (red for the last one),
-   and the run's other calls ("Back on your feet"). */
-export function zombiesBanner(text, red = false) {
+   and the run's other calls ("Back on your feet"). `sub`: a line under it
+   saying what just happened (a power-up's "Any hit kills for 20 s"), and
+   the banner stays up longer to be read. */
+export function zombiesBanner(text, red = false, sub = "") {
   if (!root) return;
   els.banner.textContent = text;
+  if (sub) {
+    const s = el("small", "zh-banner-s");
+    s.textContent = sub;
+    els.banner.append(s);
+  }
+  els.banner.classList.toggle("is-sub", !!sub);
   els.banner.classList.toggle("is-final", red);
   els.banner.classList.remove("is-on");
   void els.banner.offsetWidth;
@@ -304,8 +316,9 @@ function drawFx(list) {
     if (!c) {
       c = el("div", "zh-fx-c");
       c.style.setProperty("--fx", f.color);
-      c.innerHTML = '<span class="zh-fx-n"></span><span class="zh-fx-t"></span><i></i>';
+      c.innerHTML = '<span class="zh-fx-n"></span><span class="zh-fx-w"></span><span class="zh-fx-t"></span><i></i>';
       c.querySelector(".zh-fx-n").textContent = f.name;
+      c.querySelector(".zh-fx-w").textContent = f.chip || "";
       els.fx.append(c);
       fxChips.set(f.id, c);
     }
@@ -328,6 +341,8 @@ function feedLine(amount, label) {
 export function updateZombiesHud(dt, s) {
   if (!root || root.hidden) return;
   drawFx(s.fx || []);
+  // Fire Sale: the deployables' prices (already halved, kits.js) in its orange
+  els.dep.classList.toggle("is-sale", !!s.fx?.some((f) => f.id === "firesale"));
   setPad(!pad.kb && document.body.classList.contains("to-has-pad"));
   if (s.wave !== shown.wave) {
     shown.wave = s.wave;
@@ -338,6 +353,12 @@ export function updateZombiesHud(dt, s) {
     const who = boss >= s.final ? "Final boss" : "Boss";
     els.left.innerHTML = s.wave >= s.final ? "<b>Final wave</b>"
       : togo === 1 ? `${who} <b>next wave</b>` : `${who} in <b>${togo}</b> waves`;
+  }
+  const left = s.between ? -1 : Math.max(0, s.left | 0);
+  if (left !== shown.left) {
+    shown.left = left;
+    els.count.hidden = left < 0;
+    els.count.innerHTML = `<b>${left}</b> ${left === 1 ? "zombie" : "zombies"} left`;
   }
   const breakS = s.between ? Math.ceil(Math.max(0, s.breakT)) : -1;
   if (s.between !== shown.between || breakS !== shown.breakS) {

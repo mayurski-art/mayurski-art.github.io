@@ -5,7 +5,7 @@
 // keep Gun Game and One in the Chamber from leaking special cases into the
 // main loop.
 
-import { FlowField } from "../bots/nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8-kbc1-kbc2";
+import { FlowField } from "../bots/nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8-tn13";
 
 export const MODES = {
   ops: {
@@ -45,7 +45,10 @@ export const MODES = {
     pvp: false,
     zombies: true,
     // Maps with a zombieLayout(); the map card's Change picks between them.
-    mapPool: ["pentagrin", "hollowgrin", "trollcity"],
+    mapPool: ["hollowgrin", "trollcity"],
+    // shown in the drawer but not playable: being rebuilt (the Pentagrin,
+    // merging with the Depot, 2026-11-01)
+    closedMaps: { pentagrin: "Under construction" },
     blurb: "Pepe and trollface, round after round, and they do not stop coming.",
   },
 

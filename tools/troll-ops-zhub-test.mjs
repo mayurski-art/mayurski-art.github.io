@@ -8,7 +8,8 @@
 //   4. The run ends: both are back in the same hub 8 s later.
 //   5. The private pad: B follows A's invite and lands on it, 2/4; a stranger
 //      on the pad is in a party of its own; A holds X and A + B go.
-//   6. The countdown runs out on a lone player's pad (shortened): it goes.
+//   6. The Pentagrin's pad (under construction) says so and starts nothing;
+//      the countdown runs out on a lone player's pad (shortened): it goes.
 // Text-overlap scans on the hub HUD. Screenshots for a look.
 //
 //   NODE_PATH=<checkout>/node_modules node tools/troll-ops-zhub-test.mjs
@@ -113,6 +114,15 @@ await R(a, () => window.__trollHub.setBoardRows([
 const tally = await R(a, () => window.__trollHub.boards());
 const monthly = await R(a, () => window.__trollHub.boards("month"));
 check(!JSON.stringify([tally, monthly]).includes("old_timer") && monthly.wave[0][0] === "pepe_enjoyer", "boards: last month's run is on neither", JSON.stringify(monthly));
+// all time: the old run tops it, and the boards cycle through all three
+const allTime = await R(a, () => window.__trollHub.boards("all"));
+check(allTime.wave[0][0] === "old_timer" && allTime.wave[0][1] === 99 && allTime.kills[0][1] === 999 && allTime.kills.length === 3, "boards: all-time has the old run", JSON.stringify(allTime));
+const cycle = await R(a, async () => { const H = window.__trollHub; H.setBoardPeriod(null); const seen = new Set(); const t0 = performance.now(); while (performance.now() - t0 < 26000 && seen.size < 3) { seen.add(H.boardPeriod()); await new Promise((r) => setTimeout(r, 400)); } return [...seen]; });
+check(cycle.length === 3 && cycle.includes("all"), "boards: Weekly, Monthly and All-time take turns", cycle.join(", "));
+await R(a, () => window.__trollHub.setBoardPeriod("all"));
+await R(a, () => { const T = window.__trollOps; T.move.pos.set(0, T.move.pos.y, -2); T.look.yaw = 0; T.look.pitch = 0.12; });
+await sleep(800);
+await a.screenshot({ path: path.join(SHOTS, `zhub-boards-all${TAG}.png`) });
 await R(a, () => window.__trollHub.setBoardPeriod("month"));
 check(tally.wave[0][0] === "pepe_enjoyer" && tally.wave[0][1] === 15 && tally.kills[0][0] === "grinlord" && tally.kills[0][1] === 230,
   "boards: best wave, kills summed", JSON.stringify(tally));
@@ -207,10 +217,17 @@ check(pa2.room === pb2.room && pa2.mode === "zombies", "A and B in one private r
 
 // ---- 6. the countdown runs out
 await R(c, () => { window.__trollHub.HUB_T.countdown = 3; });
+// the Pentagrin's pad is shut while the map's rebuilt: it says so and starts nothing
 await stand(c, "p1");
+await sleep(5000);
+const shut = await R(c, () => ({ mode: window.__trollOps.modeId(), sign: window.__trollHub.signs()?.p1 || "", party: window.__trollHub.party("p1").members.length, h: document.querySelector(".zhb-pad-h")?.textContent || "", hold: !document.querySelector(".zhb-hold")?.hidden }));
+check(shut.mode === "zhub" && shut.party === 0 && !shut.hold, "the Pentagrin pad (under construction): no party, nothing starts", JSON.stringify(shut));
+check(/Under construction/.test(shut.sign) && /Under construction/.test(shut.h), "its sign and the pad panel say Under construction", JSON.stringify(shut));
+await c.screenshot({ path: path.join(SHOTS, `zhub-closed${TAG}.png`) });
+await stand(c, "p3");
 check(await until(c, () => window.__trollOps.modeId() === "zombies", null, 15000), "a lone player's countdown runs out and goes");
 await loaded(c);
-check(!!(await where(c)).map, "the run loads a map", (await where(c)).map);
+check((await where(c)).map === "Troll City", "the run loads its map", (await where(c)).map);
 
 check(!errors.length, "no page errors", errors.slice(0, 6).join(" | "));
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");

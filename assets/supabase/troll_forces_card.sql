@@ -7,6 +7,9 @@
 --
 -- 2026-10-03, phase 5: the prestige reward cards (p1-p10, master), and the
 -- owner (troll_runner) may wear any card. Re-run this whole file to apply.
+--
+-- 2026-11-01: the master card needs Prestige 69 now: troll_forces_prestige_69.sql
+-- replaces both functions below. If you re-run this file, run that one after it.
 
 create table if not exists public.troll_forces_card (
   user_id    uuid primary key references auth.users(id) on delete cascade,

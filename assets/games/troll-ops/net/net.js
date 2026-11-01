@@ -43,6 +43,7 @@ const PEER_TIMEOUT = 5000;
 // SLOW_FRAME_MS can't run the bots for anyone.
 const LIVE_MS = 15000;
 const SLOW_FRAME_MS = 250;
+const GAP_MAX = 400;   // ms: the most one frame adds to that average (a hidden tab's 1 s ticks still get there in ~9 s)
 const HANDSHAKE_SETTLE = 700;
 
 class BroadcastTransport {
@@ -574,8 +575,13 @@ export class Net {
     // How often this tab really gets a frame (dt arrives clamped, so it
     // can't tell): a hidden pane ticking once a second is "slow", says so on
     // the wire, and stops counting for the bot host (isBotHost).
+    // One long frame (a shader compile on landing, 67 rigs built at a
+    // takeover) counts as GAP_MAX, so only steady slowness is "slow": a
+    // single 2 s hitch used to hand the bots to the other player, who
+    // hitched building them and handed them back (user, 2026-10-31: "lots
+    // of lag when running duos").
     const now = performance.now();
-    const gap = this._frameAt ? Math.min(5000, now - this._frameAt) : 16;
+    const gap = this._frameAt ? Math.min(GAP_MAX, now - this._frameAt) : 16;
     this._frameAt = now;
     this._frameMs = (this._frameMs ?? 16) + (gap - (this._frameMs ?? 16)) * 0.1;
     this._acc += dt;

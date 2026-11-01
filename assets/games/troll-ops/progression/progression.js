@@ -118,13 +118,17 @@ export function isOwner() {
    Profile Card"). The game has its own level, on its own faster curve, counted
    from account XP earned since your last prestige: account XP minus the
    `xp_base` set when you prestiged. Prestiging resets that number, never the
-   trollrunner.net account level. Cap 69; Prestige 1-10, then 11 = Prestige
-   Master. Stored in public.troll_forces_prestige, written only by the
-   troll_forces_prestige_up() function, which re-checks level 69 itself
-   (assets/supabase/troll_forces_prestige.sql). Guests level from the XP
-   kept on this device and never prestige. */
+   trollrunner.net account level. Cap 69. Prestige is automatic (user,
+   2026-11-01: "it should be automatic after hitting lvl 69. so lvl 69 ->
+   prestige one, level [1] -> prestige one, level 69 -> prestige two, etc. all
+   the way until prestige master which is prestige 69"): Prestige 1-68, then
+   69 = Prestige Master. Stored in public.troll_forces_prestige, written only
+   by the troll_forces_prestige_up() function, which re-checks level 69 itself
+   (assets/supabase/troll_forces_prestige.sql; the 69 cap is
+   troll_forces_prestige_69.sql). Guests level from the XP kept on this device
+   and never prestige; the owner has no level and never prestiges. */
 export const TF_MAX_LEVEL = 69;
-export const PRESTIGE_MASTER = 11;
+export const PRESTIGE_MASTER = 69;
 
 /* XP from level 1 to `level`: 120 a level plus a gentle climb, 17,408 to
    reach 69 (about 87 good matches). Same formula as the SQL. */
@@ -140,6 +144,12 @@ export function tfLevelForXp(xp) {
 
 const prestige = { level: 0, base: 0, ready: false, available: false };
 let prestigeFor = null;
+// automatic prestige (autoPrestige below)
+const HELD_KEY = "trollops:prestige-held";
+const HELD_MS = 6 * 3600 * 1000;
+const triedThisLoad = new Set();
+let autoBusy = null;
+let held = false;
 
 /* Load this account's prestige row (once per sign-in). `available` stays
    false until the SQL has been run, which keeps the Prestige option hidden. */
@@ -150,6 +160,7 @@ async function loadPrestige() {
   if (id === prestigeFor) return;
   prestigeFor = id;
   Object.assign(prestige, { level: 0, base: 0, ready: !id, available: false });
+  held = false;
   const sb = id && accounts?.getClient?.();
   if (sb) {
     const { data, error } = await sb.from("troll_forces_prestige").select("prestige, xp_base").eq("user_id", id).maybeSingle();
@@ -162,8 +173,9 @@ async function loadPrestige() {
     prestige.ready = true;
   }
   window.dispatchEvent(new CustomEvent("trollforces:prestige-changed"));
+  void autoPrestige();   // already at 69 when you load: it happens now
 }
-window.addEventListener("trollrunner:auth-changed", () => void loadPrestige());
+window.addEventListener("trollrunner:auth-changed", () => { void loadPrestige(); void autoPrestige(); });
 void loadPrestige();
 
 export function getPrestige() {
@@ -199,6 +211,45 @@ export async function prestigeUp() {
   return prestige.level;
 }
 
+/* Automatic prestige: reaching level 69 prestiges you, once per crossing
+   (after it the level shows 1, so it can't fire again until the next 69).
+   Asked when the prestige row loads (so a player already past 69 on load
+   prestiges then), when the account changes, and when match XP lands.
+   Never for guests or the owner (canPrestige). If the server says no (its
+   SQL still capped at 11 until troll_forces_prestige_69.sql is run, say),
+   that's remembered for this account and prestige for HELD_MS, so there's
+   one quiet try per load at most: no retry loop, no error toasts. (Its
+   state sits up by `prestige`: loadPrestige can call this while the module
+   is still loading.) */
+export function prestigeHeld() { return held && canPrestige(); }
+export function autoPrestige() {
+  if (autoBusy || !prestige.ready || !canPrestige()) return autoBusy;
+  const profile = window.TrollrunnerAccounts?.getCachedProfile?.();
+  const key = `${profile?.id || profile?.userId || ""}:${prestige.level}`;
+  if (triedThisLoad.has(key)) return null;
+  try {
+    const h = JSON.parse(localStorage.getItem(HELD_KEY) || "null");
+    if (h?.key === key && Date.now() - h.at < HELD_MS) { held = true; return null; }
+  } catch { /* private mode */ }
+  triedThisLoad.add(key);
+  autoBusy = prestigeUp()
+    .then((p) => {
+      held = false;
+      try { localStorage.removeItem(HELD_KEY); } catch { /* private mode */ }
+      window.dispatchEvent(new CustomEvent("trollforces:prestige-auto", { detail: { prestige: p, master: p >= PRESTIGE_MASTER } }));
+      return p;
+    })
+    .catch((err) => {
+      held = true;
+      try { localStorage.setItem(HELD_KEY, JSON.stringify({ key, at: Date.now(), why: String(err?.message || err) })); } catch { /* private mode */ }
+      console.info(`[trollnite] prestige held: ${err?.message || err}`);
+      window.dispatchEvent(new CustomEvent("trollforces:prestige-changed"));
+      return null;
+    })
+    .finally(() => { autoBusy = null; });
+  return autoBusy;
+}
+
 /* The level that UNLOCKS things. Nothing ever relocks: the account level, or
    the Troll Forces level if that's higher (its curve is faster), and once
    you've prestiged you've been to 69, so everything up to 69 stays open. */
@@ -225,7 +276,7 @@ export function syncXp() {
   syncing = accounts.awardXp("troll_ops_xp", "troll-ops", { xp: amount })
     .then((res) => {
       // Only clear what landed; anything earned mid-request stays queued.
-      if (res?.awarded > 0) writeNum(PENDING_KEY, readNum(PENDING_KEY) - res.awarded);
+      if (res?.awarded > 0) { writeNum(PENDING_KEY, readNum(PENDING_KEY) - res.awarded); void autoPrestige(); }
       else retryTimer = setTimeout(() => void syncXp(), 30000);
       return res;
     })
@@ -291,7 +342,7 @@ export function rankXpText() {
   // the owner has no XP line (user, 2026-10-15: remove "Everything unlocked")
   if (isOwner()) return "";
   const { xp, next, max } = levelSpan();
-  if (max) return getPrestige() >= PRESTIGE_MASTER ? "Prestige Master · max level" : canPrestige() ? "Max level · Prestige ready" : "Max level";
+  if (max) return getPrestige() >= PRESTIGE_MASTER ? "Prestige Master · max level" : canPrestige() && !held ? "Max level · Prestiging…" : "Max level";
   return `${xp.toLocaleString()} / ${next.toLocaleString()} XP`;
 }
 

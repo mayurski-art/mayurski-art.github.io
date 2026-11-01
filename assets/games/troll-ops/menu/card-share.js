@@ -5,8 +5,8 @@
 //
 // `d` is the card's data, the same shape renderCard() takes (profile-card.js).
 
-import { cardById, cleanClan } from "../progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1";
-import { playerIconCanvas, prestigeName } from "../progression/rank-icons.js?v=rk1-or1";
+import { cardById, cleanClan } from "../progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn13";
+import { playerIconCanvas, prestigeName } from "../progression/rank-icons.js?v=rk1-or1-tn13";
 
 const GAME_URL = "https://trollrunner.net/trollnite";
 const FALLBACK_EMBLEM = new URL("../../../images/wallpaper/trollface transparent.png", import.meta.url).href;

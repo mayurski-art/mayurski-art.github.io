@@ -10,8 +10,8 @@
 // already earned; you pick three streaks before the match and can only call
 // those three.
 
-import { rankUnlocked } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1";
-import { hasPerk, PERK_TUNE } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1";
+import { rankUnlocked } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn13";
+import { hasPerk, PERK_TUNE } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn13";
 
 /* What a streak costs you this life: Hardline (perks.js) takes 20% off,
    rounded to 10. Bots pay the list price (streaks/bot-streaks.js). */
@@ -112,6 +112,21 @@ export const STREAK_DEFS = {
     cooldown: 60,      // user: one pack a minute at most
     blurb: "Six attack dogs hunt the enemy team for 45 seconds. They can be shot. 60 second cooldown before the next pack.",
   },
+  // BO2's Sentry Gun: set it down and it guards the spot, turning onto
+  // any enemy it can see with its rotary gun. Enemies can shoot it apart;
+  // Blind Eye hides you from it. sentry-gun.js.
+  sentrygun: {
+    id: "sentrygun",
+    badge: "gold",
+    name: "Sentry Gun",
+    short: "Sentry Gun",
+    icon: "sentrygun",
+    cost: 600,
+    rank: 27,
+    duration: 90,
+    cooldown: 60,
+    blurb: "Set down an automated sentry. It turns onto any enemy it can see and opens up. Enemies can shoot it; Blind Eye hides them from it. Lasts 90 seconds. 60 second cooldown before the next one.",
+  },
   helicopter: {
     id: "helicopter",
     badge: "red",   // BO2 tiers: silver, gold, then red for the top streak
@@ -203,6 +218,7 @@ const STREAK_ICON_PATHS = {
   swarm: '<rect x="3" y="4" width="4.5" height="4.5" rx="1"/><rect x="15" y="3" width="4.5" height="4.5" rx="1"/><rect x="9.5" y="10" width="5" height="5" rx="1"/><rect x="3.5" y="16" width="4" height="4" rx="1"/><rect x="16" y="15.5" width="4.5" height="4.5" rx="1"/><path d="M5.2 4V2M17.2 3V1M12 10V8" stroke-linecap="round"/>',
   dragonfire: '<circle cx="5.5" cy="5.5" r="3.6" fill="none"/><circle cx="18.5" cy="5.5" r="3.6" fill="none"/><circle cx="5.5" cy="18.5" r="3.6" fill="none"/><circle cx="18.5" cy="18.5" r="3.6" fill="none"/><path d="M8 8l2.5 2.5M16 8l-2.5 2.5M8 16l2.5-2.5M16 16l-2.5-2.5" stroke-linecap="round"/><rect x="9.5" y="7.5" width="5" height="9" rx="1"/><path d="M12 16.5v4" stroke-linecap="round"/>',
   samturret: '<rect x="2" y="4" width="6.5" height="6.5" rx="0.8"/><rect x="15.5" y="4" width="6.5" height="6.5" rx="0.8"/><rect x="9.5" y="5.5" width="5" height="4.5" rx="0.8"/><path d="M9.8 5.5a2.2 2.2 0 0 1 4.4 0" fill="none"/><path d="M12 10v4M12 14l-6 7M12 14l6 7M12 14v7" fill="none" stroke-linecap="round"/>',
+  sentrygun: '<rect x="3" y="5" width="11" height="5" rx="1"/><path d="M14 6.2h8M14 7.5h8M14 8.8h8" stroke-linecap="round" fill="none"/><rect x="6" y="2.2" width="5" height="2.6" rx="0.6"/><rect x="5" y="10.5" width="5" height="3.5" rx="0.6"/><path d="M7.5 14v3M7.5 17l-5 5M7.5 17l5 5M7.5 17v5" fill="none" stroke-linecap="round"/>',
   helicopter: '<ellipse cx="10" cy="14" rx="7" ry="4"/><rect x="16" y="13" width="6" height="2" rx="1"/><rect x="9" y="6" width="2" height="6" rx="1"/><path d="M2 6h16" fill="none" stroke-linecap="round"/><rect x="7" y="18" width="6" height="2" rx="1"/>',
 };
 
