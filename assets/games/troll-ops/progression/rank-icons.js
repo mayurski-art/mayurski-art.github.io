@@ -6,7 +6,8 @@
 // steps its insignia: steel chevrons, then rockers under them, bronze and
 // silver bars, stars, and a gold wreathed star at the top (66-69).
 // Prestige: the real trollface art (never the emoji) inside a frame that
-// escalates P1-P10, and its own crowned mark for Prestige Master.
+// escalates P1-P10 (and again, ringed and numbered, for each band of ten up
+// to 68), and its own crowned mark for Prestige Master (69).
 
 // The same transparent trollface art the rig head wears (character.js), so
 // it is already in the cache by the time an icon draws.
@@ -109,8 +110,32 @@ const PRESTIGE = [
   { name: "Prestige Master", stops: ["#ffffff", "#ffd36b", "#c2410c"], shape: "master" },
 ];
 
+/* Prestige 1-68, then 69 = Prestige Master (automatic prestige, user,
+   2026-11-01). 1-10 are the ten designs above; 11-68 reuse them in bands of
+   ten (11-20 the P1-P10 designs again, 21-30 again, ...), each band with its
+   own coloured ring round the badge and the prestige number on it, so no two
+   prestiges look the same. 69 is the crowned Master mark. */
+const MASTER = 69;
+const BAND_RING = ["", "#2ad4ff", "#3ee07a", "#ff3b5c", "#b07cff", "#ffcf3d", "#f4f4f4"];
+const clampP = (p) => Math.max(1, Math.min(MASTER, Math.floor(p) || 1));
+/* The design (PRESTIGE index) and band for prestige `p`. */
+function prestigeLook(p) {
+  const n = clampP(p);
+  if (n >= MASTER) return { n, def: PRESTIGE[11], band: 0 };
+  return { n, def: PRESTIGE[((n - 1) % 10) + 1], band: Math.floor((n - 1) / 10) };
+}
+
 export function prestigeName(p) {
-  return PRESTIGE[Math.max(1, Math.min(11, p))]?.name || "";
+  const n = clampP(p);
+  return n >= MASTER ? "Prestige Master" : `Prestige ${n}`;
+}
+
+// A banded badge is drawn at this scale inside its ring.
+const BAND_SCALE = 0.8;
+/* The number plate along the bottom of a banded badge. */
+function numberPlate(n, ring) {
+  return `<rect x="19" y="49" width="26" height="14" rx="7" fill="#0d0b08" stroke="${ring}" stroke-width="2"/>`
+    + `<text x="32" y="59.6" text-anchor="middle" font-family="Oswald, 'DM Sans', system-ui, sans-serif" font-size="11" font-weight="700" fill="#fff">${n}</text>`;
 }
 
 function frame(shape, f, ink) {
@@ -140,28 +165,47 @@ function frame(shape, f, ink) {
   return "";
 }
 
-/* Where a prestige icon's art sits: the centre and radius of its face disc. */
+/* Where a prestige icon's art sits: the centre and radius of its face disc,
+   in the design's own space (`cy`, `r`) and on the badge (`bcy`, `br`: a
+   banded badge is scaled down inside its ring, towards the top so the number
+   plate has room). */
+const BAND_DY = -3;
 function prestigeGeom(p) {
-  const def = PRESTIGE[Math.max(1, Math.min(11, p))];
+  const { n, def, band } = prestigeLook(p);
   const cy = def.shape === "wings" || def.shape === "master" ? 34 : 32;
   const r = def.shape === "burst" || def.shape === "shield" ? 19 : 20;
-  return { def, cy, r };
+  const s = band ? BAND_SCALE : 1;
+  return { n, def, band, cy, r, s, bcy: band ? 32 + BAND_DY + (cy - 32) * s : cy, br: r * s };
 }
 
-/* The prestige icon for prestige 1-11 (11 = Prestige Master). `noArt` leaves
-   the face disc empty (the canvas path draws the art in itself). */
+/* The prestige icon for prestige 1-69 (69 = Prestige Master). `noArt`
+   leaves the face disc empty and the number plate off (the canvas path
+   draws the art, then the plate, itself). */
 export function prestigeIconSvg(p, size = 28, { noArt = false } = {}) {
-  const { def, cy, r } = prestigeGeom(p);
+  const { n, def, band, cy, r, s } = prestigeGeom(p);
   const g = id("p"), clip = id("c");
   const [hi, mid, lo] = def.stops;
   const ink = "#0d0b08";
+  const ring = BAND_RING[band];
+  const body = frame(def.shape, `url(#${g})`, ink)
+    + `<circle cx="32" cy="${cy}" r="${r + 1.5}" fill="#fff" stroke="${ink}" stroke-width="1.5"/>`
+    + (noArt ? "" : `<image href="${TROLL_ART}" x="${32 - r}" y="${cy - r}" width="${r * 2}" height="${r * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clip})"/>`);
   return `<svg xmlns="http://www.w3.org/2000/svg" class="tf-prestige-icon" viewBox="0 0 64 64" width="${size}" height="${size}" aria-hidden="true">`
     + `<defs><linearGradient id="${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${hi}"/><stop offset=".5" stop-color="${mid}"/><stop offset="1" stop-color="${lo}"/></linearGradient>`
     + `<clipPath id="${clip}"><circle cx="32" cy="${cy}" r="${r}"/></clipPath></defs>`
-    + frame(def.shape, `url(#${g})`, ink)
-    + `<circle cx="32" cy="${cy}" r="${r + 1.5}" fill="#fff" stroke="${ink}" stroke-width="1.5"/>`
-    + (noArt ? "" : `<image href="${TROLL_ART}" x="${32 - r}" y="${cy - r}" width="${r * 2}" height="${r * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clip})"/>`)
+    + (band
+      ? `<circle cx="32" cy="32" r="30" fill="none" stroke="${ink}" stroke-width="4.4"/><circle cx="32" cy="32" r="30" fill="none" stroke="${ring}" stroke-width="2.6"/>`
+        + `<g transform="translate(32 ${32 + BAND_DY}) scale(${s}) translate(-32 -32)">${body}</g>`
+        + (noArt ? "" : numberPlate(n, ring))
+      : body)
     + `</svg>`;
+}
+
+/* Just the number plate of a banded badge ("" for 1-10 and Master), as its
+   own SVG: the canvas path lays it over the art. */
+function plateSvg(p) {
+  const { n, band } = prestigeGeom(p);
+  return band ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">${numberPlate(n, BAND_RING[band])}</svg>` : "";
 }
 
 /* The icon a player shows: prestige icon once they've prestiged, else the
@@ -189,7 +233,7 @@ function coverCircle(ctx, img, cx, cy, r, focusY = 0.5, zoom = 1) {
 /* Resolves to a 64x64 canvas: the owner's crowned troll, a prestige icon, or
    the rank icon for `level`. */
 export function playerIconCanvas(level, prestige = 0, owner = false) {
-  const key = owner ? "owner" : prestige > 0 ? `p${Math.min(11, prestige)}` : `r${rankTier(level)}`;
+  const key = owner ? "owner" : prestige > 0 ? `p${clampP(prestige)}` : `r${rankTier(level)}`;
   if (!canvasCache.has(key)) {
     canvasCache.set(key, (async () => {
       const c = document.createElement("canvas");
@@ -203,8 +247,10 @@ export function playerIconCanvas(level, prestige = 0, owner = false) {
         ctx.beginPath(); ctx.arc(32, 32, 29, 0, Math.PI * 2); ctx.stroke();
       } else if (prestige > 0) {
         ctx.drawImage(await svgImg(prestigeIconSvg(prestige, 64, { noArt: true })), 0, 0, 64, 64);
-        const { cy, r } = prestigeGeom(prestige);
-        coverCircle(ctx, await loadImg(TROLL_ART), 32, cy, r);
+        const { bcy, br } = prestigeGeom(prestige);
+        coverCircle(ctx, await loadImg(TROLL_ART), 32, bcy, br);
+        const plate = plateSvg(prestige);
+        if (plate) ctx.drawImage(await svgImg(plate), 0, 0, 64, 64);
       } else {
         ctx.drawImage(await svgImg(rankIconSvg(level, 64)), 0, 0, 64, 64);
       }

@@ -19,8 +19,9 @@ import { initRadioSync } from "../sound/radio-sync.js?v=rs1-wb1-cu3-cu5-ll2-sp9"
 import { initPublicChat } from "./public-chat.js?v=pch1-nb2-pc2-gf1-sc1-tw1-nd2-wb1-tnt1";
 import { initInbox } from "./inbox.js?v=ib1-mg1-mg2";
 import { view as challengeView, timeLeft as challengeLeft } from "../progression/challenges.js?v=ch1-mg1-mg2";
-import { startOnline, onlinePlayers, serverList, joinServer, describe, setLobbyActivity, pushActivity, friendsCanJoin, setFriendsCanJoin } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12";
-import { canPrestige, prestigeUp, getPrestige, prestigeUnlocked, PRESTIGE_MASTER, getLevel, rankProgress, rankXpText } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1";
+import { startOnline, onlinePlayers, serverList, joinServer, describe, setLobbyActivity, pushActivity, friendsCanJoin, setFriendsCanJoin } from "./online.js?v=ol1-sv1-dj2-mg1-pd1-jb1-pl2-nh1-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-bp1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-wo1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-rm1-kzf1-fp2-lk1-hgb1-hgb2-mrg1-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h";
+import "../progression/prestige-moment.js?v=pm1";   // the badge that comes up when 69 prestiges you
+import { getPrestige, prestigeUnlocked, PRESTIGE_MASTER, getLevel, rankProgress, rankXpText } from "../progression/progression.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1";
 import { ACHIEVEMENTS } from "../progression/achievements.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1";
 import { mountFnLobby } from "./lobby-fn.js?v=fn1-fn2-rl1-rl2-rl3-mt1-sm1-ip1-fn6-ug1-ugm1-tw1-fnu1-fnu2-hw1-hwl1-sc1-bgm1-nwc1-lmg1-zf1-wb1-cu3-cu5-tnt1-mb1-mb2-mg1-mg2-ll2-tn12";
 import { mountFriends } from "./friends.js?v=fr1-lmg1-ll2";
@@ -82,7 +83,6 @@ function loadRecord() {
     });
 }
 
-const nextPrestigeName = () => (getPrestige() + 1 >= PRESTIGE_MASTER ? "Master" : `P${getPrestige() + 1}`);
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -464,9 +464,8 @@ const screens = {
       [
         { id: "class", label: "Create a Class", value: () => game.loadout?.className || "", desc: "Five classes: guns, attachments, melee, a throwable, three scorestreaks and three perks.", go: "classlist" },
         { id: "cosmetics", label: "Cosmetics", desc: "Your trollface: expression, colour and wrist.", go: "cosmetics", fresh: hasNew() },
-        // BO2: at the level cap the Prestige option appears.
-        canPrestige() && { id: "prestige", label: "Prestige", value: nextPrestigeName(), desc: "You're at level 69. Go back to level 1 for a new prestige.", go: "prestige" },
-      ].filter(Boolean),
+        // (no Prestige option: reaching 69 prestiges you; progression.js autoPrestige)
+      ],
       [
         // Who's Online and the Server Browser went (user, 2026-10-22): who's on
         // is the party column on the right, and the home page has the Troll Map.
@@ -539,34 +538,6 @@ const screens = {
       ].filter((g) => g.length),
     };
   },
-  /* Prestige confirm, the way BO2 asks. Only the Troll Forces level resets:
-     the account level and every unlock stay. */
-  prestige: () => {
-    const next = Math.min(PRESTIGE_MASTER, getPrestige() + 1);
-    const lv = window.TrollrunnerAccounts?.getCachedProfile?.()?.level;
-    return {
-      title: next >= PRESTIGE_MASTER ? "Prestige Master" : `Prestige ${next}`, panel: "deploy",
-      groups: [
-        [{
-          id: "confirm", label: next >= PRESTIGE_MASTER ? "Become Prestige Master" : `Enter Prestige ${next}`,
-          desc: `Your Trollnite level goes back to 1. Your account stays LV ${lv ?? "?"} and everything you've unlocked stays unlocked.${next >= PRESTIGE_MASTER ? " This is the last prestige." : ""}`,
-          onSelect: async (_, m) => {
-            const status = $(".to-bo2-status", root);
-            status.textContent = "Prestiging…";
-            try {
-              const p = await prestigeUp();
-              status.textContent = p >= PRESTIGE_MASTER ? "You are Prestige Master." : `Welcome to Prestige ${p}.`;
-              m.backTo("main");
-              m.refresh();
-            } catch (err) {
-              status.textContent = `Couldn't prestige: ${err.message}`;
-            }
-          },
-        }],
-        [back("Not yet.")],
-      ],
-    };
-  },
   /* Combat record (prestige phase 3, record.js): lifetime PvP numbers. The
      screen draws from the last fetch and redraws when a fresh one lands. */
   record: () => {
@@ -618,9 +589,7 @@ const screens = {
           { id: "b-clan", label: "Clan Tag", value: signedIn ? (clan ? `[${clan}]` : "None") : "", disabled: !signedIn, desc: signedIn ? "Up to 4 letters or numbers, shown as [TAG] name everywhere." : guest, need: signedIn ? "" : "Sign in to set it.", onSelect: () => editClan() },
           { id: "b-rewards", label: "Prestige Rewards", desc: "What each prestige unlocks.", go: "rewards" },
           { id: "b-record", label: "Combat Record", desc: "Your lifetime K/D, W/L, accuracy and more, across every match.", go: "record" },
-          // BO2: at the level cap the Prestige option appears (it was on the main list)
-          canPrestige() && { id: "prestige", label: "Prestige", value: nextPrestigeName(), desc: "You're at level 69. Go back to level 1 for a new prestige.", go: "prestige" },
-        ].filter(Boolean),
+        ],
         [back("Back to the main menu.")],
       ],
     };
@@ -1010,7 +979,9 @@ function screenFor(t, id) {
     const slotEl = $$("#to-lo-atts .to-lo-slot")[+a[1]];
     if (slotEl) return () => optionScreen(text($(".to-lo-slot-label", slotEl)), $$(".to-lo-att, button", slotEl), {
       descOf: (b) => text($("small", b)) || b.title,
-      valueFor: (b) => $$(".to-att-delta b", b).map(text).join(" "),
+      // a skin card says what it needs ("LV 12", "P3"), locked or not
+      valueFor: (b) => $$(".to-att-delta b", b).map(text).join(" ") || text($(".to-lo-skin-lv", b)),
+      needOf: (b) => b.title,
     });
   }
   if (g) {
