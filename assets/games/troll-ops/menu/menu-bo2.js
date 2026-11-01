@@ -1002,7 +1002,9 @@ function screenFor(t, id) {
     const slotEl = $$("#to-lo-atts .to-lo-slot")[+a[1]];
     if (slotEl) return () => optionScreen(text($(".to-lo-slot-label", slotEl)), $$(".to-lo-att, button", slotEl), {
       descOf: (b) => text($("small", b)) || b.title,
-      valueFor: (b) => $$(".to-att-delta b", b).map(text).join(" "),
+      // a skin card says what it needs ("LV 12", "P3"), locked or not
+      valueFor: (b) => $$(".to-att-delta b", b).map(text).join(" ") || text($(".to-lo-skin-lv", b)),
+      needOf: (b) => b.title,
     });
   }
   if (g) {
