@@ -274,7 +274,12 @@ export function startWallBuys() {
   // the Pentagrin's old decorative wall buys (maps/props.js) give way
   game.builtMap?.root?.traverse((o) => { if (o.userData.wallBuyProp) o.visible = false; });
   for (const spot of ZOMBIE_BUYS[name]?.walls || []) walls.push(buildWall(spot));
-  match.zombieBuy = { near: nearWall, buy: buyAt, offer: offerFor };
+  // one X hold for walls and doors (doors.js puts its own on match.zombieDoors)
+  match.zombieBuy = {
+    near: () => nearWall() || match.zombieDoors?.near() || null,
+    buy: (it) => (it.spot ? buyAt(it) : !!match.zombieDoors?.buy(it)),
+    offer: (it) => (it.spot ? offerFor(it) : match.zombieDoors.offer(it)),
+  };
   // frags only, and none till the Frags wall: whatever your class carries
   match.throwKind = "lethal";
   if (game.player.gear) game.player.gear.lethal = game.player.gear.tactical = 0;

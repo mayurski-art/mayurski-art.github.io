@@ -29,6 +29,35 @@ export const ZOMBIE_BUYS = {
     ],
   },
   Hollowgrin: {
+    // The Town Square is the start. Railings close the open ground between
+    // areas; the manor's own walls and the graveyard's fence fill their parts.
+    areas: [
+      { id: "square", name: "Town Square", start: true, boxes: [[-16, -12, 36.4, 47]] },
+      { id: "manor", name: "Manor", boxes: [[-16, -47, 36.4, -12]] },
+      { id: "west", name: "Graveyard", boxes: [[-53, -47, -16, 47]] },
+      { id: "midway", name: "Midway", boxes: [[36.4, -47, 51, 47]] },
+      { id: "park", name: "Fair Park", boxes: [[51, -47, 89, 47]] },
+    ],
+    fences: [
+      // either side of the manor's front (its wall is the line between)
+      { a: [-16, -12], b: [-13, -12] },
+      { a: [13, -12], b: [36.4, -12] },
+      // the manor's front windows: shut, glass you can't see
+      ...[[-10.3, -8.7], [-4.3, -2.9], [2.9, 4.3], [8.7, 10.3]].map(([x0, x1]) => ({ a: [x0, -12.2], b: [x1, -12.2], kind: "invisible" })),
+      { a: [-16, -47], b: [-16, 47] },
+      { a: [36.4, -47], b: [36.4, 47] },
+      { a: [51, -47], b: [51, 47] },
+    ],
+    doors: [
+      // the manor's front door, boarded up
+      { id: "manor", label: "Manor door", kind: "barricade", price: 750, a: [-1.1, -12.2], b: [1.1, -12.2], between: ["square", "manor"] },
+      // the graveyard fence's own gateway: the leaves hang on its posts
+      { id: "graveyard", label: "Graveyard gate", kind: "gate", pillars: false, price: 1000, a: [-16, 0.4], b: [-16, 3.6], between: ["square", "west"] },
+      { id: "midway", label: "Midway gate", kind: "gate", price: 1250, a: [36.4, 0.5], b: [36.4, 3.9], between: ["square", "midway"] },
+      { id: "park", label: "Fair Park gate", kind: "gate", price: 1500, a: [51, 1], b: [51, 4.4], between: ["midway", "park"] },
+      { id: "manor-west", label: "Graveyard gate", kind: "gate", price: 1000, a: [-16, -30], b: [-16, -26.6], between: ["manor", "west"] },
+      { id: "manor-midway", label: "Midway gate", kind: "gate", price: 1250, a: [36.4, -30], b: [36.4, -26.6], between: ["manor", "midway"] },
+    ],
     walls: [
       // the candy shop's east wall, south of its window
       { gun: "starter", x: -0.97, z: 22.25, y: 0, face: E },

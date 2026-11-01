@@ -292,6 +292,77 @@ if (want("walls")) {
   await page.screenshot({ path: path.join(SHOTS, `zecon-firesale-${map}.png`) });
 }
 
+if (want("doors")) {
+  await R(() => { const T = window.__trollOps; T.zdir().clear(); T.zdir().state = "between"; T.zdir().breakT = 1e6; T.player.hp = T.player.maxHp = 1e9; });
+  const info = await R(() => {
+    const T = window.__trollOps, D = T.zrun().doors, st = D.st, Z = T.zdir();
+    return {
+      areas: st.areas.map((a) => a.id), open: [...st.open], doors: st.doors.map((d) => ({ id: d.id, label: d.label, price: d.price, between: d.between, x: d.mid.x, y: d.y, z: d.mid.z, ux: d.u.x, uz: d.u.z })),
+      wins: Z.windows.length, all: st.allWindows?.length ?? 0, closedWins: Z.windows.filter((w) => !D.zoneOpen(w)).length,
+      blocked: st.doors.every((d) => d.cols.every((c) => T.colliders.includes(c))),
+    };
+  });
+  check(info.doors.length > 0 && info.open.length === 1, "doors up, only the start area open", JSON.stringify({ areas: info.areas, open: info.open, doors: info.doors.length }));
+  check(info.wins > 0 && info.wins < info.all && info.closedWins === 0, "zombies spawn only in the open area", `${info.wins} of ${info.all}, ${info.closedWins} in a shut area`);
+  check(info.blocked, "every door is solid");
+  // each door, shut, from its open side
+  const sideOf = (d, s) => ({ x: d.x + d.uz * s * 1.0, z: d.z - d.ux * s * 1.0 });
+  const openSide = async (d) => {
+    for (const s of [1, -1]) {
+      const p = sideOf(d, s);
+      if (await R(({ p }) => { const D = window.__trollOps.zrun().doors; return D.zoneOpen(p); }, { p })) return s;
+    }
+    return 1;
+  };
+  for (const d of info.doors) {
+    const s = await openSide(d);
+    await R(({ d, s }) => {
+      const T = window.__trollOps;
+      T.move.pos.set(d.x + d.uz * s * 3.2, d.y, d.z - d.ux * s * 3.2);
+      T.look.yaw = Math.atan2(d.uz * s, -d.ux * s); T.look.pitch = -0.05;
+    }, { d, s });
+    await sleep(450);
+    await page.screenshot({ path: path.join(SHOTS, `zecon-door-${map}-${d.id}-shut.png`) });
+  }
+  // the first door: poor, then bought
+  const d = info.doors.find((q) => q.between.includes(info.open[0]));
+  const s = await openSide(d);
+  const standAt = () => R(({ d, s }) => { const T = window.__trollOps; T.move.pos.set(d.x + d.uz * s * 1.0, d.y, d.z - d.ux * s * 1.0); T.look.yaw = Math.atan2(d.uz * s, -d.ux * s); T.look.pitch = 0; }, { d, s });
+  await R(() => { window.__trollOps.zrun().econ.cash = 100; });
+  await standAt();
+  await page.waitForFunction(() => !!document.querySelector(".zb-prompt:not([hidden]) .zb-t"), null, { timeout: 5000, polling: 100 }).catch(() => {});
+  await sleep(150);
+  const poor = await R(() => ({ t: document.querySelector(".zb-prompt:not([hidden]) .zb-t")?.textContent || "", poor: !!document.querySelector(".zb-prompt .is-poor") }));
+  check(poor.t === `Hold X · ${d.label} · ${d.price.toLocaleString()}` && poor.poor, "at a door: Hold X · its name · its price, red when you can't", poor.t);
+  await page.keyboard.down("KeyX"); await sleep(900); await page.keyboard.up("KeyX");
+  check(await R((id) => !window.__trollOps.zrun().doors.st.doors.find((q) => q.id === id).open, d.id), "100 points: it stays shut");
+  await R((p) => { window.__trollOps.zrun().econ.cash = p + 100; }, d.price);
+  const w0 = await R(() => window.__trollOps.zdir().windows.length);
+  await page.bringToFront();
+  await page.keyboard.down("KeyX");
+  await page.waitForFunction((id) => window.__trollOps.zrun().doors.st.doors.find((q) => q.id === id).open, d.id, { timeout: 3000, polling: 50 }).catch(() => {});
+  await page.keyboard.up("KeyX");
+  await sleep(200);
+  const after = await R((id) => {
+    const T = window.__trollOps, D = T.zrun().doors, door = D.st.doors.find((q) => q.id === id);
+    return { open: door.open, solid: door.cols.some((c) => T.colliders.includes(c)), cash: T.zrun().econ.cash, areas: [...D.st.open], wins: T.zdir().windows.length, banner: document.querySelector(".zh-banner")?.textContent || "" };
+  }, d.id);
+  check(after.open && !after.solid && after.cash === 100, `bought: ${d.label} open, not solid, ${d.price} paid`, JSON.stringify(after));
+  check(d.between.every((a) => after.areas.includes(a)) && after.wins > w0, "its area opens, and its entry points with it", `${w0} -> ${after.wins} ${after.areas}`);
+  check(/^New area: /.test(after.banner), "the banner names the new area", after.banner);
+  await sleep(1200);
+  await R(({ d, s }) => { const T = window.__trollOps; T.move.pos.set(d.x + d.uz * s * 3.2, d.y, d.z - d.ux * s * 3.2); }, { d, s });
+  await sleep(400);
+  await page.screenshot({ path: path.join(SHOTS, `zecon-door-${map}-${d.id}-open.png`) });
+  // a walk through it: from the open side to the far side, nothing in the way
+  const through = await R(({ d, s }) => {
+    const T = window.__trollOps;
+    const a = { x: d.x + d.uz * s * 1.2, z: d.z - d.ux * s * 1.2 }, b = { x: d.x - d.uz * s * 1.2, z: d.z + d.ux * s * 1.2 };
+    return !T.colliders.some((c) => !c.deploy && c.max.y > d.y + 0.6 && c.min.y < d.y + 1.7 && [0.25, 0.5, 0.75].some((t) => { const x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t; return x > c.min.x && x < c.max.x && z > c.min.z && z < c.max.z; }));
+  }, { d, s });
+  check(through, "the way through is clear");
+}
+
 check(errors.length === 0, "no page errors", errors.slice(0, 4).join(" | "));
 console.log(fails ? `\n${fails} FAILED` : "\nALL PASS");
 await browser.close();
