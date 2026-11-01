@@ -57,6 +57,7 @@ import { updateScavenger } from "../combat/scavenger.js?v=sv1-cl1-bp1-fj1-zc1-zc
 import { updateEngineerMarks } from "./engineer-marks.js?v=en1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-fs1-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ls4-gb4-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h";
 import { throwBusy } from "../combat/throw-anim.js?v=ta1-th2-cl1-bp1-gt1-gt2-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-mb1-mb2-gc1-nft2531";
 import { updateSwingDoors } from "./swing-doors.js?v=sd1-bw2";
+import { combatRollInput, updateCombatRoll, combatRollK } from "../core/combat-roll.js?v=cr1";
 import { updateArmWrestle, awHolds, awHold } from "../modes/arm-wrestle.js?v=aw1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-gf1-tg1-tw1-arw1-su1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h";
 import { updatePhotoBooth } from "../modes/photo-booth.js?v=pb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-tw1-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h";
 
@@ -169,6 +170,9 @@ export function updatePlayer(dt) {
   if (bar.tipsy > TIPSY.onset && game.isSocial() && (ix || iz)) ix = Math.max(-1, Math.min(1, ix + tipsyFx(bar.tipsy, performance.now() / 1000).stagger * 0.45));
   const frozen = dropping || rolling || !game.player.alive || stageFrozen() || game.localPauseOnly || !!strikeTablet?.isOpen || warshipView() || dragonfireView();
   if (frozen) { ix = 0; iz = 0; }
+  // The combat roll (E / RB) carries you; the stick waits till it's done.
+  const combatRoll = combatRollInput(frozen, ix, iz);
+  if (combatRoll) { ix = 0; iz = 0; }
   // The landing roll carries you forward along the glider's line.
   if (rolling) {
     updateRoyaleRoll(dt);
@@ -183,11 +187,11 @@ export function updatePlayer(dt) {
   // primary's optic has no business popping up over it (that's the "scoped
   // weapon flash" glitch when activating a killstreak while holding ADS).
   // Staging doesn't block it: scoping in on the mark is harmless (see canAds).
-  const wantAds = game.player.alive && !royaleAboard() && !game.isView() && !game.socialUnarmed() && !game.localPauseOnly && game.empT <= 0 && game.player.holding !== "streak" && !game.move.stanceLocked
+  const wantAds = game.player.alive && !royaleAboard() && !game.isView() && !game.socialUnarmed() && !game.localPauseOnly && game.empT <= 0 && game.player.holding !== "streak" && !game.move.stanceLocked && !combatRoll
     && ((game.isTouch && touchState.ads) || (gp && game.gamepadState.ads) || game.adsHeld || game.keys.has("KeyQ"));
   // Aboard the C-130 (Troll Royale's opening) the guns stay quiet till you land;
   // so do they (and the sights) in the first moment of lying down or getting up.
-  const wantFire = !frozen && !game.move.stanceLocked && !royaleAboard() && !(game.player.downed && game.isRoyale()) && !game.isView() && !game.socialUnarmed() && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
+  const wantFire = !frozen && !combatRoll && !game.move.stanceLocked &&!royaleAboard() && !(game.player.downed && game.isRoyale()) && !game.isView() && !game.socialUnarmed() && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
   // The frame the trigger went down (the 16 ms fireEdgeTrigger pulse can
   // fall between two slow frames).
   const firePressed = wantFire && !fireWasDown;
@@ -263,6 +267,7 @@ export function updatePlayer(dt) {
   if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); updateConductor(); updateSheriff(dt); updateBand(dt); updateShop(); updateComputers(); updateHorses(dt); updateSurf(); updateHoops(dt); updateTennis(dt); updateVball(dt); updateArmWrestle(dt); updatePhotoBooth(dt); updateJailbreak(dt); updatePachinko(); }
 
   updateSwivel(dt);
+  updateCombatRoll(dt);
   updateSwingDoors(dt);   // a map's swing doors (Trolling Loud's kitchen)
 
   if (game.move.moving && game.move.grounded && game.player.alive) {
@@ -397,6 +402,9 @@ export function updatePlayer(dt) {
     // Landing roll: the view goes head over heels once and dips as you tuck.
     const rollK = royaleRollK();
     if (rollK > 0) game.camera.position.y -= Math.sin(Math.PI * rollK) * 0.9;
+    // Combat roll: a tuck, the view dipping and nodding down, not a flip.
+    const tuck = Math.sin(Math.PI * combatRollK());
+    if (tuck > 0) game.camera.position.y -= tuck * 0.75;
     // Zombie Rush, down (P7): on the floor, the view tipped over and swaying.
     downTiltT = damp(downTiltT, game.player.downed && !game.player.out ? 1 : 0, 4, dt);
     const downK = downTiltT, downNow = performance.now() / 1000;
@@ -409,7 +417,7 @@ export function updatePlayer(dt) {
     const slideRoll = game.slideTiltT * 0.075 * ((game.move.strafeInput ?? 0) > 0.2 ? -1 : 1)
       + (swivel.dir ? -swivel.dir * 0.16 * Math.sin(Math.PI * swivelK()) : 0);
     // One place composes the camera: aim + weapon recoil.
-    const rollPitch = rollK > 0 ? -Math.PI * 2 * rollK * rollK * (3 - 2 * rollK) : 0;
+    const rollPitch = rollK > 0 ? -Math.PI * 2 * rollK * rollK * (3 - 2 * rollK) : -tuck * 0.45;
     // Keyboard repair: the head glances up at the messenger. The viewmodel
     // camera turns with it, so the board drops away in view and the floating
     // message comes to the middle, like you looked up at it.

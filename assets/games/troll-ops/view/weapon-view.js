@@ -22,6 +22,7 @@ import { chargedShotDef } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 import { STANCE, stanceSteady } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1-hb4";
 import { game } from "../core/state.js?v=st1";
+import { combatRolling } from "../core/combat-roll.js?v=cr1";
 
 /* Phase 2 (DESIGN-ARMS.md §5): landing-impact dip. `move.justLanded`/
    `landSpeed` (movement.js) already exist and were unused before this —
@@ -1421,8 +1422,8 @@ export function updateWeaponView(dt) {
   const adsPos = new THREE.Vector3(-aimPoint.x, -aimPoint.y, adsViewDistance - aimPoint.z);
   const basePos = hipPos.clone().lerp(adsPos, adsSmoothT);
 
-  // Gun drops out of the way while sprinting, sliding or vaulting.
-  const wantLower = (game.move.sprinting || game.move.stance === STANCE.SLIDE || game.move.busy) ? 1 : 0;
+  // Gun drops out of the way while sprinting, sliding, vaulting or rolling.
+  const wantLower = (game.move.sprinting || game.move.stance === STANCE.SLIDE || game.move.busy || combatRolling()) ? 1 : 0;
   game.weaponLowerT = damp(game.weaponLowerT, wantLower, 9, dt);
   // "Sling to the side" roll tracks the same sprint/lower gate, but at its
   // own (slightly slower) rate so the roll settles in a beat after the

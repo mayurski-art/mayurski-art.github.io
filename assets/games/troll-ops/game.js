@@ -1925,7 +1925,7 @@ const _netSnapshot = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, stance: null, moving:
 function netSnapshot() {
   _netSnapshot.x = move.pos.x; _netSnapshot.y = move.pos.y; _netSnapshot.z = move.pos.z;
   // Under the glider everyone else sees the wing's heading, not your look.
-  _netSnapshot.yaw = royale?.me === "glide" && royale.flight ? royale.flight.heading : look.yaw;
+  _netSnapshot.yaw = royale?.me === "glide" && royale.flight ? royale.flight.heading : game.combatRollYaw() ?? look.yaw;
   _netSnapshot.pitch = look.pitch;
   _netSnapshot.stance = move.stance; _netSnapshot.moving = move.moving;
   _netSnapshot.ads = player.holding === "gun" ? currentWeapon()?.adsT || 0 : 0;
@@ -1946,7 +1946,7 @@ function netSnapshot() {
   _netSnapshot.assists = player.assists;
   _netSnapshot.emote = emote ? emoteCode(emote.idx, emote.role) : 0;
   _netSnapshot.block = saberBlock.active;
-  _netSnapshot.roll = royaleRollK();
+  _netSnapshot.roll = Math.max(royaleRollK(), game.combatRollK());   // the landing roll, or a combat roll (core/combat-roll.js)
   _netSnapshot.drop = royaleDropCode();
   _netSnapshot.face = cosmetics.face;
   _netSnapshot.look = game.localRig.blocky?.token || 0;   // the TROLLS body worn, by token (cosmetics.js)
