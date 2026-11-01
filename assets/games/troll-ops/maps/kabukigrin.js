@@ -42,6 +42,7 @@ import { wetFloor, hangProbe } from "./wet-floor.js?v=wf1-ss1-ss2-ss3-tfm2";
 import { moneyRain } from "./club-money.js?v=mn2-kbc1-mn3-kbc2-kbc3";
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1-pm1-kco1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
+import { buildCctv, cctvFaces } from "./kabukigrin-cctv.js?v=sr1";
 import { buildLines } from "./kabukigrin-lines.js?v=cl1-kbc1-kbc2-kbc3";
 import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1-gb3-rh1-kb3-pm1-ss1-ss2-ss3-tfm2-rm1-ugb1-ug1-ugm1-nd1-kbc1-kbc2-kbc3";
 import { buildStreet, lightParlour, parlourColliders, parlourWall, MACHINES, PARLOUR, PLAY, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1-kb3-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
@@ -309,6 +310,8 @@ function buildClub(api) {
 
   // the borrowed rooms (doc 3.5 b, c, d): Studio's walls, these their insides
   buildRooms({ root, K, N, M, S, jpSign, sfx: CLUB.sfx });
+  // the office's security side and the club's CCTV (docs/KB-SECURITY-ROOM.md)
+  CCTV = buildCctv({ root });
   // the tatami room's candle lines (docs/CANDLE-LINES.md): the trays on its tables
   LINES = buildLines({ root });
   // and the street's (doc 3.5 a): the pachinko parlour across the line
@@ -482,6 +485,8 @@ const DRESS = (() => {
 
 // the candle lines' props and states, from the last build (kabukigrin-lines.js)
 let LINES = null;
+// the security room and its cameras, from the last build (kabukigrin-cctv.js)
+let CCTV = null;
 // the crowd: the same every build (seeded), made once
 let CAST = null;
 const cast = () => (CAST ??= kbNpcs({ DC, DANCE, deck: DECK }));
@@ -520,7 +525,7 @@ export const KABUKIGRIN = {
   bombSites: SITES.map((s) => (s.id === "A" ? { ...s, x: DC.x, y: FL, z: DC.z } : s)),
   spawns: SPAWNS,
   // the koi tank and the office's mirror first, then the club's signs and bottles
-  onShot: (p) => { if (!roomsShot(p)) CLUB.onShot(p); },
+  onShot: (p) => { if (!roomsShot(p) && !CCTV?.onShot(p)) CLUB.onShot(p); },
   attachAudio: CLUB.attachAudio,
   attachMusic: CLUB.attachMusic,
   // the club's clock and lights, the pachinko parlour's din, the train
@@ -539,11 +544,13 @@ export const KABUKIGRIN = {
     pachinko: () => ({ machines: MACHINES, play: PLAY, minX: PARLOUR.minX }),
     // the candle lines (modes/social-lines.js): the tatami tables' trays and their states
     lines: () => LINES,
+    // the security room (modes/social-cctv.js): the cameras, their feeds, the desk and the chair
+    cctv: () => CCTV,
   },
-  // the obstruction test's additions to models/kabukigrin-faces.json (the dug club and its signs)
+  // the obstruction test's additions to models/kabukigrin-faces.json (the dug club, its signs, the security room and its cameras)
   facesMore: () => {
-    const u = underFaces(), s = signFaces();
-    return { ...u, faces: [...u.faces, ...s.faces], props: [...u.props, ...s.props] };
+    const u = underFaces(), s = signFaces(), c = cctvFaces();
+    return { ...u, faces: [...u.faces, ...s.faces, ...c.faces], props: [...u.props, ...s.props, ...c.props], eyes: [...u.eyes, ...c.eyes] };
   },
   debug: () => ({ ...CLUB.debug(), rooms: roomsDebug(), ropes: ROPES.map((r) => ({ ...r })), sites: KABUKIGRIN.bombSites.map((s) => ({ ...s })), under: { FL, B1, CEIL } }),
 };

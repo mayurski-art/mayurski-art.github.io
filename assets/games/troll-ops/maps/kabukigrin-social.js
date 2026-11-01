@@ -111,6 +111,8 @@ for (const s of KB_SOFAS) {
 // the tatami room's cushions (on the mats, kneeling height) and the yokocho's stools
 const ZABUTON = [[-29.9, 25.2, "+z"], [-29.9, 26.6, "-z"], [-29.9, 27.6, "+z"], [-29.9, 29.0, "-z"], [-24.9, 26.0, "+z"], [-24.9, 28.0, "-z"]];
 for (const [x, z, face] of ZABUTON) seatAt(x, z, TATAMI + 0.12, TATAMI, FACE_YAW[face], "cushion", 0.6);
+// the security room's office chair at its desk, facing the monitor wall (kabukigrin-cctv.js CHAIR)
+seatAt(-9.75, 20.75, MEZZ + 0.48, MEZZ, FACE_YAW["-z"], "chair", 0.75);
 const YOKO_BARS = [[9.0, 1], [11.5, -1], [14.0, 1], [16.5, -1], [19.0, 1], [21.3, -1]];
 for (const [x, side] of YOKO_BARS) {
   for (const dx of [-0.55, 0.55]) seatAt(x + dx, side > 0 ? -3.68 : -2.32, 0.68, 0, side > 0 ? 0 : Math.PI, "stool", 0.5);

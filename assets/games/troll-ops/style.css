@@ -2273,6 +2273,30 @@ body.tf-booting :is(.to-radio, .to-x-link, .to-truths-link, #to-anim-debug) { di
 /* The radio's button is the main menu's only (user, 2026-11-01): in a match
    M still opens the radio (menu/radio.js), with no button on screen. */
 #to-title[hidden] ~ .to-radio .to-radio-toggle { display: none; }
+
+/* ---------- Security room: watching a camera (modes/social-cctv.js) ---------- */
+/* The game's view is the camera's; this greys it down and lays the CCTV
+   frame over it: scanlines, a dark edge, the label, the clock, REC. */
+.to-cctv { position: absolute; inset: 0; z-index: 30; pointer-events: none; font-family: "DM Mono", monospace; color: #e8fff0;
+  backdrop-filter: saturate(.32) contrast(1.08) brightness(1.45); -webkit-backdrop-filter: saturate(.32) contrast(1.08) brightness(1.45); }
+.to-cctv[hidden] { display: none; }
+.to-cctv::before { content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.6)); }
+.to-cctv-label, .to-cctv-time, .to-cctv-rec { position: absolute; background: rgba(0,0,0,.45); padding: 4px 9px; border-radius: 4px; font-size: 18px; letter-spacing: .04em; }
+.to-cctv-label { left: 24px; top: 20px; font-weight: 600; }
+.to-cctv-time { right: 24px; bottom: 22px; font-size: 15px; }
+.to-cctv-rec { right: 24px; top: 20px; font-size: 15px; display: flex; align-items: center; gap: 7px; }
+.to-cctv-rec i { width: 10px; height: 10px; border-radius: 50%; background: #ff3030; animation: to-cctv-blink 1s steps(1) infinite; }
+@keyframes to-cctv-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .to-cctv-rec i { animation: none; } }
+.to-cctv-hint { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); font-size: 13px; opacity: .8; }
+.to-cctv-btn { display: none; position: absolute; pointer-events: auto; width: 52px; height: 52px; border-radius: 12px; border: 1px solid rgba(232,255,240,.4);
+  background: rgba(0,0,0,.5); color: #e8fff0; font: 600 28px/1 "DM Mono", monospace; }
+.to-cctv-btn:focus-visible { outline: 3px solid #4fd8ff; outline-offset: 2px; }
+body.to-touch-play .to-cctv-btn { display: grid; place-items: center; }
+.to-cctv-prev { left: 20px; top: 50%; transform: translateY(-50%); }
+.to-cctv-next { right: 20px; top: 50%; transform: translateY(-50%); }
+.to-cctv-close { right: 20px; top: 62px; }
 @keyframes to-spin { to { transform: rotate(360deg); } }
 
 /* ---------- Radio ---------- */

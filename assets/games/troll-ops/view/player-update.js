@@ -49,6 +49,7 @@ import { updateDamageNumbers } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1
 import { chargedShotDef } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 import { updateBand } from "../modes/social-band.js?v=bd1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-gf1-tg1-tw1-arw1-su1-tcs1-er1-cl1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht1-ht2-bx1-ba1-sf1-cg1-hl1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2-kbc3";
 import { updateLines, linesCam } from "../modes/social-lines.js?v=cl1-kbc1-kbc2-kbc3";
+import { updateCctv, cctvView, placeCctvCamera } from "../modes/social-cctv.js?v=sr1";
 import { updateStonks, stonksSpeed } from "./stonks-fx.js?v=cl1-kbc1-kbc2-kbc3";
 import { updatePachinko } from "../modes/social-pachinko.js?v=pk1-kb3-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-tw1-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2-kbc3";
 import { game } from "../core/state.js?v=st1";
@@ -275,7 +276,7 @@ export function updatePlayer(dt) {
 
   // fist fights with the townsfolk (Socialize): after we've moved, so a
   // bump reads our speed and a knock-down holds us where we fell
-  if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); updateConductor(); updateSheriff(dt); updateBand(dt); updateShop(); updateComputers(); updateHorses(dt); updateSurf(); updateHoops(dt); updateTennis(dt); updateVball(dt); updateArmWrestle(dt); updateLines(dt); updatePhotoBooth(dt); updateJailbreak(dt); updatePachinko(); }
+  if (game.isSocial()) { duelFire(); updateDuel(dt); updateClubEntry(dt); updateConductor(); updateSheriff(dt); updateBand(dt); updateShop(); updateComputers(); updateHorses(dt); updateSurf(); updateHoops(dt); updateTennis(dt); updateVball(dt); updateArmWrestle(dt); updateLines(dt); updateCctv(); updatePhotoBooth(dt); updateJailbreak(dt); updatePachinko(); }
   updateTalk(dt);   // talking to an NPC (modes/npc-dialogue.js): the view on their face; closes itself off Socialize
 
   updateSwivel(dt);
@@ -386,6 +387,10 @@ export function updatePlayer(dt) {
     const dfFiring = (game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown;
     if (!game.localPauseOnly && (dfFiring || mouseSteering || touchState.looking || gp)) applyAimAssist(dt, DF_ASSIST_PULL, DF_ASSIST_CONE_DEG, DF_RANGE);
     if (!game.localPauseOnly && dfFiring) fireDragonfire();
+  } else if (cctvView()) {
+    // watching a security camera full screen (modes/social-cctv.js): its view, our body in it
+    game.localRig.root.visible = true;
+    placeCctvCamera(game.camera);
   } else if (warshipView()) {
     // Up in the VTOL's gunner seat; your body stands where you called it.
     game.localRig.root.visible = true;

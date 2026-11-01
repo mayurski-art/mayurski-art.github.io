@@ -5,7 +5,8 @@
 // noren, the lit bar doors and menus, the lanterns' glow, and the three
 // things that move: the koi tank (shot: the glass cracks, the fish scatter),
 // the office's one-way mirror (a mirror from the hall, glass from inside,
-// shot: a frame for a while) and the office's camera monitors.
+// shot: a frame for a while). (The office's monitors are the security
+// room's now: kabukigrin-cctv.js.)
 
 import * as THREE from "three";
 import { place, texMat, glowTexture } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
@@ -266,32 +267,6 @@ function koiTank(w, h) {
 
 /* The camera monitors on the manager's desk: four grainy feeds of the
    floor, a timestamp, the REC dot. One canvas, a few frames a second. */
-function camFeeds() {
-  const W = 256, H = 160;
-  const c = canvas(W, H, () => {});
-  const g = c.getContext("2d");
-  const tex = canvasTex(c);
-  const r = rng(3);
-  let last = 0;
-  function draw(now) {
-    for (let q = 0; q < 4; q++) {
-      const x0 = (q % 2) * 128, y0 = Math.floor(q / 2) * 80;
-      g.fillStyle = "#1a1f22"; g.fillRect(x0, y0, 128, 80);
-      for (let i = 0; i < 9; i++) {
-        const bx = x0 + 10 + ((i * 37 + now * (8 + q * 3) * (i % 2 ? 1 : -1)) % 108 + 108) % 108, by = y0 + 40 + Math.sin(now * 2 + i) * 6 + (i % 3) * 8;
-        g.fillStyle = `rgba(${140 + q * 20},${150},${160},.7)`; g.beginPath(); g.ellipse(bx, by, 4, 9, 0, 0, 7); g.fill();
-      }
-      for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(255,255,255,${r() * 0.12})`; g.fillRect(x0 + r() * 128, y0 + r() * 80, 1, 1); }
-      g.fillStyle = "#cfe"; g.font = "9px monospace"; g.fillText(`CAM ${q + 1}`, x0 + 4, y0 + 11);
-      if (q === 0 && Math.floor(now * 2) % 2) { g.fillStyle = "#f22"; g.beginPath(); g.arc(x0 + 118, y0 + 8, 3, 0, 7); g.fill(); }
-      g.strokeStyle = "#000"; g.lineWidth = 2; g.strokeRect(x0, y0, 128, 80);
-    }
-    tex.needsUpdate = true;
-  }
-  draw(0);
-  return { tex, tick(now) { if (now - last > 0.2) { last = now; draw(now); } } };
-}
-
 /* ============================================================== the rooms */
 
 export function buildRooms({ root, K, N, M, S, jpSign, sfx }) {
@@ -414,15 +389,6 @@ export function buildRooms({ root, K, N, M, S, jpSign, sfx }) {
   R.mirror = { ...MIR, until: 0 };
   const mend = () => { mirror.visible = smoked.visible = true; shards.visible = false; R.mirror.until = 0; };
   R.mirror.smash = (now) => { mirror.visible = smoked.visible = false; shards.visible = true; R.mirror.until = now + 90; };
-
-  // the camera monitors on the desk, facing the chair
-  const cams = camFeeds();
-  const screens = new THREE.Group();
-  for (const z of [20.95, 21.6, 22.25]) {
-    K.box(M.blackMetal, -13.42, 3.78, z, 0.05, 0.4, 0.58, {}, { shadow: false });
-    screens.add(new THREE.Mesh(place(new THREE.PlaneGeometry(0.54, 0.34), { x: -13.39, y: 4.0, z, ry: Math.PI / 2 }), new THREE.MeshBasicMaterial({ map: cams.tex, toneMapped: false })));
-  }
-  screens.children.forEach((m) => live(m, (now) => cams.tick(now)));
 
   /* ---- the yokocho in the Vents (3.5 b): six bar fronts, x 7 .. 23, z -4 .. -2 */
   const BARS = [
