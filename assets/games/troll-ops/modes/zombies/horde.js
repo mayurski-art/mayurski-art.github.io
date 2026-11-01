@@ -253,12 +253,13 @@ const SPAWN_NEAR = 8;         // m: no zombie comes in closer to the player than
 const SPAWN_SEEN = 18;        // m: ...nor inside this in the player's sight
 // A zombie that gets under STUCK_NET metres from where it was STUCK_WINDOW
 // seconds ago (and isn't busy at its target) side-steps; STUCK_MOVE such
-// windows in a row where nobody can see it and it comes back in at an
-// entry point, so a wave can't hang on one wedged beside a stair. Net
-// distance, not speed: shuffling on the spot moves, but gets nowhere.
+// windows in a row (or ones that got it no nearer) where nobody can see it
+// and it comes back in at an entry point, so a wave can't hang on one
+// wedged beside a stair. Net distance, not speed: shuffling on the spot
+// moves, but gets nowhere.
 const STUCK_WINDOW = 5;
 const STUCK_NET = 1.5;
-const STUCK_MOVE = 4;
+const STUCK_MOVE = 5;
 const BLOCKER_REACH = 0.2;    // metres from a deployable's box it stops and swings (up against it: on the spikes)
 
 /* The horde's health: +75 a round to round 9, then x1.055 compounding
@@ -1405,14 +1406,21 @@ export class ZombieDirector {
       || (Math.hypot(t.pos.x - p.x, t.pos.z - p.z) < z.type.attackRange + 0.6 && Math.abs(t.feetY - z.groundY) < 1.4);
     const moved = z.stuckAt ? Math.hypot(p.x - z.stuckAt.x, p.z - z.stuckAt.z) + Math.abs(z.groundY - z.stuckAt.y) : Infinity;
     z.stuckAt = { x: p.x, y: z.groundY, z: p.z };
-    if (busy || moved > STUCK_NET) { z.stuckS = 0; return; }
+    // ...and how near it has ever got: shuffling to and fro moves, but
+    // never gets any nearer (the chapel stair's side)
+    const near = Math.hypot(t.pos.x - p.x, t.pos.z - p.z) + 2 * Math.abs(t.feetY - z.groundY);
+    const closer = z.bestNear == null || near < z.bestNear - 1;
+    if (closer || z.bestFor !== t.id) { z.bestNear = near; z.bestFor = t.id; }
+    if (busy || (moved > STUCK_NET && closer)) { z.stuckS = 0; return; }
     z.stuckS = (z.stuckS || 0) + 1;
-    // off at right angles to the way it faces, either side
-    const yaw = z.mesh.rotation.y + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2;
-    z.unstickDir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
-    z.unstickT = 1.2;
-    z.climb = null;
-    if (z.stuckS >= STUCK_MOVE && tg.every((q) => !lineClear(this.colliders, p, q.pos, z.groundY))) {
+    if (moved <= STUCK_NET) {
+      // off at right angles to the way it faces, either side
+      const yaw = z.mesh.rotation.y + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2;
+      z.unstickDir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+      z.unstickT = 1.2;
+      z.climb = null;
+    }
+    if (z.stuckS >= STUCK_MOVE && tg.every((q) => Math.abs(q.feetY - z.groundY) > 2.5 || !lineClear(this.colliders, p, q.pos, z.groundY))) {
       const w = this.spawnPointFor({ x: t.pos.x, y: t.feetY + 0.2, z: t.pos.z });
       if (w) {
         p.set(w.x, w.y, w.z);
@@ -1420,6 +1428,7 @@ export class ZombieDirector {
         z.velocity.set(0, 0, 0);
         z.stuckS = 0;
         z.stuckAt = null;
+        z.bestNear = null;
       }
     }
   }
