@@ -1,7 +1,23 @@
 # Trolling Loud goes underground — DESIGN DOC
 
-Status: DRAFT 2026-10-31, waiting on the user's picks (section 9). Nothing
-is built. Branch `claude/tl-club-rebuild-a5cb58`.
+Status: APPROVED 2026-10-31 on all six picks as drafted; BUILT the same day
+on branch `claude/tl-club-rebuild-a5cb58` (not pushed). As built, it
+differs from this draft in four places, each found by a check:
+- The geometry is drawn in code (`maps/kabukigrin-under.js`), not
+  rebuilt in Blender: the old street-level club is cut out of the Blender
+  models at load (`cutOldClub`), and the dug club's near-black surfaces
+  need no bake.
+- The balcony's north arm stops at the front stair (x -27.8): running to
+  the west wall it crossed in front of the DJ's LED wall (rule 9). The
+  balcony bar moved to the north arm's east end; the hall's two screens
+  hang on the north and south walls under the arms, over the booths.
+- The DJ stair (S4) runs down the west wall from the south arm; the
+  stage is x -31.5 .. -28, z 8 .. 16.
+- Brightness: every club view averages 8 to 34 (today's hall 77); the
+  over-200 share is 0.1 to 4 % (target was 3 %): the lights are small in
+  a dark frame, and they read. One visibility spot is under 1.6: a player
+  on the north arm seen against the DJ's LED wall (head 1.17), a black
+  silhouette on the brightest thing in the room.
 
 The user's ask: the club is too bright with its lights on and sits
 awkwardly at the end of the street. Make it dark (the club's lights pop
