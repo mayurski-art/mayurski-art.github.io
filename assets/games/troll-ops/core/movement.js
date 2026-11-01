@@ -143,6 +143,10 @@ export class MovementController {
     };
 
     this.pos = new THREE.Vector3(0, 0, 8);      // feet
+    // a zombies run (modes/zombies/run.js): a mantle reaches 1.55 m from the
+    // ground under you, not from the top of a jump, so nothing a player can
+    // get up on is out of a zombie's climb (horde.js _vaultSpot)
+    this.mantleFromGround = false;
     this.velocity = new THREE.Vector3();
     this.stance = STANCE.STAND;
     this.grounded = true;
@@ -257,7 +261,9 @@ export class MovementController {
 
   /* Is there a mantle-able ledge directly ahead? Returns the landing spot. */
   findVault(dir) {
-    const feetY = this.pos.y;
+    const feetY = this.mantleFromGround && !this.grounded
+      ? groundHeightAt(this.colliders, this.pos.x, this.pos.z, this.pos.y + 0.05)
+      : this.pos.y;
     const probe = this.pos.clone().addScaledVector(dir, VAULT_REACH);
     let best = null;
     for (const c of this.colliders) {
