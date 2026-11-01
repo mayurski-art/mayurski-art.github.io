@@ -324,6 +324,23 @@ if (want("doors")) {
     await sleep(450);
     await page.screenshot({ path: path.join(SHOTS, `zecon-door-${map}-${d.id}-shut.png`) });
   }
+  // each fence's longest stretch, from the open side, for a look
+  const fences = await R(() => window.__trollOps.zrun().doors.st.fences.filter((f) => f.kind !== "invisible" && f.spans.length).map((f) => {
+    const s = f.spans.reduce((a, b) => (Math.hypot(b[2] - b[0], b[3] - b[1]) > Math.hypot(a[2] - a[0], a[3] - a[1]) ? b : a));
+    const len = Math.hypot(s[2] - s[0], s[3] - s[1]);
+    return { x: (s[0] + s[2]) / 2, z: (s[1] + s[3]) / 2, y: f.y ?? 0, ux: (s[2] - s[0]) / len, uz: (s[3] - s[1]) / len, len };
+  }));
+  for (const [i, f] of fences.entries()) {
+    if (f.len < 2) continue;
+    const s = await openSide(f);
+    await R(({ d, s }) => {
+      const T = window.__trollOps;
+      T.move.pos.set(d.x + d.uz * s * 4.5, d.y, d.z - d.ux * s * 4.5);
+      T.look.yaw = Math.atan2(d.uz * s, -d.ux * s); T.look.pitch = -0.08;
+    }, { d: f, s });
+    await sleep(400);
+    await page.screenshot({ path: path.join(SHOTS, `zecon-fence-${map}-${i}.png`) });
+  }
   // the first door: poor, then bought
   const d = info.doors.find((q) => q.between.includes(info.open[0]));
   const s = await openSide(d);
@@ -345,10 +362,14 @@ if (want("doors")) {
   await sleep(200);
   const after = await R((id) => {
     const T = window.__trollOps, D = T.zrun().doors, door = D.st.doors.find((q) => q.id === id);
-    return { open: door.open, solid: door.cols.some((c) => T.colliders.includes(c)), cash: T.zrun().econ.cash, areas: [...D.st.open], wins: T.zdir().windows.length, banner: document.querySelector(".zh-banner")?.textContent || "" };
+    return {
+      open: door.open, solid: door.cols.some((c) => T.colliders.includes(c)), cash: T.zrun().econ.cash, areas: [...D.st.open], wins: T.zdir().windows.length,
+      want: D.st.allWindows.filter((w) => D.zoneOpen(w)).length, banner: document.querySelector(".zh-banner")?.textContent || "",
+    };
   }, d.id);
   check(after.open && !after.solid && after.cash === 100, `bought: ${d.label} open, not solid, ${d.price} paid`, JSON.stringify(after));
-  check(d.between.every((a) => after.areas.includes(a)) && after.wins > w0, "its area opens, and its entry points with it", `${w0} -> ${after.wins} ${after.areas}`);
+  // (an area with no entry points of its own, a saloon, adds none)
+  check(d.between.every((a) => after.areas.includes(a)) && after.wins === after.want && after.wins >= w0, "its area opens, and its entry points with it", `${w0} -> ${after.wins} of ${after.want}, ${after.areas}`);
   check(/^New area: /.test(after.banner), "the banner names the new area", after.banner);
   await sleep(1200);
   await R(({ d, s }) => { const T = window.__trollOps; T.move.pos.set(d.x + d.uz * s * 3.2, d.y, d.z - d.ux * s * 3.2); }, { d, s });

@@ -30,6 +30,7 @@ const WALL_H = 3.4;       // its collider: taller than a jump off anything besid
 const TALL = 1.8;         // a collider this tall where a fence runs is a wall already (Hollowgrin's graveyard fence: 1.9)
 const STEP = 0.25;        // m along a fence line, testing for those walls
 const OPEN_TIME = 0.9;    // s, a gate swinging or debris falling apart
+const DOORWAY = 1.6;      // m: a boarded span shorter than this is a doorway (planks, no crates)
 
 const st = {
   map: null, areas: [], doors: [], fences: [], open: new Set(),
@@ -62,10 +63,53 @@ function applyWindows() {
 
 /* ------------------------------------------------------------ the look */
 
+/* Weathered boards: grain running along a plank, darker knots. `crate`
+   draws a crate's face instead: slats inside a frame and a cross brace. */
+function woodTexture(crate = false, seed = 5) {
+  const c = document.createElement("canvas");
+  c.width = 256; c.height = crate ? 256 : 64;
+  const g = c.getContext("2d");
+  let s = seed;
+  const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  g.fillStyle = "#9a7148"; g.fillRect(0, 0, c.width, c.height);
+  const grain = (x0, y0, w, h) => {
+    for (let i = 0; i < h / 3; i++) {
+      g.strokeStyle = `rgba(${60 + rnd() * 40 | 0},${38 + rnd() * 20 | 0},${20 + rnd() * 12 | 0},${0.25 + rnd() * 0.35})`;
+      g.lineWidth = 1 + rnd() * 1.5;
+      g.beginPath();
+      const y = y0 + rnd() * h;
+      g.moveTo(x0, y);
+      g.bezierCurveTo(x0 + w * 0.3, y + (rnd() - 0.5) * 4, x0 + w * 0.7, y + (rnd() - 0.5) * 4, x0 + w, y);
+      g.stroke();
+    }
+  };
+  if (!crate) {
+    grain(0, 0, c.width, c.height);
+    for (let k = 0; k < 2; k++) { g.fillStyle = "rgba(55,32,16,.55)"; g.beginPath(); g.ellipse(30 + rnd() * 200, 16 + rnd() * 32, 5 + rnd() * 4, 3, 0, 0, 7); g.fill(); }
+  } else {
+    for (let i = 0; i < 4; i++) { grain(0, i * 64, 256, 64); g.fillStyle = "rgba(40,24,12,.7)"; g.fillRect(0, i * 64, 256, 3); }
+    g.strokeStyle = "#5e4127"; g.lineWidth = 26; g.strokeRect(13, 13, 230, 230);
+    g.lineWidth = 22; g.beginPath(); g.moveTo(24, 232); g.lineTo(232, 24); g.stroke();
+    g.fillStyle = "#3a2614";
+    for (const [x, y] of [[13, 13], [243, 13], [13, 243], [243, 243]]) { g.beginPath(); g.arc(x, y, 3.5, 0, 7); g.fill(); }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
 const IRON = new THREE.MeshStandardMaterial({ color: 0x1a1b1f, metalness: 0.55, roughness: 0.55 });
-const WOOD = new THREE.MeshStandardMaterial({ color: 0x6b4a2e, roughness: 0.9 });
-const WOOD_DARK = new THREE.MeshStandardMaterial({ color: 0x4a3220, roughness: 0.92 });
-for (const m of [IRON, WOOD, WOOD_DARK]) m.userData.shared = true;
+IRON.userData.shared = true;
+let WOOD = null, WOOD_DARK = null, CRATE = null;
+/* The boards' materials, made the first time a barricade goes up. */
+function woodMats() {
+  if (WOOD) return;
+  WOOD = new THREE.MeshStandardMaterial({ map: woodTexture(false, 5), roughness: 0.88 });
+  WOOD_DARK = new THREE.MeshStandardMaterial({ map: woodTexture(false, 11), color: 0xc9b8a4, roughness: 0.9 });
+  CRATE = new THREE.MeshStandardMaterial({ map: woodTexture(true, 7), roughness: 0.85 });
+  for (const m of [WOOD, WOOD_DARK, CRATE]) m.userData.shared = true;
+}
 
 /* An iron railing from a to b on floor y: posts, bars, two rails, spear
    tips. One InstancedMesh per part, so a hundred metres is three draws. */
@@ -109,6 +153,7 @@ function railing(spans, y) {
 
 /* A barricade of planks and crates from a to b (Troll City's debris). */
 function barricade(ax, az, bx, bz, y, seed = 1) {
+  woodMats();
   const g = new THREE.Group();
   const len = Math.hypot(bx - ax, bz - az), yaw = Math.atan2(bx - ax, bz - az);
   g.position.set((ax + bx) / 2, y, (az + bz) / 2);
@@ -118,7 +163,7 @@ function barricade(ax, az, bx, bz, y, seed = 1) {
   // crates along the foot
   for (let t = -len / 2 + 0.5; t < len / 2 - 0.3; t += 1.05) {
     const k = 0.85 + rnd() * 0.2;
-    const c = new THREE.Mesh(new THREE.BoxGeometry(0.9 * k, 0.9 * k, 0.9 * k), rnd() < 0.5 ? WOOD : WOOD_DARK);
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.9 * k, 0.9 * k, 0.9 * k), CRATE);
     c.position.set((rnd() - 0.5) * 0.2, 0.45 * k, t);
     c.rotation.y = (rnd() - 0.5) * 0.3;
     g.add(c);
@@ -128,6 +173,26 @@ function barricade(ax, az, bx, bz, y, seed = 1) {
     const p = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, len + 0.3), rnd() < 0.5 ? WOOD : WOOD_DARK);
     p.position.set(0, h, 0);
     p.rotation.x = (rnd() - 0.5) * 0.12;
+    g.add(p);
+  }
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  return g;
+}
+
+/* Planks nailed across a doorway from a to b, a hand proud of the wall (a
+   door the map already has stays where it is, behind them). */
+function planks(ax, az, bx, bz, y, seed = 1, over = 0.25) {
+  woodMats();
+  const g = new THREE.Group();
+  const len = Math.hypot(bx - ax, bz - az), yaw = Math.atan2(bx - ax, bz - az);
+  g.position.set((ax + bx) / 2, y, (az + bz) / 2);
+  g.rotation.y = yaw;
+  let s = seed;
+  const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let h = 0.35; h < FENCE_H + 0.1; h += 0.3) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.2, len + over), rnd() < 0.5 ? WOOD : WOOD_DARK);
+    p.position.set(0, h, 0);
+    p.rotation.x = (rnd() - 0.5) * 0.16;
     g.add(p);
   }
   g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
@@ -229,7 +294,9 @@ function dropColliders(list) {
 
 function buildDoor(d, i) {
   const [ax, az] = d.a, [bx, bz] = d.b, y = d.y ?? 0;
-  const mesh = d.kind === "gate" ? gate(ax, az, bx, bz, y, d.pillars !== false) : barricade(ax, az, bx, bz, y, 7 + i * 13);
+  const mesh = d.kind === "gate" ? gate(ax, az, bx, bz, y, d.pillars !== false)
+    : d.kind === "planks" ? planks(ax, az, bx, bz, y, 7 + i * 13)
+    : barricade(ax, az, bx, bz, y, 7 + i * 13);
   mesh.name = `zdoor-${d.id}`;
   game.scene.add(mesh);
   const cols = lineColliders(ax, az, bx, bz, y, { zdoor: d.id });
@@ -351,17 +418,29 @@ export function startDoors(hooks = {}) {
     const spans = openSpans(f.a[0], f.a[1], f.b[0], f.b[1], y);
     const cols = spans.flatMap(([ax, az, bx, bz]) => lineColliders(ax, az, bx, bz, y, { zfence: true }));
     addColliders(cols);
-    // "boards": a boarded-up back door; "invisible": a window shut with no
+    // "boards": planks across a doorway (a span under DOORWAY: the line's
+    // gap is the frame's inside less a margin, so they reach over it), crates
+    // and planks across open ground; "invisible": a window shut with no
     // pane drawn (nothing in front of it, CLAUDE.md rule 9); else iron
     const mesh = f.kind === "boards"
-      ? (() => { const g = new THREE.Group(); for (const s of spans) g.add(barricade(...s, y, 3)); return g; })()
+      ? (() => {
+        const g = new THREE.Group();
+        spans.forEach((s, i) => {
+          const len = Math.hypot(s[2] - s[0], s[3] - s[1]);
+          g.add(len < DOORWAY ? planks(...s, y, 3 + i, 0.75) : barricade(...s, y, 3 + i));
+        });
+        return g;
+      })()
       : f.kind === "invisible" ? new THREE.Group() : railing(spans, y);
     mesh.name = "zfence";
     game.scene.add(mesh);
     st.fences.push({ ...f, spans, cols, mesh });
   }
   if (game.zdir && st.areas.length) {
-    st.allWindows = game.zdir.windows.slice();
+    // the map's own entry points, plus any the areas need (a start with no
+    // edge to come in over: zombies rise out of the ground there)
+    st.baseWindows = game.zdir.windows;
+    st.allWindows = [...st.baseWindows, ...(data.spawns || []).map(([x, z]) => ({ x, y: 0, z, rise: true }))];
     applyWindows();
   }
   match.zombieDoors = { near: nearDoor, buy: buyDoor, offer: doorOffer };
@@ -370,8 +449,8 @@ export function startDoors(hooks = {}) {
 export function clearDoors() {
   for (const d of st.doors) { dropColliders(d.cols); dispose(d.mesh); }
   for (const f of st.fences) { dropColliders(f.cols); dispose(f.mesh); }
-  if (st.allWindows && game.zdir) { game.zdir.windows = st.allWindows; game.zdir.fields?.clear?.(); }
-  st.doors = []; st.fences = []; st.areas = []; st.open.clear(); st.allWindows = null;
+  if (st.baseWindows && game.zdir) { game.zdir.windows = st.baseWindows; game.zdir.fields?.clear?.(); }
+  st.doors = []; st.fences = []; st.areas = []; st.open.clear(); st.allWindows = st.baseWindows = null;
   match.zombieDoors = null;
 }
 
