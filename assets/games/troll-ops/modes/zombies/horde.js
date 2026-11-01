@@ -1233,8 +1233,22 @@ export class ZombieDirector {
     this.round = n;
     this.toSpawn = Math.round(countForRound(n) * (1 + PER_PLAYER_COUNT * extra));
     this.maxAlive = MAX_ALIVE + PER_PLAYER_ALIVE * extra;
+    this.roundHeads = 1 + extra;
     this.spawnCd = 0.8;
     this.state = "spawning";
+  }
+
+  /* Co-op: a player counted after the wave began (still loading in when
+     the host started it) brings their share while it's still spawning. A
+     player leaving doesn't shrink it. Returns how many it added. */
+  growRound(players) {
+    if (this.state !== "spawning" || !(players > (this.roundHeads || 1))) return 0;
+    const more = players - (this.roundHeads || 1);
+    const add = Math.round(countForRound(this.round) * PER_PLAYER_COUNT * more);
+    this.toSpawn += add;
+    this.maxAlive += PER_PLAYER_ALIVE * more;
+    this.roundHeads = players;
+    return add;
   }
 
   /* The break between waves: over now (the run's Skip). */

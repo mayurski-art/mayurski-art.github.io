@@ -284,6 +284,8 @@ function hostSend(dt, zd) {
   for (const v of coop.votes) if (!ids.has(v)) coop.votes.delete(v);
   if (zd.state !== "between") { coop.votes.clear(); coop.myVote = false; }
   else if (coop.votes.size >= ids.size) zd.skipBreak();
+  // someone who finished loading after the wave began: their share of it
+  bossState.waveTotal += zd.growRound?.(ids.size) || 0;
 
   const w = waveWire(zd, ids.size);
   coop.own = w;
