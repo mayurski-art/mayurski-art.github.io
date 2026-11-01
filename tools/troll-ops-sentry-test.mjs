@@ -85,7 +85,7 @@ const deployed = await page.evaluate((SENTRY) => {
   if (!e) return null;
   return { d: +Math.hypot(e.pos.x - T.move.pos.x, e.pos.z - T.move.pos.z).toFixed(2), dy: +(e.pos.y - T.move.pos.y).toFixed(2), owned: e.owned };
 }, SENTRY);
-check("fired: a Sentry Gun goes down in front of the caller, on the floor", deployed && deployed.d > 0.5 && deployed.d < 2.5 && Math.abs(deployed.dy) < 0.6 && deployed.owned, deployed);
+check("fired: a Sentry Gun goes down near the caller (1-2.2 m out), on the floor", deployed && deployed.d > 0.95 && deployed.d < 2.5 && Math.abs(deployed.dy) < 0.6 && deployed.owned, deployed);
 await page.waitForFunction(() => { const e = [...window.__trollOps.streakEntities.values()].find((x) => x.constructor.name === "SentryGun"); return e && e.barrels && e.head && e.muzzleNode; }, null, { timeout: 20000 }).catch(() => {});
 // past the unfold (the head comes up the last 0.18 m as it arms)
 await page.evaluate(() => { const e = [...window.__trollOps.streakEntities.values()].find((x) => x.constructor.name === "SentryGun"); while (e.age < 1.5) e.update(0.05, null); });
@@ -129,7 +129,16 @@ const run = (pickEnemy, secs) => page.evaluate(([pickEnemy, secs]) => {
   const hp0 = b.hp;
   const targets = new Set();
   const shots0 = e.shots;
-  let spin = 0, firstShot = null, killedAt = null, laserOn = false;
+  let spin = 0, firstShot = null, killedAt = null, laserOn = false, worstLaser = 0, worstShot = 0, frames = 0;
+  // the barrels' line off the model: hub of the rotary cluster to the muzzle
+  const V = e.pos.constructor;
+  const axis = () => { e.root.updateMatrixWorld(true); const m = e.muzzleNode.getWorldPosition(new V()); return m.sub(e.barrels.getWorldPosition(new V())).normalize(); };
+  const fire0 = e.fire.bind(e);
+  e.fire = (deal) => {
+    const toT = e.target.chest.clone().sub(e.muzzleNode.getWorldPosition(new V())).normalize();
+    worstShot = Math.max(worstShot, axis().angleTo(toT) * 180 / Math.PI);
+    fire0(deal);
+  };
   // start it looking the other way: the worst case to turn round from
   e.headYaw = Math.atan2(-(at.x - e.pos.x), -(at.z - e.pos.z)) - e.yaw + Math.PI;
   for (let i = 0; i < secs * 20; i++) {
@@ -140,13 +149,20 @@ const run = (pickEnemy, secs) => page.evaluate(([pickEnemy, secs]) => {
     if (e.target) targets.add(e.target.id);
     if (firstShot == null && e.shots > shots0) firstShot = t;
     if (killedAt == null && !b.alive) killedAt = t;
+    if (e.laser.beam.visible) {
+      const ld = new V(0, 0, 1).applyQuaternion(e.laser.beam.quaternion);
+      worstLaser = Math.max(worstLaser, ld.angleTo(axis()) * 180 / Math.PI);
+      frames++;
+    }
     if (e.target && e.target.id === b.id && e.laser.beam.visible) {
       const end = e.muzzle.clone().add(new e.pos.constructor(0, 0, 1).applyQuaternion(e.laser.beam.quaternion).multiplyScalar(e.laser.beam.scale.z));
       if (end.distanceTo(new e.pos.constructor(at.x, at.y + 1.1, at.z)) < 0.6) laserOn = true;
     }
     spin = Math.max(spin, e.spinV);
   }
-  return { id: b.id, team: b.team, at, hp0, hp: b.hp, alive: b.alive, targets: [...targets], shots: e.shots - shots0, spin: +spin.toFixed(1), firstShot, killedAt, laserOn };
+  e.fire = fire0;
+  return { id: b.id, team: b.team, at, hp0, hp: b.hp, alive: b.alive, targets: [...targets], shots: e.shots - shots0, spin: +spin.toFixed(1), firstShot, killedAt, laserOn,
+    worstLaser: +worstLaser.toFixed(2), worstShot: +worstShot.toFixed(2), frames };
 }, [pickEnemy, secs]);
 
 // a teammate in plain view: left alone
@@ -159,6 +175,8 @@ check("an enemy in plain view is turned onto and killed", foe.id && foe.targets.
 check("the barrels spin while it fires", foe.spin > 10, foe);
 check("aimbot: from facing away, first round inside 0.8 s, dead inside 1.6 s", foe.firstShot != null && foe.firstShot <= 0.8 && foe.killedAt != null && foe.killedAt <= 1.6, { firstShot: foe.firstShot, killedAt: foe.killedAt });
 check("the red laser sits on the target while it's locked", foe.laserOn, { laserOn: foe.laserOn });
+check("the laser always comes straight out of the barrels (every frame, sweep and lock)", mate.frames > 20 && foe.frames > 20 && mate.worstLaser < 1 && foe.worstLaser < 1, { mate: mate.worstLaser, foe: foe.worstLaser });
+check("every round leaves with the barrels pointed at the target (within 3 deg)", foe.shots > 0 && foe.worstShot < 3, { worstShot: foe.worstShot });
 
 // never through a wall: every round is fired along a clear line
 const walls = await page.evaluate(() => {
@@ -241,6 +259,42 @@ const expiry = await page.evaluate(() => {
   return { gone: !T.streakEntities.has(e.id), t: +e.age.toFixed(1) };
 });
 check("it expires after 90 s", expiry.gone && Math.abs(expiry.t - 90) < 0.2, expiry);
+
+// facing a wall up close: it's set down with room all round, so the
+// barrels never poke through anything as it turns
+await page.evaluate(() => { const T = window.__trollOps; if (T.killcam.active) T.killcam.cancel(); });
+await page.waitForFunction(() => window.__trollOps.player.alive, null, { timeout: 30000 }).catch(() => {});
+const nearWall = await page.evaluate(() => {
+  const T = window.__trollOps, G = window.__sg.game;
+  if (!T.player.alive) return { dead: true };
+  for (const [id, x] of [...T.streakEntities]) if (x.constructor.name === "SentryGun") { x.dispose(); T.streakEntities.delete(id); }
+  const V = T.move.pos.constructor;
+  // walk up to the nearest wall and face it from 0.5 m off
+  const eye = T.move.pos.clone().setY(T.move.pos.y + 1);
+  let best = null;
+  for (let k = 0; k < 24; k++) {
+    const a = (k / 24) * Math.PI * 2, d = new V(-Math.sin(a), 0, -Math.cos(a));
+    const h = T.raycastWorld(G.colliders, eye, d, 30);
+    if (h < 30 && (!best || h < best.h)) best = { a, h, d };
+  }
+  if (!best) return { nowall: true };
+  T.move.pos.addScaledVector(best.d, Math.max(0, best.h - 0.5));
+  T.look.yaw = best.a;
+  T.streaks.grant("sentrygun");
+  T.fireStreak("sentrygun");
+  const e = [...T.streakEntities.values()].find((x) => x.constructor.name === "SentryGun");
+  if (!e) return { none: true };
+  const piv = e.pos.clone().setY(e.pos.y + 0.98);
+  let clear = Infinity;
+  for (let k = 0; k < 36; k++) {
+    const a = (k / 36) * Math.PI * 2;
+    clear = Math.min(clear, T.raycastWorld(G.colliders, piv, new V(Math.sin(a), 0, Math.cos(a)), 3));
+  }
+  const fromPlayer = Math.hypot(e.pos.x - T.move.pos.x, e.pos.z - T.move.pos.z);
+  e.dispose(); T.streakEntities.delete(e.id);
+  return { wallWas: +best.h.toFixed(2), clear: +clear.toFixed(2), fromPlayer: +fromPlayer.toFixed(2) };
+});
+check("set down facing a wall: at least 0.9 m clear all round (the barrels reach 0.78 m), near the caller", nearWall.clear >= 0.9 && nearWall.fromPlayer > 0.95 && nearWall.fromPlayer < 2.5, nearWall);
 
 // --- the look: a fresh one firing at an enemy, seen from beside it
 if (SHOT) {

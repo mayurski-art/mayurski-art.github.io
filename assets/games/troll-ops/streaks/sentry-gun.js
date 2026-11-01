@@ -14,6 +14,7 @@ import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
 import { streakEntities } from "./calling.js?v=sk1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pd1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-fs1-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ls4-gb4-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h";
 import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
+import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1-hb4";
 import { raycastWorld } from "../weapons/ballistics.js?v=cg1-wst-hf1-fu1b7-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-or1-gf1-tg1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 import { hasPerk, peerHas } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1";
 import { WEAPON_DEFS } from "../weapons/weapons.js?v=p5bm-wst-hf1-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
@@ -33,6 +34,8 @@ const LASER_ON = 0xff1e1e, LASER_IDLE = 0xb01010;
 const BARREL_SPIN = 28;                // rad/s, the rotary cluster at full spin
 const FLASH_TIME = 0.045;
 const CHEST = 1.1;                     // feet to chest
+const PIVOT = 0.98;                    // feet to the gun's trunnion: the barrels' line runs through it
+const CLEAR = 0.95;                    // metres kept open round it, past the barrels' 0.78 m reach
 const FX_DEF = WEAPON_DEFS.mtar || WEAPON_DEFS.problem416;
 
 let flashMat = null;
@@ -51,7 +54,7 @@ function muzzleFlashMat() {
   return flashMat;
 }
 
-const _dir = new THREE.Vector3(), _p = new THREE.Vector3(), _to = new THREE.Vector3();
+const _dir = new THREE.Vector3(), _p = new THREE.Vector3(), _to = new THREE.Vector3(), _back = new THREE.Vector3();
 
 /* The targeting laser: a thin red beam out along +Z (scaled to length)
    and a glowing dot where it lands. */
@@ -105,7 +108,8 @@ export class SentryGun {
     this.retargetT = 0;
     this.fireT = 0;
     this.shots = 0;
-    this.muzzle = new THREE.Vector3(x, y + 0.95, z);
+    this.muzzle = new THREE.Vector3(x, y + PIVOT, z);
+    this.eye = new THREE.Vector3(x, y + PIVOT, z);   // where it sees from: fixed, unlike the swinging muzzle
     this.flash = new THREE.Sprite(muzzleFlashMat());
     this.flash.visible = false;
     this.flashT = 0;
@@ -119,8 +123,9 @@ export class SentryGun {
     this.gunZ = 0;
     loadModel("zk-turret", {}).then((m) => {
       if (this.dead) return;
-      // the kit faces Blender +Y, which lands on +Z: turn it to face -Z
-      m.rotation.y = Math.PI;
+      // the sentry's barrels run along Blender +Y, which glTF lands on -Z:
+      // already facing the way the root does, so no half turn (that put the
+      // barrels backwards while the rounds went forwards)
       this.root.add(m);
       this.head = m.getObjectByName("turret_head");
       this.gun = m.getObjectByName("turret_gun");
@@ -154,11 +159,13 @@ export class SentryGun {
     return out;
   }
 
+  /* A clear line from its pivot (not the barrel tip, which swings round
+     and can end up behind cover while the gun turns). */
   canSee(chest) {
-    const d = chest.distanceTo(this.muzzle);
+    const d = chest.distanceTo(this.eye);
     if (d > SENTRY_RANGE) return false;
-    _dir.copy(chest).sub(this.muzzle).divideScalar(d);
-    return raycastWorld(game.colliders, this.muzzle, _dir, d) >= d - 0.4;
+    _dir.copy(chest).sub(this.eye).divideScalar(d);
+    return raycastWorld(game.colliders, this.eye, _dir, d) >= d - 0.4;
   }
 
   /* The nearest it can see, keeping the one it's on unless another is
@@ -167,7 +174,7 @@ export class SentryGun {
     let best = null, bestD = Infinity, cur = null;
     for (const c of this.candidates()) {
       if (!this.canSee(c.chest)) continue;
-      const d = c.chest.distanceTo(this.muzzle);
+      const d = c.chest.distanceTo(this.eye);
       if (this.target && c.id === this.target.id) cur = { c, d };
       if (d < bestD) { bestD = d; best = c; }
     }
@@ -209,9 +216,11 @@ export class SentryGun {
       const d = Math.atan2(Math.sin(want - this.headYaw), Math.cos(want - this.headYaw));
       const step = SENTRY_TURN * dt;
       this.headYaw += Math.max(-step, Math.min(step, d));
-      const pitch = Math.atan2(p.y - this.muzzle.y, Math.hypot(p.x - this.muzzle.x, p.z - this.muzzle.z));
+      const pitch = Math.atan2(p.y - this.eye.y, Math.hypot(p.x - this.eye.x, p.z - this.eye.z));
       this.gunPitch += (pitch - this.gunPitch) * Math.min(1, dt * 10);
-      const off = Math.abs(Math.atan2(Math.sin(want - this.headYaw), Math.cos(want - this.headYaw)));
+      if (this.head) this.head.rotation.y = this.headYaw;
+      if (this.gun) this.gun.rotation.x = this.gunPitch;
+      const off = this.barrelAxis(_to).angleTo(_p.copy(p).sub(this.muzzle).normalize());
       if (off < AIM_OK && this.onT >= SENTRY_REACT && this.fireT <= 0) {
         if (this.canSee(p)) this.fire(deal);
         else { this.target = null; this.retargetT = 0; }
@@ -230,9 +239,9 @@ export class SentryGun {
       this.head.rotation.y = this.headYaw;
     }
     if (this.gun) {
-      // the model is turned half round: its barrels run along +Z
-      this.gun.rotation.x = -this.gunPitch;
-      this.gun.position.z = this.gunZ - this.kick * 0.05;
+      // barrels along -Z: a positive turn about X lifts them; recoil is +Z
+      this.gun.rotation.x = this.gunPitch;
+      this.gun.position.z = this.gunZ + this.kick * 0.05;
     }
     this.aimLaser();
     const firing = this.target && this.fireT > 0;
@@ -264,7 +273,24 @@ export class SentryGun {
     if (this.shots % 2 === 0) game.audio.shot?.(FX_DEF, 0.32, this.muzzle);
   }
 
-  /* The beam out of the muzzle along the gun's line, stopped by the first
+  /* Where the barrels actually point, read off the model: from the
+     rotary cluster's hub out to the muzzle (user: never a laser one way and
+     the gun the other). Before the model is in, from the aim angles. */
+  barrelAxis(out) {
+    if (this.barrels && this.muzzleNode) {
+      this.root.updateMatrixWorld(true);
+      // the tip as it is now (rounds and the laser leave from here)
+      this.muzzleNode.getWorldPosition(this.muzzle);
+      out.copy(this.muzzle);
+      this.barrels.getWorldPosition(_back);
+      out.sub(_back);
+      if (out.lengthSq() > 1e-6) return out.normalize();
+    }
+    const yaw = this.yaw + this.headYaw, cp = Math.cos(this.gunPitch);
+    return out.set(-Math.sin(yaw) * cp, Math.sin(this.gunPitch), -Math.cos(yaw) * cp);
+  }
+
+  /* The beam out of the muzzle along the barrels, stopped by the first
      wall or the target's chest; brighter when it's on someone. */
   aimLaser() {
     const { beam, dot } = this.laser;
@@ -272,8 +298,8 @@ export class SentryGun {
     beam.visible = dot.visible = on;
     if (!on) return;
     if (!beam.parent) this.root.parent?.add(beam, dot);
-    const yaw = this.yaw + this.headYaw, cp = Math.cos(this.gunPitch);
-    _dir.set(-Math.sin(yaw) * cp, Math.sin(this.gunPitch), -Math.cos(yaw) * cp);
+    this.barrelAxis(_dir);
+    if (this.muzzleNode) this.muzzleNode.getWorldPosition(this.muzzle);
     let len = raycastWorld(game.colliders, this.muzzle, _dir, SENTRY_RANGE);
     if (this.target) len = Math.min(len, this.target.chest.distanceTo(this.muzzle));
     len = Math.max(0.05, Math.min(len, SENTRY_RANGE));
@@ -294,6 +320,57 @@ export class SentryGun {
     this.flash.parent?.remove(this.flash);
     this.root.parent?.remove(this.root);
   }
+}
+
+/* Room round a point at pivot height: the nearest wall in 12 directions. */
+function roomAt(p) {
+  const d = new THREE.Vector3();
+  let min = Infinity;
+  for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2;
+    min = Math.min(min, raycastWorld(game.colliders, p, d.set(Math.sin(a), 0, Math.cos(a)), CLEAR));
+  }
+  return min;
+}
+
+/* Where it goes down: 1-2.2 m out with CLEAR all round so the barrels can
+   turn without poking through anything. Ahead first, then to the sides,
+   then behind; failing all of those, ahead nudged off the walls. */
+export function sentryDeployPoint(from, yaw) {
+  const eye = new THREE.Vector3(from.x, from.y + PIVOT, from.z);
+  const dir = new THREE.Vector3();
+  for (const turn of [0, 0.5, -0.5, 1, -1, 1.6, -1.6, 2.3, -2.3, Math.PI]) {
+    const a = yaw + turn;
+    dir.set(-Math.sin(a), 0, -Math.cos(a));
+    const out = Math.min(2.2, raycastWorld(game.colliders, eye, dir, 2.2 + CLEAR) - CLEAR);
+    if (out < 1) continue;
+    const p = eye.clone().addScaledVector(dir, out);
+    const y = groundHeightAt(game.colliders, p.x, p.z, from.y + 1.5);
+    if (y == null || Math.abs(y - from.y) > 0.6) continue;
+    p.y = y + PIVOT;
+    if (roomAt(p) >= CLEAR - 0.02) return { x: p.x, y, z: p.z, yaw: a };
+  }
+  const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const ahead = Math.max(0, Math.min(2.2, raycastWorld(game.colliders, eye, fwd, 2.2 + CLEAR) - CLEAR));
+  const p = new THREE.Vector3(from.x + fwd.x * ahead, from.y + PIVOT, from.z + fwd.z * ahead);
+  const d = new THREE.Vector3();
+  for (let pass = 0; pass < 3; pass++) {
+    const push = new THREE.Vector3();
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2;
+      d.set(Math.sin(a), 0, Math.cos(a));
+      const hit = raycastWorld(game.colliders, p, d, CLEAR);
+      if (hit < CLEAR) push.addScaledVector(d, -(CLEAR - hit));
+    }
+    if (push.lengthSq() < 1e-6) break;
+    if (push.length() > 0.6) push.setLength(0.6);
+    // never pushed through something: only as far as it's open that way
+    const n = push.clone().normalize();
+    const room = raycastWorld(game.colliders, p, n, push.length() + 0.05);
+    p.addScaledVector(n, Math.max(0, Math.min(push.length(), room - 0.05)));
+  }
+  const y = groundHeightAt(game.colliders, p.x, p.z, from.y + 1.5) ?? from.y;
+  return { x: p.x, y, z: p.z, yaw };
 }
 
 export function spawnSentry({ id, owned, team, x, y, z, yaw, botId = null, ownerId = null }) {
