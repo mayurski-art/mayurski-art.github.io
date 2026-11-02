@@ -174,7 +174,7 @@ export function underColliders() {
   // the S4 slot's rail on the deck beside it
   box(-29.5, -29.4, S4_SLOT[2], S4_SLOT[3], B1, B1 + PAR, 4);
   // the two columns under the east arm's corners
-  for (const z of [12.3, 21.7]) box(-11.45, -11.05, z - 0.2, z + 0.2, FL, B1 - 0.4, 4);
+  for (const z of [12.4, 21.7]) box(-11.45, -11.05, z - 0.2, z + 0.2, FL, B1 - 0.4, 4);
   return C;
 }
 
@@ -268,7 +268,8 @@ export function buildUnderShell(K, N, M, UM) {
   for (const z of [14.5, 19.5]) uv(-8.75, z, 0.06, 1.4);
   for (const x of [-28, -24, -14, -9]) uv(x, 26, 1.4, 0.06);
   // the columns under the east arm
-  for (const z of [12.3, 21.7]) K.box(M.steel, -11.25, 0, z, 0.4, L(B1 - 0.4), 0.4);
+  // (12.4, not 12.3: at 12.3 its face sat on G1's tread front and flickered)
+  for (const z of [12.4, 21.7]) K.box(M.steel, -11.25, 0, z, 0.4, L(B1 - 0.4), 0.4);
 
   // the rails: glass panels between steel posts, a top rail
   const rail = (ax, az, bx, bz, y) => {
@@ -290,10 +291,14 @@ export function buildUnderShell(K, N, M, UM) {
 
   // the stairs: treads, a lit nosing on each, the open sides' rails
   const stairs = (s, rails = null) => {
-    const base = s.top === 0 ? L(B1 - 0.4) : -0.1;
+    // (a street stair's treads start a centimetre inside the arm's slab, not
+    // on its underside: the two bottoms fought, flickering, seen from below)
+    const base = s.top === 0 ? L(B1 - 0.4) + 0.01 : -0.1;
     const T = treads(s);
     T.forEach(([x, z, w, d, top], i) => {
-      const t = L(top);
+      // (a tread level with the floor it lands on sits a centimetre under it:
+      // the two tops fought)
+      const t = L(top) - (Math.abs(top - FL) < 1e-6 || Math.abs(top - B1) < 1e-6 ? 0.01 : 0);
       K.box(UM.step, x, base, z, w, t - base, d);
       const along = s.axis === "+x";
       // the nosing: the tread's leading edge
@@ -310,16 +315,20 @@ export function buildUnderShell(K, N, M, UM) {
   stairs(STAIRS.S2);
   stairs(STAIRS.G1, [-14.55]);
   stairs(STAIRS.S4, [-29.45]);
-  // the slots' walls (up to the parapet on the square) and rims
+  // the slots' walls (up to the parapet on the square) and rims. They start
+  // a centimetre up inside the arm's slab and stand a centimetre proud into
+  // the slot, so neither their bottoms nor their faces lie on the slab's
+  // underside or its cut edge (both flickered)
+  const IN = 0.01, LO = L(B1 - 0.4) + 2 * IN;   // (2: clear of the street stairs' tread bottoms)
   const wall = (ax0, ax1, az0, az1, y0, y1) => K.box(UM.concrete, (ax0 + ax1) / 2, y0, (az0 + az1) / 2, ax1 - ax0, y1 - y0, az1 - az0);
-  wall(-27.75, -27.5, 4.5, 9.9, L(B1 - 0.4), STL + 1.05);
-  wall(-24.5, -24.25, 4.5, 9.9, L(B1 - 0.4), STL + 1.05);
+  wall(-27.75, -27.5 + IN, 4.5 - IN, 9.9, LO, STL + 1.05);
+  wall(-24.5 - IN, -24.25, 4.5 - IN, 9.9, LO, STL + 1.05);
   wall(-27.75, -24.25, 9.9, 10.15, STL, STL + 1.05);
-  wall(-22, -16.6, 21.75, 22, L(B1 - 0.4), STL + 1.05);
-  wall(-22, -16.6, 24, 24.25, L(B1 - 0.4), STL + 1.05);
+  wall(-22, -16.6, 21.75, 22 + IN, LO, STL + 1.05);
+  wall(-22, -16.6, 24 - IN, 24.25, LO, STL + 1.05);
   wall(-16.6, -16.35, 21.75, 24.25, STL, STL + 1.05);
-  wall(-21.25, -21, 34.6, 40, L(B1 - 0.4), STL + 1.05);
-  wall(-19, -18.75, 34.6, 40, L(B1 - 0.4), STL + 1.05);
+  wall(-21.25, -21 + IN, 34.6, 40, LO, STL + 1.05);
+  wall(-19 - IN, -18.75, 34.6, 40, LO, STL + 1.05);
   wall(-21.25, -18.75, 34.35, 34.6, STL, STL + 1.05);
   // the dug ground's cut faces the wells show: earth behind the slot walls is
   // the walls themselves; the square's slab edge over each slot
@@ -499,7 +508,7 @@ export function underFaces() {
     props.push(box(`sofa-${i}`, [x - 1.5, B1, Math.min(z - dz * 0.46, z + dz * 0.45)], [x + 1.5, B1 + 0.9, Math.max(z - dz * 0.46, z + dz * 0.45)]));
   });
   for (const z of [14.5, 19.5]) props.push(box(`balcony-table-${z}`, [-9.12, B1, z - 0.32], [-8.48, B1 + 0.94, z + 0.32]));
-  for (const z of [12.3, 21.7]) props.push(box(`column-${z}`, [-11.45, FL, z - 0.2], [-11.05, B1 - 0.4, z + 0.2]));
+  for (const z of [12.4, 21.7]) props.push(box(`column-${z}`, [-11.45, FL, z - 0.2], [-11.05, B1 - 0.4, z + 0.2]));
   props.push(box("balcony-bar", [BALCONY_BAR.x - 2.05, B1, BALCONY_BAR.z - 0.525], [BALCONY_BAR.x + 2.05, B1 + 1.15, BALCONY_BAR.z + 0.525], "balcony-bottles"));
   props.push(box("dj-booth", [DECK.x - 0.45, FL + STAGE.top, DECK.z - 2.6], [DECK.x + 0.45, FL + STAGE.top + 1.1, DECK.z + 2.6], "crystal-top"));
   const eyes = [

@@ -75,6 +75,45 @@ VARIANTS["1718"] = dict(
         (0.59, 0.325, 0.095, 0.045, 0.004),  # lid over the eyeball (viewer's right)
         (0.50, 0.82, 0.27, 0.07, 0.006),     # chin
     ])
+# The Sad trollface (ui/trollface-sad.png, an expression anyone can pick;
+# user, 2026-11-01: "re-render it into a 3d head as well just like the
+# regular trollface one"): traits/face-sad-head.png is it letterboxed onto
+# the board's 512 x 480 as the game draws it (character.js SAD_CANVAS), so
+# the head's UVs land on the game's texture. Its own shape: the eyes sunk
+# under a heavy brow, the nose, the jowls and the hanging cheeks, the frown
+# pushed out a little, the chin.
+VARIANTS["sad"] = dict(
+    ART=os.path.join(K.HERE, "..", "traits", "face-sad-head.png"),
+    FEATURES=[
+        (0.55, 0.27, 0.30, 0.07, 0.010),     # brow, heavy over the eyes
+        (0.41, 0.335, 0.08, 0.05, -0.010),   # eye (viewer's left), sunk
+        (0.69, 0.33, 0.08, 0.05, -0.010),    # eye (viewer's right), sunk
+        (0.53, 0.47, 0.07, 0.07, 0.014),     # nose
+        (0.24, 0.56, 0.13, 0.15, 0.016),     # cheek and jowl (viewer's left), hanging
+        (0.80, 0.53, 0.10, 0.13, 0.012),     # cheek (viewer's right)
+        (0.71, 0.70, 0.14, 0.06, 0.010),     # the frown's lip, pushed out
+        (0.60, 0.79, 0.24, 0.07, 0.008),     # chin and jaw
+    ])
+# Ragebait (ui/trollface-ragebait.png, the user's drawing, refs/faces/ragebait;
+# user, 2026-11-01: "Need a 3D for this one. Call it ragebait"): the grin
+# stretched round a long jaw, a long nose drooping over the teeth (user:
+# "thats actually the nose", not a tongue), a squint.
+# traits/face-ragebait-head.png is it on the board's 512 x 480 (contain),
+# as the game draws it (character.js boardArt).
+VARIANTS["ragebait"] = dict(
+    ART=os.path.join(K.HERE, "..", "traits", "face-ragebait-head.png"),
+    FEATURES=[
+        (0.62, 0.62, 0.30, 0.17, 0.022),     # the grin's mass, jutting
+        (0.50, 0.44, 0.06, 0.06, 0.016),     # nose, its bridge and nostril
+        (0.585, 0.49, 0.07, 0.05, 0.020),    # nose, the long drop
+        (0.67, 0.535, 0.075, 0.065, 0.026),  # nose, the heavy tip hanging over the teeth
+        (0.25, 0.42, 0.13, 0.15, 0.016),     # cheek fold (viewer's left)
+        (0.86, 0.40, 0.09, 0.14, 0.016),     # cheek (viewer's right), swollen
+        (0.55, 0.23, 0.26, 0.07, 0.008),     # brow
+        (0.42, 0.32, 0.06, 0.04, -0.007),    # eye (viewer's left), squinting
+        (0.625, 0.31, 0.06, 0.04, -0.007),   # eye (viewer's right), squinting
+        (0.58, 0.82, 0.30, 0.08, 0.010),     # the long jaw and chin
+    ])
 ART = K.TROLLFACE_PNG
 if len(ARGS) >= 2 and ARGS[0] == "variant":
     globals().update(VARIANTS[ARGS[1]])

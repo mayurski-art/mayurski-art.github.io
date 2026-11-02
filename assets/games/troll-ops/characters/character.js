@@ -76,6 +76,36 @@ SAD_TEXTURE.colorSpace = THREE.SRGBColorSpace;
 const SAD_HEAD_MAT = TROLLFACE_HEAD_MAT.clone();
 SAD_HEAD_MAT.map = SAD_TEXTURE;
 SAD_HEAD_MAT.emissiveMap = SAD_TEXTURE;
+// the 3D trollface takes the sad face's own shape with it (blocky-body.js
+// setReliefFace, HEAD_MODELS.sad; user, 2026-11-01); a covering is drawn
+// for its art, where it sits on the board (coveringMaterial)
+SAD_HEAD_MAT.userData = { ...SAD_HEAD_MAT.userData, relief: "sad", art: new URL("../ui/trollface-sad.png", import.meta.url).href };
+
+/* A face drawing of its own on the head board: fitted whole (contain) onto
+   a transparent canvas of the board's 0.48 x 0.45, never stretched, and
+   worn by the 3D trollface in the shape built from that drawing
+   (blocky-body.js HEAD_MODELS[relief], build_blocky_head -- variant). */
+function boardArtMaterial(url, relief) {
+  const c = document.createElement("canvas");
+  c.width = 512; c.height = 480;
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const img = new Image();
+  img.onload = () => {
+    const k = Math.min(c.width / img.width, c.height / img.height), w = img.width * k, h = img.height * k;
+    c.getContext("2d").drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
+    tex.needsUpdate = true;
+  };
+  img.src = url;
+  const m = TROLLFACE_HEAD_MAT.clone();
+  m.map = m.emissiveMap = tex;
+  m.userData = { ...m.userData, relief, art: url };
+  return m;
+}
+// Ragebait (user, 2026-11-01: "Need a 3D for this one. Call it ragebait"):
+// the user's drawing (refs/faces/ragebait), a grin round a long jaw and a
+// long nose drooping over the teeth
+const RAGEBAIT_HEAD_MAT = boardArtMaterial(new URL("../ui/trollface-ragebait.png", import.meta.url).href, "ragebait");
 
 /* TROLLS #989's face (traits/src/face-gum.svg): the user's own drawing,
    squint, forehead lines and a kiss, no grin. The NFT's own face, worn by
@@ -124,7 +154,7 @@ HELLYA_HEAD_MAT.emissiveMap = HELLYA_TEXTURE;
    keys on the wire and in storage still read. `rig.face` is the rig's own
    pick; the Sad trollface emote swaps the expression for a moment. An NFT
    body with a face of its own sets `rig.nftFace`, worn over the pick. */
-const FACE_ART = { grin: TROLLFACE_HEAD_MAT, sad: SAD_HEAD_MAT, gum: GUM_HEAD_MAT, cracked: CRACKED_HEAD_MAT, goldtooth: GOLD_HEAD_MAT, relaxed: RELAXED_HEAD_MAT, hellya: HELLYA_HEAD_MAT };
+const FACE_ART = { grin: TROLLFACE_HEAD_MAT, sad: SAD_HEAD_MAT, ragebait: RAGEBAIT_HEAD_MAT, gum: GUM_HEAD_MAT, cracked: CRACKED_HEAD_MAT, goldtooth: GOLD_HEAD_MAT, relaxed: RELAXED_HEAD_MAT, hellya: HELLYA_HEAD_MAT };
 // every face glows under a map's blacklight (view/blacklight.js: Kabukigrin's club)
 for (const m of Object.values(FACE_ART)) blacklit(m);
 export function faceMaterial(key = "grin:og") {
@@ -135,8 +165,8 @@ export function faceMaterial(key = "grin:og") {
 
 /* Face coverings (cosmetics.js): a bandana tied over the lower face, drawn
    in the trollface's own style (user's reference: a flat colour with a
-   heavy black outline, knotted at the side, the grin still showing
-   through in the middle) on a board the size of the head, laid just in
+   heavy black outline, knotted at the side; solid now, no window for the
+   grin: user, 2026-11-01) on a board the size of the head, laid just in
    front of it and just behind it (the head is a flat double-sided board).
    The third part of the face key ("grin:og:bandana-blue"). */
 export const FACE_COVERINGS = {
@@ -146,64 +176,121 @@ export const FACE_COVERINGS = {
   "bandana-green": { fill: "#2f8a3a", shade: "#1e5a26" },
 };
 const COVER_TEX = new Map();
-export function coveringCanvas(id, art = null) {
+/* Where the bandana's top edge runs on each face's drawing (fractions of
+   that art from its top left): `top` its height at the left and right
+   edges, just under the eyes; `nose` where it tents up over the nose's
+   bridge. Everything of the face below that line is covered, out to the
+   face's own outline (user, 2026-11-01: "cover the lower face fully"). */
+export const MASK_FITS = {
+  grin: { top: [0.42, 0.41], nose: [0.49, 0.385] },
+  sad: { top: [0.38, 0.36], nose: [0.53, 0.335] },
+  ragebait: { top: [0.39, 0.37], nose: [0.50, 0.345] },
+};
+/* The bandana on one face's art, in that art's frame (800 wide): solid
+   cloth from just under the eyes to the chin, cut to the face's own outline
+   (its alpha), so it covers the lower face whatever shape the head is, and
+   its folds run from the nose down to wherever that face's chin points
+   (south-west on the trollface, south-east on another). In the trollface's
+   ink style: a heavy black outline round it, a stitched hem along the top,
+   shading toward the chin, the pattern. Nothing shows through (user,
+   2026-11-01: "the faces shouldnt be see through with the bandanas"). */
+export function coveringCanvas(id, art = null, fit = MASK_FITS.grin) {
   const spec = FACE_COVERINGS[id];
   const c = document.createElement("canvas");
-  c.width = 800; c.height = 730;   // the artwork's own size, so it lines up
-  const g = c.getContext("2d");
-  if (!spec) return c;
-  const band = new Path2D();
-  band.moveTo(48, 262);
-  band.bezierCurveTo(170, 300, 300, 318, 420, 318);
-  band.bezierCurveTo(560, 318, 680, 290, 772, 250);
-  band.bezierCurveTo(790, 330, 780, 430, 742, 520);
-  band.bezierCurveTo(700, 610, 650, 680, 590, 726);
-  band.bezierCurveTo(430, 700, 250, 650, 150, 590);
-  band.bezierCurveTo(80, 520, 40, 400, 48, 262);
+  c.width = 800;
+  c.height = art ? Math.round(800 * art.height / art.width) : 730;
+  const W = c.width, H = c.height, g = c.getContext("2d");
+  if (!spec || !art) return c;
+  // the face's outline: its art's alpha, at this size
+  const sil = document.createElement("canvas");
+  sil.width = W; sil.height = H;
+  const sg = sil.getContext("2d");
+  sg.drawImage(art, 0, 0, W, H);
+  const alpha = sg.getImageData(0, 0, W, H).data;
+  const solid = (x, y) => x >= 0 && y >= 0 && x < W && y < H && alpha[(y * W + x) * 4 + 3] > 128;
+  // the chin: the middle of the face's lowest rows
+  let chinY = H - 1;
+  while (chinY > 0 && ![...Array(W).keys()].some((x) => solid(x, chinY))) chinY--;
+  let sx = 0, n = 0;
+  for (let y = chinY; y > chinY - H * 0.04; y--) for (let x = 0; x < W; x++) if (solid(x, y)) { sx += x; n++; }
+  const chin = [n ? sx / n : W / 2, chinY];
+  // the top edge: under the eyes, tenting over the nose
+  const [tl, tr] = fit.top, [nx, ny] = fit.nose;
+  const topAt = (fx) => (tl + (tr - tl) * fx) * H;
+  const edge = new Path2D();
+  edge.moveTo(-20, topAt(0));
+  edge.bezierCurveTo(W * (nx - 0.2), topAt(nx - 0.2) + H * 0.02, W * (nx - 0.08), ny * H + H * 0.03, W * nx, ny * H);
+  edge.bezierCurveTo(W * (nx + 0.08), ny * H + H * 0.03, W * (nx + 0.2), topAt(nx + 0.2) + H * 0.02, W + 20, topAt(1));
+  const region = new Path2D(edge);
+  region.lineTo(W + 20, H + 20); region.lineTo(-20, H + 20); region.closePath();
   g.save();
-  g.clip(band);
-  g.fillStyle = spec.fill;
-  g.fillRect(0, 0, 800, 730);
-  // a darker fold under the chin
-  g.fillStyle = spec.shade;
-  g.beginPath();
-  g.moveTo(150, 590); g.bezierCurveTo(300, 660, 470, 700, 590, 726); g.lineTo(600, 640);
-  g.bezierCurveTo(470, 620, 320, 580, 170, 540); g.fill();
+  g.clip(region);
+  // the cloth, darker toward the chin
+  const grad = g.createLinearGradient(0, ny * H, 0, chin[1]);
+  grad.addColorStop(0, spec.fill); grad.addColorStop(0.55, spec.fill); grad.addColorStop(1, spec.shade);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, W, H);
+  // the pattern: paisley teardrops on a grid, or a fine weave
   if (spec.paisley) {
-    // the classic paisley teardrops and dots, in white
-    g.strokeStyle = "rgba(255,255,255,.8)"; g.fillStyle = "rgba(255,255,255,.8)"; g.lineWidth = 5;
-    for (const [x, y, r] of [[120, 420, 22], [210, 560, 18], [700, 360, 22], [660, 520, 20], [520, 640, 16]]) {
-      g.beginPath(); g.ellipse(x, y, r, r * 1.5, 0.6, 0, Math.PI * 2); g.stroke();
-      g.beginPath(); g.arc(x, y, r * 0.35, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "rgba(255,255,255,.75)"; g.fillStyle = "rgba(255,255,255,.75)"; g.lineWidth = 4;
+    for (let y = ny * H + 40, row = 0; y < H; y += 70, row++) {
+      for (let x = (row % 2) * 45 - 20; x < W + 40; x += 90) {
+        g.save(); g.translate(x, y); g.rotate(row % 2 ? 0.7 : -0.5);
+        g.beginPath(); g.moveTo(0, -18); g.bezierCurveTo(16, -10, 14, 12, 0, 16); g.bezierCurveTo(-12, 10, -10, -4, 0, -18); g.stroke();
+        g.beginPath(); g.arc(1, 4, 4, 0, Math.PI * 2); g.fill();
+        g.restore();
+        g.beginPath(); g.arc(x + 45, y + 8, 3, 0, Math.PI * 2); g.fill();
+      }
     }
+  } else {
+    g.strokeStyle = "rgba(0,0,0,.08)"; g.lineWidth = 2;
+    for (let x = -H; x < W; x += 14) { g.beginPath(); g.moveTo(x, H); g.lineTo(x + H, 0); g.stroke(); }
   }
-  // the grin shows through the middle, and the ink over all of it
-  const r = g.createRadialGradient(410, 450, 60, 410, 450, 300);
-  r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(0.7, "rgba(255,255,255,1)"); r.addColorStop(0.75, "rgba(255,255,255,0)");
-  g.fillStyle = r;
-  g.save(); g.scale(1, 0.62); g.translate(0, 450 / 0.62 - 450);
-  g.fillRect(0, 0, 800, 1200); g.restore();
-  if (art) { g.globalCompositeOperation = "multiply"; g.drawImage(art, 0, 0, 800, 730); g.globalCompositeOperation = "source-over"; }
+  // the folds: from the nose, fanning down to where the chin points
+  const from = [nx * W, ny * H + H * 0.08];
+  for (const k of [-0.32, -0.12, 0.1, 0.3]) {
+    const sx0 = from[0] + k * W * 0.35, ex = chin[0] + k * W * 0.55, ey = chin[1] - H * 0.06;
+    const cx = (sx0 + ex) / 2 + (chin[0] - from[0]) * 0.35, cy = (from[1] + ey) / 2;
+    g.lineCap = "round";
+    g.strokeStyle = "rgba(0,0,0,.30)"; g.lineWidth = 9;
+    g.beginPath(); g.moveTo(sx0, from[1]); g.quadraticCurveTo(cx, cy, ex, ey); g.stroke();
+    g.strokeStyle = "rgba(255,255,255,.16)"; g.lineWidth = 5;
+    g.beginPath(); g.moveTo(sx0 + 9, from[1] + 2); g.quadraticCurveTo(cx + 9, cy, ex + 9, ey); g.stroke();
+  }
+  // the hem along the top: a darker band, stitched
+  g.strokeStyle = spec.shade; g.lineWidth = 34; g.stroke(edge);
+  g.save(); g.translate(0, 26);
+  g.setLineDash([16, 12]); g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 4; g.stroke(edge);
   g.restore();
-  g.lineJoin = "round";
-  g.strokeStyle = "#0a0a0a"; g.lineWidth = 14;
-  g.stroke(band);
-  // the knot and its two ears, off the left side
-  const knot = (x, y, rx, ry, rot) => {
-    g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2);
-    g.fillStyle = spec.fill; g.fill(); g.lineWidth = 11; g.stroke();
-  };
-  knot(34, 178, 30, 60, 0.35);
-  knot(6, 268, 26, 54, -1.2);
-  knot(40, 250, 30, 30, 0);
-  g.lineWidth = 8;
-  g.beginPath(); g.moveTo(70, 300); g.lineTo(96, 360); g.moveTo(84, 285); g.lineTo(120, 300); g.stroke();
+  g.restore();
+  // its top edge inked
+  g.lineJoin = "round"; g.lineCap = "round";
+  g.strokeStyle = "#0a0a0a"; g.lineWidth = 12; g.stroke(edge);
+  // cut to the face's outline...
+  g.globalCompositeOperation = "destination-in";
+  g.drawImage(art, 0, 0, W, H);
+  g.globalCompositeOperation = "source-over";
+  // ...and inked round it where it meets the edge of the face
+  const d = g.getImageData(0, 0, W, H), px = d.data, R = 8;
+  const near = (x, y) => { for (let r = 1; r <= R; r += 2) if (!solid(x + r, y) || !solid(x - r, y) || !solid(x, y + r) || !solid(x, y - r)) return true; return false; };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = (y * W + x) * 4;
+    if (px[i + 3] > 0 && near(x, y)) { px[i] = px[i + 1] = px[i + 2] = 10; px[i + 3] = 255; }
+  }
+  g.putImageData(d, 0, 0);
   return c;
 }
-function coveringMaterial(id) {
-  let m = COVER_TEX.get(id);
+/* The covering's material for a face's art: the trollface's 800 x 730, or
+   a drawing of its own (`art`: its URL; the Sad trollface, Ragebait) fitted
+   whole on the board's 512 x 480 (SAD_CANVAS, boardArtMaterial): the same
+   bandana, drawn over that face's own art and put where that face is on its
+   canvas, so it lies over its lower face. */
+function coveringMaterial(id, art = "", fit = "grin") {
+  const key = `${id}|${art}|${fit}`;
+  let m = COVER_TEX.get(key);
   if (m) return m;
-  const c = coveringCanvas(id);
+  const c = document.createElement("canvas");
+  if (art) { c.width = 512; c.height = 480; } else { c.width = 800; c.height = 730; }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   m = new THREE.MeshStandardMaterial({
@@ -211,24 +298,73 @@ function coveringMaterial(id) {
     transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, roughness: 0.85,
     polygonOffset: true, polygonOffsetFactor: -2,
   });
+  const paint = (img) => {
+    const g = c.getContext("2d");
+    g.clearRect(0, 0, c.width, c.height);
+    if (!img) { t.needsUpdate = true; return; }
+    const cover = coveringCanvas(id, img, MASK_FITS[fit] || MASK_FITS.grin);
+    if (!art) g.drawImage(cover, 0, 0, c.width, c.height);
+    else {
+      // the drawing's own box on its canvas (contain, as the board draws it)
+      const k = Math.min(c.width / img.width, c.height / img.height), w = img.width * k, h = img.height * k;
+      g.drawImage(cover, (c.width - w) / 2, (c.height - h) / 2, w, h);
+    }
+    t.needsUpdate = true;
+  };
+  paint(null);
   // redraw with the ink once the artwork has loaded
   const img = new Image();
-  img.onload = () => { const d = coveringCanvas(id, img); c.getContext("2d").clearRect(0, 0, 800, 730); c.getContext("2d").drawImage(d, 0, 0); t.needsUpdate = true; };
-  img.src = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
-  COVER_TEX.set(id, m);
+  img.onload = () => paint(img);
+  img.src = art || new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
+  COVER_TEX.set(key, m);
   return m;
 }
-/* Wear (or take off) the covering named in the rig's face key. */
+/* Wear (or take off) the covering named in the rig's face key. On the flat
+   board it's a card in front and one behind. On the 3D trollface (blocky-
+   body.js setReliefFace, which every stick troll wears now) the cards sat
+   inside the head and only the knot poked out of its side (user,
+   2026-11-01: "the way the bandit bandana appears is weird"), so there it
+   is a skin of the face's own shape a few mm proud of it: the face's UVs
+   are the artwork's, the frame the bandana is drawn in, so it lies over the
+   nose and the grin where it should. Checked again every call: the 3D face
+   loads after the rig. */
+const COVER_OUT = 0.004;   // m the skin stands off the 3D face (before the rig's scale)
+const coverShells = new WeakMap();
+function coverShell(faceGeo) {
+  if (!coverShells.has(faceGeo)) {
+    const pos = faceGeo.attributes.position, nrm = faceGeo.attributes.normal;
+    const geo = faceGeo.clone();
+    const p = geo.attributes.position;
+    if (nrm) for (let i = 0; i < pos.count; i++) p.setXYZ(i, pos.getX(i) + nrm.getX(i) * COVER_OUT, pos.getY(i) + nrm.getY(i) * COVER_OUT, pos.getZ(i) + nrm.getZ(i) * COVER_OUT);
+    geo.userData.shared = true;
+    coverShells.set(faceGeo, geo);
+  }
+  return coverShells.get(faceGeo);
+}
 function syncCovering(rig) {
   const head = rig.parts?.head;
   if (!head || !head.userData.trollface) return;
   const id = String(rig.face || "").split(":")[2] || "";
-  if (rig.coveringShown === id) return;
+  const relief = head.children.find((o) => o.name === "relief-face" && o.userData.faceGeo) || null;
+  const on = relief || head;
+  // a drawing of its own on the board (Sad, Ragebait): the bandana drawn for it
+  const art = head.material?.userData?.art || "";
+  if (rig.coveringShown === id && rig.coveringOn === on && rig.coveringArt === art) return;
   rig.coveringShown = id;
-  for (const o of head.userData.covering || []) head.remove(o);
+  rig.coveringOn = on;
+  rig.coveringArt = art;
+  for (const o of head.userData.covering || []) o.parent?.remove(o);
   head.userData.covering = [];
   if (!FACE_COVERINGS[id]) return;
-  const mat = coveringMaterial(id);
+  const mat = coveringMaterial(id, art, head.material?.userData?.relief || "grin");
+  if (relief) {
+    const o = new THREE.Mesh(coverShell(relief.userData.faceGeo), mat);
+    o.renderOrder = 1;
+    o.castShadow = true;
+    relief.add(o);
+    head.userData.covering.push(o);
+    return;
+  }
   for (const z of [0.004, -0.004]) {
     const o = new THREE.Mesh(head.geometry, mat);
     o.position.z = z;

@@ -36,16 +36,17 @@ import { applyBakedLightMap, retexture, SURFACES } from "./surface-textures.js?v
 import { Kit, place } from "./trollcity-kit.js?v=tc2-wst-tc3-sh1-sr1-pf1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { U, Neon, neonMat, clubFx } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { newState, sign, addLight, danceFloor, djStage, chandelier, bottleWall, finishClub, clubEngine, clubMaterials } from "./club-live.js?v=cl1-kb4-kb6-kb11-tx1-ch1-sp1-hh1-yb1-kbt1-dj2-mn1-gr1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-kbc1-kbc2-kbc3";
-import { FL, B1, CEIL, CEILL, HALL, DANCE, DC, STAGE, DJ_WALL, DECK, TUNNEL, STAIRS as UNDER_STAIRS, WELLS, SCREENS, inOldHall, groundField, stairLink, underColliders, underMaterials, buildUnderShell, cutOldClub, underFaces } from "./kabukigrin-under.js?v=kbu1-kbc1-kbc2-kbc3";
-import { buildClubSigns, signFaces } from "./kabukigrin-club-signs.js?v=kcs1-kbc1-kbc2-kbc3";
+import { FL, B1, CEIL, CEILL, HALL, DANCE, DC, STAGE, DJ_WALL, DECK, TUNNEL, STAIRS as UNDER_STAIRS, WELLS, SCREENS, inOldHall, groundField, stairLink, underColliders, underMaterials, buildUnderShell, cutOldClub, underFaces } from "./kabukigrin-under.js?v=kbu1-kbc1-kbc2-kbc3-zf1-zft1";
+import { buildClubSigns, signFaces } from "./kabukigrin-club-signs.js?v=kcs1-kbc1-kbc2-kbc3-zf1-zft1";
 import { wetFloor, hangProbe } from "./wet-floor.js?v=wf1-ss1-ss2-ss3-tfm2";
 import { moneyRain } from "./club-money.js?v=mn2-kbc1-mn3-kbc2-kbc3";
 import { videoScreen } from "./video-wall.js?v=vw1-kb4-kb5-tx1-ch1-sp1-kbt1-pm1-kco1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { buildRooms, roomsShot, roomsDebug } from "./kabukigrin-rooms.js?v=kb6-kb8-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { buildCctv, cctvFaces } from "./kabukigrin-cctv.js?v=sr1";
+import { KB_ZFIX } from "./kabukigrin-zfix.js?v=zf1";
 import { buildLines } from "./kabukigrin-lines.js?v=cl1-kbc1-kbc2-kbc3";
-import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1-gb3-rh1-kb3-pm1-ss1-ss2-ss3-tfm2-rm1-ugb1-ug1-ugm1-nd1-kbc1-kbc2-kbc3";
-import { buildStreet, lightParlour, parlourColliders, parlourWall, MACHINES, PARLOUR, PLAY, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1-kb3-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
+import { KB_DOOR, KB_VIEW, kbNpcs, kbFreeSeats } from "./kabukigrin-social.js?v=kb9-tx1-ch1-sp1-kbt1-gb3-rh1-kb3-pm1-ss1-ss2-ss3-tfm2-rm1-ugb1-ug1-ugm1-nd1-kbc1-kbc2-kbc3-zf1-zft1-pqs1";
+import { buildStreet, lightParlour, parlourColliders, parlourWall, MACHINES, PARLOUR, PLAY, streetSound } from "./kabukigrin-street.js?v=kb10-kb11-kb12-tx1-ch1-sp1-kbt1-kb3-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-pqs1";
 import { buildSigns } from "./kabukigrin-signs.js?v=ks1-kbs1";
 import { game } from "../core/state.js?v=st1";
 import { buildTrain, trainFrame } from "./kabukigrin-train.js?v=kb14-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
@@ -218,6 +219,9 @@ function groundHole(ground, rects) {
   for (let i = 0; i < H.count; i++) uv.setXY(i, (H.getX(i) - x0) / (x1 - x0), (H.getY(i) - y0) / (y1 - y0));
   g.dispose();
   ground.geometry = hole;
+  // a centimetre under the street: it lay exactly on the paint and the
+  // pavements laid over it, and the two flickered (the zfight scan)
+  ground.position.y -= 0.01;
 }
 
 /* The dug hall's ceiling at `y` (the slab's underside): a neon ring, and a
@@ -275,7 +279,7 @@ function buildClub(api) {
   const near = (c) => c[0] > DANCE.x0 - 2.2 && c[0] < DANCE.x1 + 2 && c[2] > DANCE.z0 - 2 && c[2] < DANCE.z1 + 2;
   moneyRain(under, S, { spots: KB_PROPS.cash.filter(near), area: DANCE });
   // the bottles on the back bar under the east arm
-  bottleWall(UK, M, S, { x: -6.55, back: -6.52, z0: 13.5, z1: 20.5, y: 0, rows: 2, glow: { h: 1.7, y: 2.05 }, ghostH: 1.75 });
+  bottleWall(UK, M, S, { x: -6.6, back: -6.56, z0: 13.5, z1: 20.5, y: 0, rows: 2, glow: { h: 1.7, y: 2.05 }, ghostH: 1.75 });
   // what the builders kept in the group's frame, into the world's (the shots, the ball's orbit)
   for (let i = signs0; i < S.signs.length; i++) S.signs[i].y += FL;
   for (const b of S.bottleSegs) b.y += FL;
@@ -388,6 +392,7 @@ function loadModels(api) {
         for (const o of wood) clubFx(o.material, { wash: { color: 0xff2a3a, top: 3.2, strength: 0.5 } });
         gltf.scene.traverse((o) => { if (o.isMesh && o.material?.name === "GS_Paint") paintDetail(o.material, "kbfront", 0.45, 0.7); });
         clubOnTop(gltf.scene);
+        settleFights(gltf.scene);
         api.prop(gltf.scene);
       }).finally(done);
     }, undefined, (e) => { console.warn(`Kabukigrin: ${file} didn't load`, e); done(); });
@@ -423,6 +428,34 @@ function clubOnTop(scene) {
     }
     Object.assign(m, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 });
   }
+}
+
+/* The rest of the models' fights (light boxes, windows and shop fronts on
+   their walls, doubled facades and ground; user, 2026-11-01: "glitchy"):
+   each part kabukigrin-zfix.js lists draws that many polygon-offset units
+   nearer, on top of clubOnTop's, so one face of a pair always wins. A
+   material other parts share is copied for the part first. */
+function settleFights(scene) {
+  const copies = new Map();
+  const settled = (m, k) => {
+    const key = `${m.uuid}|${k}`;
+    if (!copies.has(key)) {
+      const c = m.clone();
+      c.onBeforeCompile = m.onBeforeCompile;
+      c.customProgramCacheKey = m.customProgramCacheKey;
+      Object.assign(c, { polygonOffset: true, polygonOffsetFactor: m.polygonOffset ? m.polygonOffsetFactor : 0, polygonOffsetUnits: (m.polygonOffset ? m.polygonOffsetUnits : 0) + k });
+      copies.set(key, c);
+    }
+    return copies.get(key);
+  };
+  scene.traverse((o) => {
+    if (!o.isMesh) return;
+    // the scan's key: the mesh's name (its parent's, for a GLB primitive with
+    // none) and the material's: a light box and its wall can share a name
+    const key = (m) => `${o.name || o.parent?.name}#${m.name}`;
+    if (Array.isArray(o.material)) o.material = o.material.map((m) => (KB_ZFIX[key(m)] ? settled(m, KB_ZFIX[key(m)]) : m));
+    else if (KB_ZFIX[key(o.material)]) o.material = settled(o.material, KB_ZFIX[key(o.material)]);
+  });
 }
 
 function buildKabukigrin(api) {

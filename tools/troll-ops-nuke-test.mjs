@@ -45,6 +45,7 @@ const STATE = "/assets/games/troll-ops/core/state.js?v=st1";
 const NUKE = "/assets/games/troll-ops/streaks/nuke.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/combat/scoring.js"), "utf8").match(/streaks\/nuke\.js\?v=([a-z0-9-]+)/)[1];
 // Same for the sky: read the tag nuke.js imports it under, so the test tints
 // and reads the one copy the game draws (a stale tag loads a second copy).
+const DEVICE = "/assets/games/troll-ops/streaks/nuke-device.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/streaks/nuke.js"), "utf8").match(/nuke-device\.js\?v=([a-z0-9-]+)/)[1];
 const SKY = "/assets/games/troll-ops/view/sky.js?v=" + fs.readFileSync(path.join(ROOT, "assets/games/troll-ops/streaks/nuke.js"), "utf8").match(/view\/sky\.js\?v=([a-z0-9-]+)/)[1];
 
 async function open(room, mode) {
@@ -120,6 +121,32 @@ if (!s.calling) {
 check(s.calling && s.holding === "streak" && s.kind === "nuke", "N raises the handheld", JSON.stringify({ calling: s.calling, holding: s.holding, kind: s.kind }));
 await sleep(1050);
 if (OUT) await a.screenshot({ path: path.join(OUT, "nuke-handheld-cover.png") });
+// The typing hand (user, 2026-11-01: "just use the hand itself"): the right
+// hand's target is on each key of the code as it goes in, on the red key at
+// the slam, and back on the grip after.
+{
+  const r = await a.evaluate(async ([d, n]) => {
+    const { buildNukeDevice, nukeHandTarget, NUKE_CODE: C } = await import(d);
+    const { NUKE } = await import(n);
+    const dev = buildNukeDevice();
+    const THREE = await import("three");
+    const p = new THREE.Vector3();
+    const keys = [...C.digits, "ENT"].map((label, i) => {
+      const k = nukeHandTarget(dev, C.at + i * C.step + 0.3 * C.step, NUKE.coverAt, NUKE.armAt, p);
+      const m = dev.userData.keys[label].mesh.position;
+      return { label, k, off: +Math.hypot(p.x - m.x, p.y - m.y).toFixed(4), up: +(p.z - (dev.userData.keys[label].z + 0.00225)).toFixed(4) };
+    });
+    const slamK = nukeHandTarget(dev, NUKE.armAt + 0.1, NUKE.coverAt, NUKE.armAt, p);
+    const red = dev.userData.key.position;
+    const slam = { k: slamK, off: +Math.hypot(p.x - red.x, p.y - red.y).toFixed(4) };
+    const after = nukeHandTarget(dev, NUKE.armAt + 1.2, NUKE.coverAt, NUKE.armAt, p);
+    const before = nukeHandTarget(dev, 0.05, NUKE.coverAt, NUKE.armAt, p);
+    return { keys, slam, after, before };
+  }, [DEVICE, NUKE]);
+  check(r.keys.every((x) => x.k === 1 && x.off < 0.001 && x.up < 0.006), "the hand taps every key of the code, ENT last", JSON.stringify(r.keys));
+  check(r.slam.k === 1 && r.slam.off < 0.001, "the hand is on the red key for the slam", JSON.stringify(r.slam));
+  check(r.before === 0 && r.after === 0, "the hand holds the grip before the code and after the slam", JSON.stringify({ before: r.before, after: r.after }));
+}
 s = await state(a);
 check(s.calling && !s.inbound, "not armed before the key goes down", JSON.stringify({ calling: s.calling, inbound: s.inbound }));
 // The hold runs on game time; two headless WebGL tabs can run it slower than
