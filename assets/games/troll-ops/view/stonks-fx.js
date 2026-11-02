@@ -1,7 +1,9 @@
 // Troll Forces: the stonks rush (docs/CANDLE-LINES.md 5), what a candle
 // line does to you after the snort (modes/social-lines.js L.done ticks).
 //
-// Rush, 20 s: you run a quarter faster, the room goes saturated with a
+// Rush, 12 s (v2, docs/KB-SECURITY-ROOM.md: it starts as the head comes up
+// off the desk, so about 8 s of it are left once you've climbed back over):
+// you run a quarter faster, the room goes saturated with a
 // green pull in the highlights and a touch more bloom, the lens opens a
 // few degrees, a fast tremor on the camera and a heartbeat on the vignette.
 // A translucent candlestick chart climbs up both edges of the screen, the
@@ -22,7 +24,7 @@ import { bloomActive } from "./post-look.js?v=hz1-kbk1-kbc1-kbc2-kbc3";
 import { linesSfx } from "../sound/lines-sfx.js?v=cl1-kbc1-kbc2-kbc3";
 
 export const STONKS = {
-  rush: 20, rug: 12, out: 2,
+  rush: 12, rug: 12, out: 2,
   rampIn: 0.6,
   speedRush: 1.25, speedRug: 0.85,
   sat: 1.6, satRug: 0.6,
