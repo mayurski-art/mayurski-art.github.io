@@ -112,11 +112,12 @@ export const hoopsHooks = {
   defenders: () => [],          // [{ x, z, jump }]: who contests our shot
   mates: () => [],              // [{ id, x, z }]: who we can pass to
   stealOdds: () => 1,           // (ball) a multiplier on a poke's odds
+  inGame: () => false,          // in a game to 11: the court camera stays on, ball or not
 };
 const fireHooks = (list, ...a) => { for (const fn of list) fn(...a); };
 const isNpc = (id) => typeof id === "string" && /^npc\d+$/.test(id);
 /* On court with a ball, or just shot it: the over-the-shoulder camera. */
-export const hoopsView = () => game.isSocial() && (!!H.ball || (!!H.shot && H.shot.t < 1.6));
+export const hoopsView = () => game.isSocial() && (!!H.ball || (!!H.shot && H.shot.t < 1.6) || hoopsHooks.inGame());
 
 /* ------------------------------------------------------------ the clips */
 
@@ -673,6 +674,8 @@ export function setBallLaunch(id, L, meta = {}) {
 }
 /* A ball into our hands (a check, the game's first possession). */
 export function giveBall(id) {
+  // the one we were carrying goes back on the cart (it used to hang in the air where the hand was)
+  if (H.ball && H.ball !== id) { const old = H.ball; dropBall(old); send({ e: "gone", id: old }); }
   const b = ballFor(id);
   b.holder = myId(); b.sim = null; b.keeper = myId(); b.grab = { by: myId(), at: roomNow() };
   H.ball = id; H.live = false; H.hand = 1; H.move = null; H.shot = null; H.act = null;

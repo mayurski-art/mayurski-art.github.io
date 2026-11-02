@@ -7067,7 +7067,7 @@ body.to-aboard #to-touch-endstreak { display: none !important; }
 .to-hoop-card i { font-style: normal; font-size: 11px; letter-spacing: 0.08em; color: #ffd23a; }
 .to-hoop-card__team { max-width: 9em; overflow: hidden; text-overflow: ellipsis; opacity: 0.75; }
 .to-hoop-card__team.is-poss { opacity: 1; }
-.to-hoop-card__team.is-poss::after { content: " CF"; color: #ff9500; font-size: 10px; }
+.to-hoop-card__team.is-poss::after { content: " \25CF"; color: #ff9500; font-size: 10px; }
 .to-hoop-card[hidden] { display: none; }
 @media (max-width: 760px) { .to-hoop-card { top: 44px; font-size: 12px; gap: 7px; padding: 5px 10px; } .to-hoop-card__team { max-width: 6em; } }
 
