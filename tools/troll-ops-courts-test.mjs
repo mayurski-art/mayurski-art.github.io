@@ -300,6 +300,16 @@ if (want("game")) {
   check("a game is waiting for players", !!g.s && (g.s.phase === "wait" || g.s.phase === "check"), JSON.stringify(g.s));
   g = await until((x) => x.s?.phase === "check");
   check("nobody came: A vs an NPC, the ball checked to A", g.s?.teams[0][0] && /^npc/.test(g.s?.teams[1][0] || "") && g.s.phase === "check" && g.s.holder === g.s.teams[0][0], JSON.stringify(g.s));
+  // the opening shots (modes/court-intro.js): A's camera is the cinematic's, the HUD steps aside, nobody shoots
+  const ci = await A.evaluate(() => window.__trollCourtIntro.state());
+  check("the opening plays on A: the other side, then us", !!ci && ci.sport === "hoops" && ci.bodyOn, JSON.stringify(ci));
+  await pumpAll(both, 1200);
+  await shot(A, "game-intro-foe");
+  await A.evaluate(() => { window.__trollHoops.H.autoRelease = 0.44; window.__trollHoops.startShot(); });
+  check("no shot during the opening", !(await HS(A)).shot, JSON.stringify((await HS(A)).shot));
+  for (let i = 0; i < 60 && (await A.evaluate(() => !!window.__trollCourtIntro.state())); i++) await pumpAll(both, 200);
+  check("and it hands back to the court camera", !(await A.evaluate(() => window.__trollCourtIntro.state())) && !(await A.evaluate(() => document.body.classList.contains("to-intro-on"))));
+  g = await until((x) => x.s?.phase === "check" || x.s?.phase === "live", 3000);
   // hold the check open while we try (slow frames could let it go live first)
   await A.evaluate(() => { window.__trollHoopsGame.G.s.checkAt = Date.now() + 1e9; });
   let h = await HS(A);
@@ -456,6 +466,14 @@ if (want("tennis")) {
   check("A vs the pro: a point is set to serve", t.s?.phase === "serve" && /^npc/.test(t.s.players[1] || ""), JSON.stringify(t.s));
   const pos = await A.evaluate(() => ({ x: window.__trollOps.move.pos.x, z: window.__trollOps.move.pos.z }));
   check("A is placed behind the near baseline", pos.z > C.z + C.dl, JSON.stringify(pos));
+  // the opening shots (modes/court-intro.js): the pro across the net, then A; no serve till they're done
+  const tci = await A.evaluate(() => window.__trollCourtIntro.state());
+  check("the match's opening plays on A", !!tci && tci.sport === "tennis", JSON.stringify(tci));
+  await pumpAll(both, 1200);
+  await shot(A, "tennis-intro-foe");
+  for (let i = 0; i < 60 && (await A.evaluate(() => !!window.__trollCourtIntro.state())); i++) await pumpAll(both, 200);
+  t = await TS(A);
+  check("nobody served during the opening", t.s?.phase === "serve" && !t.balls.some((b) => b.serve), JSON.stringify({ phase: t.s?.phase, balls: t.balls.map((b) => b.id) }));
   // play the point: serve if it's ours, then hit what comes, timed
   let rally = { aHits: 0, npcHits: 0 };
   const playPoint = async () => {

@@ -52,6 +52,7 @@ import { touchState } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1-nf1-fs1-tn13
 import { roomNow } from "./room-clock.js?v=rc1-cd1-sh1";
 import { hoopsWorld, newBall, advanceBall, solveShot, makeLaunch } from "./court-ball.js?v=gb5-gb8";
 import { courtSound } from "../sound/court-sfx.js?v=gb6";
+import { courtIntroOn } from "./court-intro.js?v=cti1";
 
 export const HOOPS = {
   reach: 2.3,                    // m from the cart to take a ball
@@ -435,9 +436,10 @@ export function updateHoops(dt) {
   }
   const now = performance.now(), rnow = roomNow();
   const gp = game.gamepadState?.connected;
-  const fire = !game.localPauseOnly && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
-  const jump = (game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space");
-  const sizeHeld = !!H.ball && !H.shot && ((game.isTouch && touchState.ads) || (gp && game.gamepadState.ads) || game.adsHeld || game.keys.has("KeyQ"));
+  const cine = courtIntroOn();   // the game's opening shots: hands off till the tip-off
+  const fire = !game.localPauseOnly && !cine && ((game.isTouch && touchState.firing) || (gp && game.gamepadState.firing) || game.mouseDown);
+  const jump = !cine && ((game.isTouch && touchState.jump) || (gp && game.gamepadState.jump) || game.keys.has("Space"));
+  const sizeHeld = !!H.ball && !H.shot && !cine && ((game.isTouch && touchState.ads) || (gp && game.gamepadState.ads) || game.adsHeld || game.keys.has("KeyQ"));
   if (!game.player.alive && H.ball) { const id = H.ball; dropBall(id); send({ e: "gone", id }); }
   H.stamina = Math.min(1, H.stamina + dt * (game.move.sprinting && H.ball ? -HOOPS.sprintCost : HOOPS.regen));
 

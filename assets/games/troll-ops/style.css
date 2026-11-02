@@ -7071,6 +7071,7 @@ body.to-aboard #to-touch-endstreak { display: none !important; }
 .to-hoop-card[hidden] { display: none; }
 @media (max-width: 760px) { .to-hoop-card { top: 44px; font-size: 12px; gap: 7px; padding: 5px 10px; } .to-hoop-card__team { max-width: 6em; } }
 
+.to-intro-on .to-court { visibility: hidden; }
 /* ── Friends drawer (menu/friends.js) ─────────────────────────────────── */
 .to-fr-btn { position: relative; }
 .to-fr-btn svg { width: 25px; height: 25px; }

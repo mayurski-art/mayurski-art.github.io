@@ -41,9 +41,11 @@ import { touchState } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1-nf1-fs1-tn13
 import { roomNow } from "./room-clock.js?v=rc1-cd1-sh1";
 import { tennisWorld, newBall, stepBall, advanceBall, makeLaunch, solveDrive, predict, HZ } from "./court-ball.js?v=gb5-gb8";
 import { courtSound } from "../sound/court-sfx.js?v=gb6";
+import { CI, startCourtIntro, stopCourtIntro, courtIntroOn } from "./court-intro.js?v=cti1";
 
 export const TN = {
   hopper: 2.2, chair: 2.6, wait: 4,
+  intro: CI.secs,                     // s of the opening shots before the first serve (court-intro.js)
   reach: 1.75,                        // m from the body a ball can be struck
   lead: [0.26, 0.6],                  // s before contact a press is on time
   pace: { flat: 27, top: 24, slice: 17, drop: 9, lob: 19, volley: 15, smash: 29 },
@@ -336,6 +338,7 @@ export function updateTennis(dt) {
     if (T.racket) { T.racket = false; holdRacket(game.localRig, false); }
     if (game.net) { game.net.tennisClip = 0; }
     cardHud(null);
+    if (M.s) { M.s = null; stopCourtIntro(); }
     return;
   }
   const now = roomNow();
@@ -349,7 +352,7 @@ export function updateTennis(dt) {
 
   // ---- our racket
   if (T.racket && game.player.alive) {
-    const press = fire && !fireWas;
+    const press = fire && !fireWas && !courtIntroOn();   // the match's opening shots: no strokes till the first serve
     if (press && !T.swing) {
       const myServe = inMatch && s.phase === "serve" && s.server === myId();
       if (T.toss && tballs.get(T.toss)?.sim && !tballs.get(T.toss).sim.rest) {
@@ -401,6 +404,7 @@ export function updateTennis(dt) {
   // ---- the match
   if (s?.host === myId()) hostFrame(S, s, dt);
   if (s) playerFrame(S, s);
+  if (s && s.introUntil && now < s.introUntil && s.players.includes(myId()) && M.introFor !== s.id) { M.introFor = s.id; openingShots(s); }
 
   // ---- the wire
   if (game.net) {
@@ -533,11 +537,14 @@ function hostFrame(S, s, dt) {
     }
     for (const id of s.players) { s.names[id] = nameOf(id); if (isNpc(id)) takeNpc(id); }
     s.first = Math.random() < 0.5 ? 0 : 1;
-    showWaveBanner(`${s.names[s.players[0]]} vs ${s.names[s.players[1]]}: a tiebreak to 7`, 2400);
+    // the opening shots (court-intro.js), on the room clock so every screen cuts together
+    s.introAt = now; s.introUntil = now + TN.intro * 1000;
+    setTimeout(() => { if (M.s === s) showWaveBanner(`${s.names[s.players[0]]} vs ${s.names[s.players[1]]}: a tiebreak to 7`, 2400); }, TN.intro * 1000 + 100);
     nextPoint(S, s);
     return;
   }
   if (s.phase === "over") { if (now >= s.overAt) endMatch(s); return publishG(); }
+  if (s.introUntil && now < s.introUntil) return publishG();   // the opening: nobody serves yet
   // the calls waiting out their grace
   for (let i = M.pending.length - 1; i >= 0; i--) {
     const c = M.pending[i];
@@ -633,7 +640,35 @@ function playerFrame(S, s) {
   const P = servePlaces(S, s)[myId()];
   if (P) { game.move.reset(P.x, P.z, 0.06); game.look.yaw = P.yaw; game.look.pitch = 0; }
   T.racket = true; T.toss = null; T.swing = null; setClip("tn-ready");
-  if (s.server === myId()) showWaveBanner(`${s.serveNo === 2 ? "Second serve" : "Your serve"}: fire to toss, fire at the top`, 1500);
+  if (s.server === myId()) {
+    const say = () => showWaveBanner(`${s.serveNo === 2 ? "Second serve" : "Your serve"}: fire to toss, fire at the top`, 1500);
+    const wait = (s.introUntil || 0) - roomNow();   // after the opening shots, not under them
+    if (wait > 0) setTimeout(() => { if (M.s === s && s.phase === "serve") say(); }, wait + 150); else say();
+  }
+}
+/* The match's opening (court-intro.js): the pro across the net, then you. */
+function yawOf(id) {
+  if (id === myId()) return game.look.yaw;
+  if (isNpc(id)) { const b = brains.get(id) || shown.get(id); return b ? b.yaw : game.townNpcs?.list?.[npcIndex(id)]?.yaw || 0; }
+  return game.remotes?.byId?.get(id)?.yaw || 0;
+}
+function posOf(id) {
+  if (id === myId()) return { x: game.move.pos.x, y: game.move.pos.y || 0, z: game.move.pos.z };
+  if (isNpc(id)) { const b = brains.get(id) || shown.get(id); if (b) return { x: b.sx ?? b.x, y: 0.05, z: b.sz ?? b.z }; const n = game.townNpcs?.list?.[npcIndex(id)]; return n ? { x: n.x, y: n.c.y || 0, z: n.z } : null; }
+  const r = game.remotes?.byId?.get(id);
+  return r ? { x: r.pos.x, y: r.pos.y, z: r.pos.z } : null;
+}
+function openingShots(s) {
+  const me = s.players.indexOf(myId()), opp = s.players[1 - me];
+  const nm = (id) => s.names?.[id] || nameOf(id);
+  startCourtIntro({
+    id: s.id, sport: "tennis", at: s.introAt, until: s.introUntil,
+    kicker: "Troll Beach · centre court", title: "TENNIS", sub: `${nm(s.players[0])} vs ${nm(s.players[1])} · tiebreak to ${TN.to}`,
+    foeName: nm(opp), usName: nm(myId()),
+    foes: [opp], us: [myId()],
+    actor: (id) => { const p = posOf(id); return p && { name: nm(id), x: p.x, y: p.y, z: p.z, yaw: yawOf(id) }; },
+    self: () => ({ feet: game.move.pos, yaw: game.look.yaw, name: nm(myId()) }),
+  });
 }
 
 /* ------------------------------------------------------------ the NPCs */
