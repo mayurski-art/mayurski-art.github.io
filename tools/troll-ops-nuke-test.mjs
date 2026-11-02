@@ -185,11 +185,15 @@ const lim = await a.evaluate(async (u) => {
 }, STATE);
 check(lim.state === "playing", "the score limit waits for the nuke", JSON.stringify(lim));
 // Spy on the result each tab files at the end (won or not).
-for (const p of [a, b]) await p.evaluate(() => {
+for (const p of [a, b]) await p.evaluate(async (u) => {
   const acc = window.TrollrunnerAccounts || (window.TrollrunnerAccounts = {});
   const orig = acc.reportGameResult;
   acc.reportGameResult = (g, s, o) => { window.__nukeResult = o; return orig?.(g, s, o); };
-});
+  // every end the match is given, in order (one result per match)
+  const { game } = await import(u);
+  const end = game.endMatch;
+  game.endMatch = (t, o) => { (window.__ends ||= []).push({ title: t, won: o?.won, state: game.gameState }); return end(t, o); };
+}, STATE);
 
 const leftNow = (await state(a)).left;
 await sleep(Math.max(0, (leftNow - 1.8) * 1000));
@@ -244,7 +248,11 @@ const ends = await Promise.all([a, b].map((p) => p.evaluate(async ({ n, s }) => 
   const { skyMat } = await import(s);
   return {
     state: window.__trollOps.state(), title: document.getElementById("to-go-title")?.textContent || "",
-    won: window.__nukeResult?.won ?? null, team: window.__trollOps.net.team, inbound: !!nuke.inbound,
+    // the result this tab's match ended with: the nuke fixes it (endMatch's
+    // won). (A guest files nothing to the server, and the two tabs share one
+    // localStorage, so the stored result can be either tab's.)
+    won: window.__nukeResult?.won ?? window.__ends?.at(-1)?.won ?? null, team: window.__trollOps.net.team, inbound: !!nuke.inbound,
+    ends: window.__ends || [],
     sky: skyMat.uniforms.uTop.value.getHexString(), white: document.querySelector(".to-nuke-white")?.hidden ?? true,
   };
 }, { n: NUKE, s: SKY })));
@@ -252,7 +260,7 @@ const [ea, eb] = ends;
 check(ea.state !== "playing" && eb.state !== "playing", "the match ends after the blast on both tabs", JSON.stringify({ a: ea.state, b: eb.state }));
 check(ea.title === "You went nuclear", "the caller's end screen", ea.title);
 check(eb.title === `${name} went nuclear`, "the other tab's end screen names the caller", eb.title);
-check(ea.won === true, "the caller wins", JSON.stringify(ea.won));
+check(ea.won === true, "the caller wins", JSON.stringify({ won: ea.won, ends: ea.ends }));
 check(eb.won === (eb.team === ea.team), "the other tab's result follows the caller's side", JSON.stringify({ won: eb.won, teams: [ea.team, eb.team] }));
 check(!ea.inbound && !eb.inbound && ea.white && eb.white, "the blast is cleaned up");
 check(eb.sky === skyBase, "the sky comes back", `${eb.sky} vs ${skyBase}`);
