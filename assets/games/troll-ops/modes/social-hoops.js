@@ -53,6 +53,7 @@ import { roomNow } from "./room-clock.js?v=rc1-cd1-sh1";
 import { hoopsWorld, newBall, advanceBall, solveShot, makeLaunch } from "./court-ball.js?v=gb5-gb8";
 import { courtSound } from "../sound/court-sfx.js?v=gb6";
 import { courtIntroOn } from "./court-intro.js?v=cti1";
+import { shotMeter, shotWord, callout, stamina as staminaHud, courtHudOff } from "./court-hud.js?v=chd1";
 
 export const HOOPS = {
   reach: 2.3,                    // m from the cart to take a ball
@@ -79,6 +80,7 @@ const MOVES = {
   spin: { clip: "hoop-spin", dur: 0.5, swap: true, burst: [1, 0.7, 3.2], at: [0.08, 0.46], cost: 0.14, brk: 0.7, full: true },
   stepback: { clip: "hoop-stepback", dur: 0.46, swap: false, burst: [0, -1, 4.6], at: [0.04, 0.3], cost: 0.12, brk: 0.6, full: true, gather: true },
 };
+const MOVE_NAMES = { cross: "CROSSOVER", behind: "BEHIND THE BACK", hesi: "HESITATION", inout: "IN & OUT", spin: "SPIN MOVE", stepback: "STEP-BACK" };
 export const CLIP_IDS = ["hoop-dribble-r", "hoop-dribble-l", "hoop-cross", "hoop-behind", "hoop-hesi", "hoop-spin", "hoop-stepback",
   "hoop-jumper", "hoop-layup", "hoop-dunk", "hoop-pass", "hoop-stance", "hoop-steal", "hoop-block", "hoop-grab", "hoop-hold"];
 const FULL_BODY = new Set(["hoop-spin", "hoop-stepback", "hoop-jumper", "hoop-layup", "hoop-dunk", "hoop-block", "hoop-grab", "hoop-steal"]);
@@ -191,8 +193,10 @@ function onEvents(b, evs) {
       courtSound("swish", at, 1);
       b.hoopT = 0; b.hoop = e.hoop;
       if (b.shooter === myId()) {
-        const word = b.dunk ? "SLAM DUNK" : e.clean ? (b.pts > 1 ? "SPLASH" : "SWISH") : "BUCKET";
-        showWaveBanner(`${word}  +${b.pts}`, 1500);
+        const word = b.dunk ? (b.poster ? "POSTERIZED" : "SLAM DUNK") : e.clean ? (b.pts > 1 ? "SPLASH" : "SWISH") : "BUCKET";
+        // under the release grade while it's still up, else its own pop
+        if (H.feedback && H.feedback.t < 1.1 && !b.dunk) H.feedback.sub = `${word} +${b.pts}`;
+        else callout(`${word}  +${b.pts}`, "big", 1500);
         H.last = { made: true, clean: e.clean, pts: b.pts };
       }
       fireHooks(hoopsHooks.onScore, b, e);
@@ -283,8 +287,11 @@ function moveFor(f, jump) {
 function startMove(name) {
   const def = MOVES[name];
   if (!def || H.stamina < def.cost * 0.5) return;
-  H.move = { name, def, t: 0, from: H.hand, mirror: H.hand < 0 };
+  const chained = H.lastMoveEnd > 0 && performance.now() / 1000 - H.lastMoveEnd < HOOPS.chain + 0.1;
+  H.move = { name, def, t: 0, from: H.hand, mirror: H.hand < 0, chained };
   H.lastMove = name;
+  H.combo = chained ? (H.combo || 1) + 1 : 1;
+  callout(H.combo > 1 ? `${MOVE_NAMES[name]} · COMBO x${H.combo}` : MOVE_NAMES[name], H.combo > 1 ? "big" : "move");
   H.stamina = Math.max(0, H.stamina - def.cost);
   setClip(def.clip, H.hand < 0);
   H.clipAt = roomNow();
@@ -328,7 +335,12 @@ function startShot(S) {
     contest = Math.max(contest, Math.min(1, (1.6 - dd) / 1.1 + (df.jump ? 0.35 : 0)));
   }
   const w = HOOPS.window * Math.max(0.45, Math.min(1.15, 1.25 - 0.07 * d)) * (sp > 1 ? 0.8 : 1) * (away ? 0.75 : 1) * (0.6 + 0.4 * H.stamina) * (1 - 0.55 * contest);
-  H.shot = { kind, t: 0, rim, d, w, contest, released: kind !== "jumper", rel: null, launched: false, mirror, start: { x: p.x, y: p.y, z: p.z }, to, jumped: false, fade: away };
+  // what the meter calls it (2K's shot names)
+  const stepback = H.lastMove === "stepback" && performance.now() / 1000 - H.lastMoveEnd < 0.6;
+  const label = kind === "dunk" ? (contest > 0.3 ? "CONTESTED DUNK" : "DUNK") : kind === "layup" ? (mirror ? "LEFTY LAYUP" : sp > 3.5 ? "EURO STEP" : "LAYUP")
+    : away ? "FADEAWAY" : stepback ? "STEP-BACK" : sp > 1 ? (d < 3 ? "FLOATER" : "PULL-UP") : d >= HOOPS.arc ? "THREE" : "JUMPER";
+  H.shot = { kind, t: 0, rim, d, w, contest, released: kind !== "jumper", rel: null, launched: false, mirror, start: { x: p.x, y: p.y, z: p.z }, to, jumped: false, fade: away, label, poster: kind === "dunk" && contest > 0.3 };
+  if (kind === "dunk") callout(label === "DUNK" ? "TAKING FLIGHT" : "OVER THE TOP", "big", 900);
   H.move = null;
   setClip(kind === "jumper" ? "hoop-jumper" : kind === "layup" ? "hoop-layup" : "hoop-dunk", mirror);
   if (kind === "layup") m.impulse(to.x * Math.min(3.2, d * 1.3), 4.4, to.z * Math.min(3.2, d * 1.3), 0.55);
@@ -388,7 +400,7 @@ function launchShot(S, s) {
     L.by = myId();
   }
   b.sim = newBall(W, L);
-  b.holder = null; b.keeper = myId(); b.shooter = myId(); b.dunk = s.kind === "dunk";
+  b.holder = null; b.keeper = myId(); b.shooter = myId(); b.dunk = s.kind === "dunk"; b.poster = !!s.poster;
   b.pts = Math.hypot(s.start.x - s.rim.x, s.start.z - s.rim.z) >= HOOPS.arc ? 2 : 1;
   b.sentAt = b.launchedAt = performance.now();
   send({ e: "launch", id: b.id, L, pts: b.pts, dunk: b.dunk ? 1 : 0 });
@@ -430,7 +442,7 @@ export function updateHoops(dt) {
     if (balls.size) for (const id of [...balls.keys()]) dropBall(id);
     H.ball = null; H.shot = null; H.move = null;
     if (game.net) game.net.hoopBall = null;
-    meterHud(null);
+    courtHudOff();
     fireHooks(hoopsHooks.onFrame, dt, null);
     return;
   }
@@ -555,6 +567,7 @@ export function updateHoops(dt) {
   }
   if (H.feedback) H.feedback.t += dt;
   meterHud(H.shot?.kind === "jumper" ? H.shot : null);
+  staminaHud(H.ball || H.shot || hoopsHooks.inGame() ? H.stamina : null);
   fireHooks(hoopsHooks.onFrame, dt, S);
 }
 function grabBall(b) {
@@ -634,8 +647,8 @@ function trySteal(S) {
       b.sim = newBall(courtWorld(S), L); b.holder = null; b.keeper = myId(); b.shooter = null; b.pts = 0; b.sentAt = performance.now();
       send({ e: "steal", id: b.id, L });
       fireHooks(hoopsHooks.onSteal, b, myId());
-      showWaveBanner("STEAL", 900);
-    } else H.beaten = 0.45;
+      callout("STEAL", "good");
+    } else { H.beaten = 0.45; callout("BEATEN", "bad", 700); }
     return;
   }
 }
@@ -655,7 +668,7 @@ function tryBlock() {
     const v = b.sim.v;
     const L = makeLaunch([bp[0], bp[1], bp[2]], [-v[0] * 0.3 + dx / n * 2.6, -1.4, -v[2] * 0.3 + dz / n * 2.6], [0, 0, 0], roomNow(), myId());
     setBallLaunch(b.id, L, { block: true });
-    showWaveBanner("BLOCKED", 900);
+    callout("BLOCKED", "good");
     return;
   }
 }
@@ -698,7 +711,7 @@ export function npcSteals(id, npc, L) {
   const S = spots();
   if (!b || !S) return;
   b.sim = newBall(courtWorld(S), L); b.holder = null; b.keeper = myId(); b.shooter = null; b.pts = 0; b.sentAt = performance.now();
-  if (H.ball === id) { H.ball = null; H.move = null; H.shot = null; showWaveBanner("STRIPPED", 1000); }
+  if (H.ball === id) { H.ball = null; H.move = null; H.shot = null; callout("STRIPPED", "bad"); }
   send({ e: "steal", id, L, by: npc });
   fireHooks(hoopsHooks.onSteal, b, npc);
 }
@@ -725,14 +738,14 @@ rpListeners.push((p, m) => {
     b.blocked = m.e === "launch" && !!m.block;
     if (H.ball === id) { H.ball = null; H.move = null; }
     fireHooks(hoopsHooks.onLaunch, b);
-    if (m.block && b.shooter !== myId()) showWaveBanner("BLOCKED", 900);
+    if (m.block && b.shooter === myId()) callout("BLOCKED", "bad");
   } else if (m.e === "steal") {
     const L = m.L;
     if (!L || !Array.isArray(L.p) || !Array.isArray(L.v)) return;
     const S = spots();
     if (!S) return;
     const by = isNpc(m.by) ? m.by : p.id;
-    if (H.ball === id) { H.ball = null; H.move = null; H.shot = null; showWaveBanner("STRIPPED", 1000); }
+    if (H.ball === id) { H.ball = null; H.move = null; H.shot = null; callout("STRIPPED", "bad"); }
     b.sim = newBall(courtWorld(S), makeLaunch(L.p.map(Number), L.v.map(Number), [0, 0, 0], +L.at || roomNow(), by));
     b.holder = null; b.keeper = p.id; b.shooter = null; b.pts = 0;
     fireHooks(hoopsHooks.onSteal, b, by);
@@ -833,29 +846,15 @@ peerPosers.push((rp, dt) => {
 
 /* ------------------------------------------------------------ the meter */
 
-let meterEl = null;
-/* The 2K meter: a bar beside you that fills as you rise, the green band
-   its window; the word after the release. */
+/* The 2K meter (court-hud.js): the capsule beside you that fills as you
+   rise, the green band its window, the shot's name; the grade after the
+   release, then what the ball did. The meter stays up a beat after the
+   release so the freeze reads. */
 function meterHud(s) {
   const fb = H.feedback && H.feedback.t < 1.3 ? H.feedback : null;
-  if (!s && !fb) { if (meterEl) meterEl.hidden = true; return; }
-  if (!meterEl) {
-    meterEl = document.createElement("div");
-    meterEl.className = "to-hoop-meter";
-    meterEl.innerHTML = '<div class="to-hoop-meter__bar"><i class="to-hoop-meter__green"></i><i class="to-hoop-meter__fill"></i></div><b class="to-hoop-meter__word"></b>';
-    document.body.appendChild(meterEl);
-  }
-  meterEl.hidden = false;
-  const fill = meterEl.querySelector(".to-hoop-meter__fill"), green = meterEl.querySelector(".to-hoop-meter__green"), word = meterEl.querySelector(".to-hoop-meter__word");
-  if (s) {
-    const T = HOOPS.meterFull, at = s.released ? s.rel : s.t;
-    fill.style.height = `${Math.min(100, (at / T) * 100)}%`;
-    green.style.bottom = `${((HOOPS.release - s.w) / T) * 100}%`;
-    green.style.height = `${((2 * s.w) / T) * 100}%`;
-    meterEl.classList.toggle("is-done", s.released);
-  }
-  word.textContent = fb ? fb.word : "";
-  meterEl.dataset.grade = fb ? (Math.abs(fb.e) <= 0.35 ? "x" : Math.abs(fb.e) <= 1 ? "g" : "b") : "";
+  const show = s && (!s.released || s.t < s.rel + 0.45);
+  shotMeter(show ? { t: s.t, full: HOOPS.meterFull, rel: HOOPS.release, w: s.w, released: s.released, relAt: s.rel, kind: s.label, contest: s.contest, open: s.contest === 0 && s.d > 2 } : null);
+  shotWord(fb ? { word: fb.word, grade: Math.abs(fb.e) <= 0.35 ? "x" : Math.abs(fb.e) <= 1 ? "g" : "b", sub: fb.sub || "" } : null);
 }
 
 rpExtras.push(hoopsAction);

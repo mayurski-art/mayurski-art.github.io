@@ -217,6 +217,8 @@ if (want("hoops")) {
   await pumpAll([A], 150);
   s = await HS(A);
   check("a flick toward the left hand crosses over", s.lastMove === "cross", JSON.stringify({ move: s.lastMove, clip: s.clip }));
+  const pops = await A.evaluate(() => window.__trollCourtHud.state()?.callouts || []);
+  check("and CROSSOVER pops beside you", pops.includes("CROSSOVER"), JSON.stringify(pops));
   await followShot(A, "hoops-cross", [0.6, 1.2, -2.6], [0, 0.8, 0]);
   await followOff(A);
   await pumpAll([A], 400);
@@ -228,7 +230,10 @@ if (want("hoops")) {
   await putAt(A, 48, rimZ + 4.6, 0);
   await pumpAll(both, 500);
   await A.evaluate(() => { window.__trollHoops.H.autoRelease = window.__trollHoops.HOOPS.release; window.__trollHoops.startShot(); });
+  const meter = await A.evaluate(() => window.__trollCourtHud.state()?.meter);
+  check("the 2K meter is up with the shot's name", !!meter && /JUMPER|THREE|PULL-UP/.test(meter.kind), JSON.stringify(meter));
   for (const k of [0, 1, 2]) await followShot(A, `hoops-jumper-${k}`, [2.6, 1.3, 0.8], [0, 1.2, -0.4]);
+  await shot(A, "hoops-meter");
   await followOff(A);
   await pumpAll(both, 2600);
   s = await HS(A);
@@ -339,6 +344,8 @@ if (want("game")) {
   const npcA = (await GS(A)).npcs[0];
   const npcB = await B.evaluate((id) => { const n = window.__trollOps.townNpcs?.list?.[+id.slice(3)]; return n && { x: +n.x.toFixed(2), z: +n.z.toFixed(2), visible: !!n.rig?.root?.visible, override: !!n.override, rx: +n.rig.root.position.x.toFixed(2), rz: +n.rig.root.position.z.toFixed(2) }; }, npcA?.id || "npc0");
   check("B's copy of the NPC stands where A's does", npcA && npcB && npcB.visible && Math.hypot(npcA.x - npcB.x, npcA.z - npcB.z) < 1.5, JSON.stringify({ npcA, npcB }));
+  const hudA = await A.evaluate(() => window.__trollCourtHud.state());
+  check("the scorebug names both sides and lights A's ball", hudA?.card && hudA.card.a === "baller_a" && /Baller/.test(hudA.card.b) && hudA.card.poss === 0, JSON.stringify(hudA?.card));
   await camShot(B, "game-B", [rim.x + 6, 2.6, rim.z + 10], [rim.x, 1.2, rim.z + 5]);
   // 3. the NPC's ball: it attacks and shoots
   await A.evaluate(() => window.__trollHoopsGame.check(1));
@@ -445,6 +452,9 @@ if (want("tennis")) {
   await pumpAll([A], 300);
   await A.evaluate(() => window.__trollTennis.tossNow());
   await followShot(A, "tennis-toss", [2.4, 1.6, 1.6], [0, 1.6, -1]);
+  const sm = await A.evaluate(() => window.__trollCourtHud.state()?.meter);
+  check("the serve meter climbs with the toss", !!sm && /SERVE/.test(sm.kind) && sm.tag === "SERVE", JSON.stringify(sm));
+  await shot(A, "tennis-serve-meter");
   for (let i = 0; i < 30; i++) { const y = await A.evaluate(() => { const T = window.__trollTennis; const b = [...T.tballs.values()].find((x) => x.toss); return b?.sim ? b.sim.v[1] : -1; }); if (y < 0.4) break; await pumpAll([A], 16); }
   await A.evaluate(() => window.__trollTennis.hitServe("flat", 0));   // a clean toss: no scatter
   await followShot(A, "tennis-serve", [2.4, 1.6, 1.6], [0, 1.6, -1]);
@@ -474,6 +484,8 @@ if (want("tennis")) {
   for (let i = 0; i < 60 && (await A.evaluate(() => !!window.__trollCourtIntro.state())); i++) await pumpAll(both, 200);
   t = await TS(A);
   check("nobody served during the opening", t.s?.phase === "serve" && !t.balls.some((b) => b.serve), JSON.stringify({ phase: t.s?.phase, balls: t.balls.map((b) => b.id) }));
+  const tcard = await A.evaluate(() => window.__trollCourtHud.state()?.card);
+  check("the tennis scorebug shows the two and the server", !!tcard && tcard.a === "baller_a" && /Deuce|Ace/.test(tcard.b) && tcard.poss >= 0, JSON.stringify(tcard));
   // play the point: serve if it's ours, then hit what comes, timed
   let rally = { aHits: 0, npcHits: 0 };
   const playPoint = async () => {
@@ -499,6 +511,9 @@ if (want("tennis")) {
   t = await playPoint();
   for (let i = 0; i < 3 && !(rally.aHit && rally.npcHit) && t.s?.phase !== "over"; i++) t = await playPoint();
   check("a rally: A's timed stroke goes back and the pro returns", rally.npcHit && (rally.aHit || t.s?.score?.some((x) => x > 0)), JSON.stringify({ rally, s: t.s }));
+  const marks = await A.evaluate(() => window.__trollTennis.state().marks);
+  check("the timing ring and the aim disc showed during the rally", !!marks && marks.ringShown > 0 && marks.aimShown > 0, JSON.stringify(marks));
+  check("the umpire called the point on A's screen", !!(await A.evaluate(() => window.__trollTennis.state().lastCall)), JSON.stringify(await A.evaluate(() => window.__trollTennis.state().lastCall)));
   await camShot(B, "tennis-B", [C.x + C.dw + 3, 3.2, C.z + 4], [C.x, 0.8, C.z]);
   // 4. faults
   await until((x) => x.s?.phase === "serve", 6000);

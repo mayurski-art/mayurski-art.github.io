@@ -24,11 +24,12 @@ import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
 import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-sk1-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h-kbc1-kbc2-kbc3";
 import { rpExtras, rpListeners, seated } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3-jb4-jb5-jb6-sp1-hh1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2-jx3-jx4-jx5-mb1-mb2-gc1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2-kbc3-zft1-pqs1-fbo1";
-import { H, balls, HOOPS, hoopsHooks, CLIP_IDS, poseHoop, ballInHands, ballFor, dropBall, handPos, clipLen, courtWorld, MOVES, giveBall, npcTakes, npcSteals, setBallLaunch, hoopSpots } from "./social-hoops.js?v=gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-tw1-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2-kbc3-zft1-pqs1-fbo1-tb1-cti1";
+import { H, balls, HOOPS, hoopsHooks, CLIP_IDS, poseHoop, ballInHands, ballFor, dropBall, handPos, clipLen, courtWorld, MOVES, giveBall, npcTakes, npcSteals, setBallLaunch, hoopSpots } from "./social-hoops.js?v=gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-tw1-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2-kbc3-zft1-pqs1-fbo1-tb1-cti1-chd1";
 import { solveShot, makeLaunch } from "./court-ball.js?v=gb5-gb8";
 import { roomNow } from "./room-clock.js?v=rc1-cd1-sh1";
 import { drawBoard } from "../maps/grinbeach-courts.js?v=gb5-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6-hgb8";
 import { CI, startCourtIntro, stopCourtIntro } from "./court-intro.js?v=cti1";
+import { scoreCard, callout } from "./court-hud.js?v=chd1";
 
 export const GAME = {
   to: 11, by: 2, wait: 4, check: 1.6,
@@ -441,7 +442,7 @@ function npcThink(S, s, id, dt) {
     else setNpcClip(b, "hoop-stance");
     // he made a move: bite, maybe
     const mv = moveClip(holder);
-    if (mv && mv !== b.sawMove) { b.sawMove = mv; if (Math.random() < (MOVES[mv]?.brk || 0.5) * (1.1 - skill)) { b.frozen = 0.35 + 0.3 * (1 - skill); showWaveBanner("Ankles!", 600); } }
+    if (mv && mv !== b.sawMove) { b.sawMove = mv; if (Math.random() < (MOVES[mv]?.brk || 0.5) * (1.1 - skill)) { b.frozen = 0.35 + 0.3 * (1 - skill); if (holder === myId()) callout("ANKLE BREAKER", "big", 1200); } }
     if (!mv) b.sawMove = null;
     // a poke
     if (!sh && !G.calm && b.frozen <= 0 && Math.hypot(hp.x - b.x, hp.z - b.z) < 1.25 && Math.random() < dt * 0.4 * skill) {
@@ -449,7 +450,7 @@ function npcThink(S, s, id, dt) {
       if (Math.random() < 0.28 * skill * (mv ? 0.4 : 1)) {
         const bp = ball.mesh?.position || { x: hp.x, y: 1, z: hp.z };
         npcSteals(s.ball, id, makeLaunch([bp.x, Math.max(0.4, bp.y), bp.z], [(b.x - hp.x) * 1.2, 2.2, (b.z - hp.z) * 1.2], [0, 0, 0], roomNow(), id));
-        showWaveBanner(`${nameOf(id)} pokes it loose`, 1000);
+        if (hp !== game.move.pos) showWaveBanner(`${nameOf(id)} pokes it loose`, 1000);   // ours says STRIPPED (social-hoops.js)
       }
     }
     // a block: a ball just up, at his hands
@@ -577,7 +578,7 @@ function npcBlock(S, s, id, b) {
   if (Math.random() > 0.25 + 0.5 * skillOf(id)) { ball.blocked = true; return; }   // got a fingertip on nothing
   const v = ball.sim.v, dx = p[0] - b.x, dz = p[2] - b.z, n = Math.hypot(dx, dz) || 1;
   setBallLaunch(s.ball, makeLaunch(p.slice(), [-v[0] * 0.3 + dx / n * 2.4, -1.4, -v[2] * 0.3 + dz / n * 2.4], [0, 0, 0], roomNow(), id), { by: id, block: true });
-  showWaveBanner(`Rejected by ${nameOf(id)}`, 1100);
+  if (ball.shooter === myId()) callout(`REJECTED BY ${nameOf(id)}`, "bad", 1300); else showWaveBanner(`Rejected by ${nameOf(id)}`, 1100);
 }
 
 /* ------------------------------------------------- everyone, each frame */
@@ -664,21 +665,17 @@ function drawGame(s) {
   const foot = s.phase === "wait" ? "Hold X here to join" : s.phase === "over" || s.phase === "done" ? `${teamName(s, s.winner)} win` : s.phase === "check" ? "Check ball" : !s.clear ? "Take it back" : `To ${s.to}, win by 2`;
   drawBoard("hoops", "HOOPS", [[teamName(s, 0), s.score[0]], [teamName(s, 1), s.score[1]]], foot);
 }
-let cardEl = null;
+/* The scorebug (court-hud.js): the sides, the score, whose ball, the
+   state of the possession. */
 function cardHud(s) {
   const mine = s && s.phase !== "wait" && s.phase !== "done";
-  if (!mine) { if (cardEl) cardEl.hidden = true; return; }
-  if (!cardEl) {
-    cardEl = document.createElement("div");
-    cardEl.className = "to-hoop-card";
-    document.body.appendChild(cardEl);
-  }
-  cardEl.hidden = false;
-  const poss = (t) => (s.poss === t && s.phase !== "over" ? " is-poss" : "");
-  const txt = `<span class="to-hoop-card__team${poss(0)}">${esc(teamName(s, 0))}</span><b>${s.score[0]}</b><i>${s.phase === "over" ? "FINAL" : `TO ${s.to}`}</i><b>${s.score[1]}</b><span class="to-hoop-card__team${poss(1)}">${esc(teamName(s, 1))}</span>`;
-  if (cardEl._t !== txt) { cardEl._t = txt; cardEl.innerHTML = txt; }
+  if (!mine) { scoreCard(null, "hoops"); return; }
+  const over = s.phase === "over";
+  const [a, b] = s.score;
+  const gamePoint = (t) => s.score[t] >= s.to - 1 && s.score[t] - s.score[1 - t] >= GAME.by - 1;
+  const status = over ? `${teamName(s, s.winner)} WIN` : s.phase === "check" ? "CHECK BALL" : !s.clear ? "TAKE IT BACK" : gamePoint(0) || gamePoint(1) ? "GAME POINT" : a === b && a >= s.to - 1 ? "WIN BY 2" : "";
+  scoreCard({ sport: "hoops", a: teamName(s, 0), b: teamName(s, 1), sa: a, sb: b, mid: over ? "FINAL" : `TO ${s.to}`, poss: over ? -1 : s.poss, status, final: over }, "hoops");
 }
-const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 /* ------------------------------------------------- the 3-point contest */
 

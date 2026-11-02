@@ -42,6 +42,7 @@ import { roomNow } from "./room-clock.js?v=rc1-cd1-sh1";
 import { tennisWorld, newBall, stepBall, advanceBall, makeLaunch, solveDrive, predict, HZ } from "./court-ball.js?v=gb5-gb8";
 import { courtSound } from "../sound/court-sfx.js?v=gb6";
 import { CI, startCourtIntro, stopCourtIntro, courtIntroOn } from "./court-intro.js?v=cti1";
+import { serveMeter, strokeWord, pointCall, scoreCard, courtHudOff } from "./court-hud.js?v=chd1";
 
 export const TN = {
   hopper: 2.2, chair: 2.6, wait: 4,
@@ -57,6 +58,8 @@ export const TN = {
 };
 export const TN_CLIPS = ["tn-ready", "tn-fh", "tn-bh", "tn-fh-slice", "tn-bh-slice", "tn-volley", "tn-smash", "tn-serve", "tn-lob"];
 const CONTACT = { "tn-fh": 0.34, "tn-bh": 0.34, "tn-fh-slice": 0.32, "tn-bh-slice": 0.32, "tn-volley": 0.16, "tn-smash": 0.42, "tn-serve": 0.74, "tn-lob": 0.34 };
+const STROKE_NAMES = { flat: "FLAT", top: "TOPSPIN", slice: "SLICE", drop: "DROP SHOT", lob: "LOB", volley: "VOLLEY", smash: "SMASH", kick: "KICK SERVE" };
+const SERVE_NAMES = { flat: "FLAT SERVE", slice: "SLICE SERVE", kick: "KICK SERVE" };
 const UPPER = [...CLIP_SPINE, ...CLIP_ARM_L, ...CLIP_ARM_R, "headPivot"];
 
 const myId = () => game.net?.id || "me";
@@ -248,7 +251,7 @@ function strike(S, sw) {
   const [l0, l1] = TN.lead;
   const err = sw.lead < l0 ? (l0 - sw.lead) / 0.2 : sw.lead > l1 ? -(sw.lead - l1) / 0.4 : 0;
   const e = Math.max(-1.6, Math.min(1.6, err));
-  T.flash = { word: Math.abs(e) < 0.01 ? "SWEET" : e > 0 ? (e > 0.8 ? "LATE" : "A BIT LATE") : (e < -0.8 ? "EARLY" : "A BIT EARLY"), t: 0, good: Math.abs(e) < 0.01 };
+  T.flash = { word: Math.abs(e) < 0.01 ? "SWEET" : e > 0 ? (e > 0.8 ? "LATE" : "A BIT LATE") : (e < -0.8 ? "EARLY" : "A BIT EARLY"), t: 0, good: Math.abs(e) < 0.01, stroke: STROKE_NAMES[sw.kind] || sw.kind.toUpperCase() };
   const target = aimFor(S, side, sw.kind, game.look.yaw, me.x);
   // the miss: turned off the aim (late: away from the hitting side), short
   const turn = e * 0.17 * (sw.fore ? 1 : -1) * (side === 0 ? 1 : -1);
@@ -337,8 +340,9 @@ export function updateTennis(dt) {
     for (const id of [...tballs.keys()]) dropTBall(id);
     if (T.racket) { T.racket = false; holdRacket(game.localRig, false); }
     if (game.net) { game.net.tennisClip = 0; }
-    cardHud(null);
+    if (marks.ring) { showMark(marks.ring, false); showMark(marks.aim, false); }
     if (M.s) { M.s = null; stopCourtIntro(); }
+    courtHudOff();
     return;
   }
   const now = roomNow();
@@ -377,8 +381,9 @@ export function updateTennis(dt) {
       T.swing.done = true;
       const b = tballs.get(T.swing.ball);
       if (T.swing.serve && b?.sim) {
+        T.serveHit = { u: tossU(b, T.swing.at), until: performance.now() + 600, kind: T.swing.kind, aim: T.serveAim };
         const e = serveStrike(S, b, T.swing.at, T.swing.kind, myId(), T.swing.deuce, game.look.yaw);
-        T.flash = { word: Math.abs(e) < 0.35 ? "SWEET" : e > 0 ? "LOW TOSS HIT" : "REACHING", t: 0, good: Math.abs(e) < 0.35 };
+        T.flash = { word: Math.abs(e) < 0.35 ? "SWEET" : e > 0 ? "LOW TOSS HIT" : "REACHING", t: 0, good: Math.abs(e) < 0.35, stroke: SERVE_NAMES[T.swing.kind] || "SERVE" };
         T.toss = null;
       } else if (T.swing.ball) strike(S, T.swing);
     }
@@ -413,7 +418,92 @@ export function updateTennis(dt) {
   }
   if (T.flash) T.flash.t += dt;
   flashHud();
+  serveHud(S, jump, q);
+  courtMarks(S, dt);
   cardHud(M.s && M.s.phase !== "wait" ? M.s : null);
+}
+
+/* ------------------------------------- the serve meter, the court marks */
+
+/* The ball up the toss: 0 out of the hand, 1 at the top. */
+function tossU(b, at) {
+  const c = ballAt(b, at);
+  const y0 = b.sim.launch.p[1], apex = y0 + TN.serve.tossV ** 2 / (2 * 9.81);
+  return Math.max(0, Math.min(1.05, (c.p[1] - y0) / (apex - y0)));
+}
+/* Where the serve is aimed off the look (serveStrike's box maths): the T,
+   the body or out wide. */
+function serveAimWord(S, deuce) {
+  const C = L(S), me = game.move.pos, side = sideOf(S, me.z), n = toNet(side);
+  const toRight = side === 0 ? 1 : -1, sx = deuce ? -toRight : toRight;
+  const f = fwdOf(game.look.yaw);
+  const tz = C.z + n * (TN.service - 0.55);
+  const tx0 = me.x + f.x / Math.max(0.2, Math.abs(f.z)) * Math.abs(tz - me.z);
+  const tx = Math.max(C.x + Math.min(0, sx) * (TN.singles - 0.35) + (sx > 0 ? 0.3 : 0), Math.min(C.x + Math.max(0, sx) * (TN.singles - 0.35) - (sx < 0 ? 0.3 : 0), tx0));
+  const k = ((tx - C.x) * sx) / TN.singles;
+  return { word: k < 0.36 ? "T" : k < 0.68 ? "BODY" : "WIDE", x: tx, z: tz };
+}
+/* The toss meter beside you (court-hud.js): the ball climbs it, the sweet
+   band sits just under the top; after the hit it freezes where you struck. */
+function serveHud(S, jump, q) {
+  const s = M.s, deuce = s && s.players.includes(myId()) ? s.deuce : true;
+  const b = T.toss && tballs.get(T.toss);
+  if (T.serveHit && performance.now() < T.serveHit.until) { serveMeter({ u: T.serveHit.u, hit: T.serveHit.u, band: SERVE_BAND, kind: SERVE_NAMES[T.serveHit.kind], aim: T.serveHit.aim }); return; }
+  T.serveHit = null;
+  if (!b?.sim || b.sim.rest || !T.racket) { serveMeter(null); T.serveAim = null; return; }
+  const aim = serveAimWord(S, deuce);
+  T.serveAim = aim.word;
+  serveMeter({ u: tossU(b, roomNow()), band: SERVE_BAND, kind: SERVE_NAMES[jump ? "kick" : q ? "slice" : "flat"], aim: aim.word, hit: null });
+}
+// serveStrike: e = (apex - 0.15 - y) / 0.45, sweet inside 0.35 → y within 0.1575 of apex - 0.15
+const SERVE_BAND = (() => { const h = TN.serve.tossV ** 2 / (2 * 9.81); return [(h - 0.15 - 0.1575) / h, Math.min(1, (h - 0.15 + 0.1575) / h)]; })();
+
+/* On the court: the timing ring where the ball will be struck (shrinking
+   in as it comes, green when your swing's on time, red when it's late) and
+   the aim disc where the stroke, or the serve, is going. */
+const marks = { ring: null, aim: null, shown: 0 };
+function markMeshes() {
+  if (marks.ring) return marks;
+  marks.ring = new THREE.Mesh(new THREE.RingGeometry(0.72, 0.86, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false }));
+  marks.ring.rotation.x = -Math.PI / 2; marks.ring.renderOrder = 5;
+  marks.aim = new THREE.Mesh(new THREE.CircleGeometry(0.42, 32), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 0.55, depthWrite: false }));
+  marks.aim.rotation.x = -Math.PI / 2; marks.aim.renderOrder = 5;
+  return marks;
+}
+function showMark(m, on, x, z) {
+  if (!on) { if (m.parent) m.parent.remove(m); return; }
+  if (!m.parent) { game.scene.add(m); marks[m === marks.ring ? "ringShown" : "aimShown"] = (marks[m === marks.ring ? "ringShown" : "aimShown"] || 0) + 1; }
+  m.position.set(x, 0.075, z);
+}
+function courtMarks(S, dt) {
+  const M3 = markMeshes();
+  if (!T.racket || !game.player.alive) { showMark(M3.ring, false); showMark(M3.aim, false); return; }
+  const me = game.move.pos, side = sideOf(S, me.z), now = roomNow();
+  const s = M.s, inMatch = s && s.players.includes(myId()) && s.phase !== "done";
+  const b = T.toss && tballs.get(T.toss);
+  // serving: the disc where the serve is aimed
+  if (b?.sim && !b.sim.rest) {
+    const a = serveAimWord(S, inMatch ? s.deuce : true);
+    showMark(M3.ring, false); showMark(M3.aim, true, a.x, a.z);
+    M3.aim.material.color.set(0xffd23a);
+    return;
+  }
+  const incoming = [...tballs.values()].find((x) => x.sim && !x.sim.rest && !x.toss && x.hitter !== myId() && (!inMatch || x.id.startsWith(`${s.id}-p${s.point}-`)));
+  const sp = incoming && strikePoint(S, incoming, me.x, me.z, side, TN.reach + 3);
+  if (!sp) { showMark(M3.ring, false); showMark(M3.aim, false); return; }
+  const left = (sp.at - now) / 1000;
+  const k = Math.max(0, Math.min(1, left / 1.2));
+  showMark(M3.ring, true, sp.x, sp.z);
+  M3.ring.scale.setScalar(0.55 + 1.6 * k);
+  const sw = T.swing && !T.swing.done ? T.swing : null;
+  const late = sw ? sw.lead < TN.lead[0] : false, early = sw ? sw.lead > TN.lead[1] : false;
+  M3.ring.material.color.set(sw ? (late ? 0xff5a3a : early ? 0xffb347 : 0x35e26b) : sp.d > TN.reach ? 0xffffff : 0x9fe7ff);
+  M3.ring.material.opacity = sp.d > TN.reach ? 0.55 : 0.9;
+  // where this stroke would go, off the look
+  const kind = sw ? sw.kind : (game.keys.has("KeyQ") || game.adsHeld) && game.keys.has("Space") ? "drop" : game.keys.has("KeyQ") || game.adsHeld ? "slice" : game.keys.has("Space") ? "lob" : game.keys.has("KeyW") ? "top" : "flat";
+  const target = aimFor(S, side, sp.smash ? "smash" : sp.volley ? "volley" : kind, game.look.yaw, me.x);
+  showMark(M3.aim, true, target[0], target[2]);
+  M3.aim.material.color.set(sw ? 0x35e26b : 0xffd23a);
 }
 
 /* ------------------------------------------------------------- posing */
@@ -566,14 +656,14 @@ function award(S, s, to, call) {
   s.score[to]++;
   M.calls.push(`${s.point}:${to}:${call}`); if (M.calls.length > 20) M.calls.shift();
   const a = s.score[to], b = s.score[1 - to];
-  showWaveBanner(`${call}  ${s.score[0]}-${s.score[1]}`, 1400);
+  s.lastCall = { call, to, n: (s.lastCall?.n || 0) + 1 };
+  umpire(s, call, to);
   if (a >= TN.to && a - b >= TN.by) {
     s.phase = "over"; s.winner = to; s.overAt = roomNow() + 6000;
     if (s.players[to] === myId() && isNpc(s.players[1 - to]) && s.rung != null) setLadder(Math.max(ladder(), s.rung + 1));
     publishG(true);
     return;
   }
-  if ((a >= TN.to - 1 && a > b) || (b >= TN.to - 1 && b > a)) setTimeout(() => showWaveBanner("Set point", 900), 1500);
   s.point++;
   setTimeout(() => { if (M.s === s && s.phase !== "over") nextPoint(S, s); }, 1600);
   s.phase = "point";
@@ -606,7 +696,7 @@ function judgeEvent(S, b, e) {
     if (e.kind === "bounce" && !b.bounces) {
       b.bounces = 1;
       if (!inBox(S, e.p[0], e.p[2], hitterSide, s.deuce)) return fault(S, s, "FAULT", b);
-      if (b.let) { b.dead = true; showWaveBanner("LET", 900); s.phase = "serve"; s.seq++; publishG(true); return; }
+      if (b.let) { b.dead = true; s.lastCall = { call: "LET", to: -1, n: (s.lastCall?.n || 0) + 1 }; umpire(s, "LET", -1); s.phase = "serve"; s.seq++; publishG(true); return; }
       b.serve = false; b.firstSide = recv;   // in: it's a rally now
       return;
     }
@@ -628,7 +718,7 @@ function judgeEvent(S, b, e) {
 function fault(S, s, call, b) {
   b.dead = true;   // a fault is played no further
   M.calls.push(`${s.point}:fault${s.serveNo}:${b.id}`);
-  if (s.serveNo === 1) { s.serveNo = 2; s.phase = "serve"; s.seq++; showWaveBanner(call, 900); publishG(true); return; }
+  if (s.serveNo === 1) { s.serveNo = 2; s.phase = "serve"; s.seq++; s.lastCall = { call, to: -1, n: (s.lastCall?.n || 0) + 1 }; umpire(s, call, -1); publishG(true); return; }
   const server = s.players.indexOf(s.server);
   award(S, s, 1 - server, "DOUBLE FAULT");
 }
@@ -830,6 +920,7 @@ rpListeners.push((p, m) => {
     M.s = m.g;
     for (const id of m.g.players) if (isNpc(id) && !shown.has(id) && !brains.has(id)) { shown.set(id, { x: 0, z: 0, yaw: 0, clip: "tn-ready", clipAt: roomNow() }); takeNpc(id); }
     if (m.g.phase === "done") { for (const id of [...shown.keys()]) releaseNpc(id); M.s = null; }
+    if (m.g.lastCall && m.g.lastCall.n !== (was?.lastCall?.n || 0) && m.g.phase !== "done") umpire(m.g, String(m.g.lastCall.call).slice(0, 16), m.g.lastCall.to | 0);
     if (m.g.phase === "over" && was?.phase !== "over") showWaveBanner(`${m.g.names[m.g.players[m.g.winner]] || "?"} wins ${m.g.score[m.g.winner]}-${m.g.score[1 - m.g.winner]}`, 3000);
     drawMatch(m.g);
   } else if (m.e === "join" && M.s && M.s.host === myId() && M.s.id === m.g && M.s.phase === "wait" && !M.s.players[1]) {
@@ -854,26 +945,30 @@ function drawMatch(s) {
   const foot = s.phase === "wait" ? "Hold X at the chair to play" : s.phase === "over" || s.phase === "done" ? `${nm(s.winner)} wins` : s.serveNo === 2 ? "Second serve" : "Tiebreak to 7";
   drawBoard("tennis", "TENNIS", [[nm(0) + srv(0), s.score[0]], [nm(1) + srv(1), s.score[1]]], foot);
 }
-let cardEl = null, flashEl = null;
+/* The scorebug (court-hud.js): the two, the count, the server's ball. */
 function cardHud(s) {
   const mine = s && s.phase !== "done";
-  if (!mine) { if (cardEl) cardEl.hidden = true; return; }
-  if (!cardEl) { cardEl = document.createElement("div"); cardEl.className = "to-hoop-card"; document.body.appendChild(cardEl); }
-  cardEl.hidden = false;
-  const nm = (i) => esc(s.names?.[s.players[i]] || nameOf(s.players[i]));
-  const sv = (i) => (s.server === s.players[i] && s.phase !== "over" ? " is-poss" : "");
-  const txt = `<span class="to-hoop-card__team${sv(0)}">${nm(0)}</span><b>${s.score[0]}</b><i>${s.phase === "over" ? "FINAL" : "TIEBREAK"}</i><b>${s.score[1]}</b><span class="to-hoop-card__team${sv(1)}">${nm(1)}</span>`;
-  if (cardEl._t !== txt) { cardEl._t = txt; cardEl.innerHTML = txt; }
+  if (!mine) { scoreCard(null, "tennis"); return; }
+  const nm = (i) => s.names?.[s.players[i]] || nameOf(s.players[i]);
+  const over = s.phase === "over";
+  const [a, b] = s.score;
+  const matchPoint = (a >= TN.to - 1 && a - b >= TN.by - 1) || (b >= TN.to - 1 && b - a >= TN.by - 1);
+  const status = over ? `${nm(s.winner)} WINS` : s.serveNo === 2 && s.phase === "serve" ? "SECOND SERVE" : matchPoint ? "MATCH POINT" : a === b && a >= TN.to - 1 ? "WIN BY 2" : "";
+  scoreCard({ sport: "tennis", a: nm(0), b: nm(1), sa: a, sb: b, mid: over ? "FINAL" : "TIEBREAK TO 7", poss: over ? -1 : s.players.indexOf(s.server), status, final: over }, "tennis");
 }
+/* The stroke and how on time it was (court-hud.js). */
 function flashHud() {
-  const f = T.flash && T.flash.t < 0.9 ? T.flash : null;
-  if (!f) { if (flashEl) flashEl.hidden = true; return; }
-  if (!flashEl) { flashEl = document.createElement("div"); flashEl.className = "to-hoop-meter"; flashEl.innerHTML = '<b class="to-hoop-meter__word"></b>'; document.body.appendChild(flashEl); }
-  flashEl.hidden = false;
-  flashEl.dataset.grade = f.good ? "x" : "b";
-  flashEl.querySelector("b").textContent = f.word;
+  const f = T.flash && T.flash.t < 1.1 ? T.flash : null;
+  strokeWord(f ? { word: f.word, stroke: f.stroke, good: f.good } : null);
 }
-const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+/* The umpire (court-hud.js): the call over the court, for everyone who
+   sees the match (the host's `lastCall` rides the state packet). */
+function umpire(s, call, to) {
+  const me = s.players.indexOf(myId());
+  const kind = me < 0 ? "flat" : to === me ? "good" : "bad";
+  M.lastCallSeen = { call, to };
+  pointCall({ text: call, score: `${s.score[0]} – ${s.score[1]}`, kind }, /FAULT|LET/.test(call) && !/DOUBLE/.test(call) ? 1000 : 1500);
+}
 
 rpExtras.push(tennisAction);
 
@@ -887,7 +982,8 @@ if (typeof window !== "undefined" && /[?&]tohooks=1/.test(location.search)) {
     serveTo: (x, z) => { const S = spots(), s = M.s, b = tballs.get(T.toss); if (!b?.sim) return; const c = ballAt(b, roomNow()); hit(b.id, solveDrive(courtWorld(S), c.p.slice(), [x, 0, z], 26, [0, 0, 0], roomNow()), { serve: true, deuce: s?.deuce }); T.toss = null; },
     swing: (kind = "top") => { const S = spots(); const b = [...tballs.values()].find((x) => x.sim && !x.sim.rest && !x.toss && x.hitter !== myId()); if (b) planStroke(S, b, kind); return T.swing && { at: T.swing.at, lead: T.swing.lead, clip: T.swing.clip }; },
     incoming: () => { const S = spots(); const b = [...tballs.values()].find((x) => x.sim && !x.sim.rest && !x.toss && x.hitter !== myId()); const sp = b && strikePoint(S, b, game.move.pos.x, game.move.pos.z, sideOf(S, game.move.pos.z)); return sp ? { in: (sp.at - roomNow()) / 1000, x: sp.x, z: sp.z, y: sp.y } : null; },
-    state: () => ({ racket: T.racket, clip: T.clip, swing: T.swing && { clip: T.swing.clip, kind: T.swing.kind, lead: +(T.swing.lead || 0).toFixed(2), done: T.swing.done }, flash: T.flash?.word || null,
+    state: () => ({ racket: T.racket, clip: T.clip, swing: T.swing && { clip: T.swing.clip, kind: T.swing.kind, lead: +(T.swing.lead || 0).toFixed(2), done: T.swing.done }, flash: T.flash?.word || null, stroke: T.flash?.stroke || null,
+      marks: { ringShown: marks.ringShown || 0, aimShown: marks.aimShown || 0, ringOn: !!marks.ring?.parent, aimOn: !!marks.aim?.parent }, lastCall: M.s?.lastCall || M.lastCallSeen || null,
       s: M.s && { id: M.s.id, players: M.s.players, score: M.s.score, server: M.s.server, phase: M.s.phase, serveNo: M.s.serveNo, deuce: M.s.deuce, point: M.s.point, winner: M.s.winner },
       balls: [...tballs.values()].map((b) => ({ id: b.id, hitter: b.hitter, serve: b.serve, toss: b.toss, rest: !!b.sim?.rest, p: b.sim ? b.sim.p.map((v) => +v.toFixed(2)) : null, events: b.sim ? b.sim.events.map((e) => e.kind) : [] })),
       npcs: [...brains.entries()].map(([id, b]) => ({ id, x: +b.x.toFixed(2), z: +b.z.toFixed(2), clip: b.clip, plan: !!b.plan?.spot })) }),
