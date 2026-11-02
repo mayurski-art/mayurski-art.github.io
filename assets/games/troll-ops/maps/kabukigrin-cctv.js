@@ -193,8 +193,9 @@ function mats() {
     led: new THREE.MeshBasicMaterial({ color: 0xff2a2a, toneMapped: false }),
     bezel: new THREE.MeshStandardMaterial({ color: 0x0b0b0d, roughness: 0.45, metalness: 0.3 }),
     bracket: new THREE.MeshStandardMaterial({ color: 0x1c1d22, roughness: 0.6, metalness: 0.5 }),
-    lam: new THREE.MeshStandardMaterial({ color: 0x17181c, roughness: 0.55, metalness: 0.1 }),
-    glass: new THREE.MeshStandardMaterial({ color: 0x0a0b0f, roughness: 0.07, metalness: 0.65 }),
+    lam: new THREE.MeshStandardMaterial({ color: 0x3a3c45, roughness: 0.5, metalness: 0.1 }),
+    // (satin, not a mirror: from the chair a mirror top read as a hole)
+    glass: new THREE.MeshStandardMaterial({ color: 0x23262f, roughness: 0.18, metalness: 0.3, emissive: 0x0c1220 }),
     mesh: new THREE.MeshStandardMaterial({ color: 0x1a1b20, roughness: 0.8 }),
     chrome: new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.25, metalness: 0.9 }),
     keys: new THREE.MeshStandardMaterial({ color: 0x222329, roughness: 0.7 }),
@@ -371,7 +372,12 @@ export function buildCctv({ root }) {
   top.position.y = DESK.top - 0.0175;
   const glass = new THREE.Mesh(new THREE.BoxGeometry(DESK.w - 0.04, 0.006, DESK.d - 0.04), M.glass);
   glass.position.y = DESK.top + 0.003;
-  desk.add(top, glass);
+  // the monitor wall's light on the glass (additive, no runtime light)
+  const deskGlow = new THREE.Mesh(new THREE.PlaneGeometry(DESK.w - 0.06, DESK.d - 0.06).rotateX(-Math.PI / 2), glowMat.clone());
+  deskGlow.material.opacity = 0.32;
+  deskGlow.position.y = DESK.top + 0.0075;
+  deskGlow.renderOrder = 2;
+  desk.add(top, glass, deskGlow);
   for (const sx of [-1, 1]) {
     const side = new THREE.Mesh(new THREE.BoxGeometry(0.035, DESK.top - OFFICE.floor - 0.035, DESK.d - 0.04), M.lam);
     side.position.set(sx * (DESK.w / 2 - 0.04), (DESK.top - OFFICE.floor - 0.035) / 2 + OFFICE.floor, 0);
