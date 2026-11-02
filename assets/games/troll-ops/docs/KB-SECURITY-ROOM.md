@@ -1,9 +1,28 @@
 # Security room: CCTV and candle lines v2 (Kabukigrin, Socialize) — DESIGN DOC
 
 Status: APPROVED 2026-11-01 with all five recommended picks (the office,
-trays removed, 8 s rush, one chair, owner + VIP bands); not built yet. Builds on
-CANDLE-LINES.md (v1, the tatami trays, live on main) and the underground
-club (KB-CLUB-UNDERGROUND.md, live on main).
+trays removed, 8 s rush, one chair, owner + VIP bands); BUILT the same day
+on branch claude/kb-security-room (not pushed). Builds on CANDLE-LINES.md
+(v1, the tatami trays, now removed) and the underground club
+(KB-CLUB-UNDERGROUND.md). Files: maps/kabukigrin-cctv.js,
+modes/social-cctv.js, maps/kabukigrin-lines.js and modes/social-lines.js
+(v2); tests tools/troll-ops-cctv-test.mjs, tools/troll-ops-lines-test.mjs,
+and the cameras are registered with tools/troll-ops-obstruction-test.mjs.
+
+As built, it differs from this draft where a check said so:
+- The monitor wall is on the north wall's solid half (x -11.2 .. -8.4),
+  not the east wall: a big sofa runs along the east wall. 5 x 2 monitors,
+  0.54 x 0.34 m. The desk faces it, under it, the chair behind; Studio's
+  desk and Big Boss stay at the window.
+- Lurk stands at the desk's end with his arms folded (the guard loop); he
+  takes the chair only for his line.
+- Cameras as built (each moved until its feed showed its room and the
+  obstruction test passed): 01 SQUARE (office's outer wall), 02 STAIRS,
+  03 BALCONY, 04 FLOOR, 05 DJ, 06 BAR, 07 BOOTHS, 08 VIP, 09 KITCHEN,
+  10 THE LINE (under the front stair's canopy). The tunnel camera became
+  the kitchen's: the tunnel's too dark to show anything.
+- The launch: the rush starts as the head comes up (12 s, so about 8 s are
+  left once you're back over the desk).
 
 The user's ask: the candle line as in their concept video, done at a
 computer, and "the context of having a computer stuff could be like a

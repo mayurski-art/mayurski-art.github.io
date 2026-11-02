@@ -892,3 +892,5 @@ Map rules:
 - **2026-11-01** (-djm1) DJ Lulz's record no longer freezes on phones/iPads: smoothed drift with a dead band, no rate changes on touch, jumps only past 0.75 s (every 8 s at most), the room clock only eases down.
 - **2026-11-01** (-pqs1) Kabukigrin's pachinko parlour: no ambient din; only the machine you play makes a sound.
 - **2026-11-01** (-fbo1) Club door: you face your bouncer where he stands now through ID, bandana, 18+ and band (it went stale at Kabukigrin's door); his face while he asks. club-entry test: MAP=kabukigrin.
+- **2026-11-01** (-ksr1, branch claude/kb-security-room) Kabukigrin security room (docs/KB-SECURITY-ROOM.md): the office's CCTV wall with ten live camera feeds round the club and street (hold X at the wall to watch one), candle lines v2 at its desk (into the chart, bottle roll, face-plant, 35 m launch, back over the desk; Lurk does one), tatami trays gone. Tests cctv + lines.
+- **2026-11-01** (-ksr1) Bump emote: a white bump off the back of the hand, first person with your own hands.

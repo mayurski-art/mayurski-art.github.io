@@ -6,7 +6,7 @@ snorted through a rolled-up bill. You get a stonks rush, then a rug pull.
 Socialize only (the club's `rp` hooks never run in versus). Cosmetic plus
 a short speed change. Nothing is won or lost.
 
-Status: built with the recommended picks (section 9: the tatami room only,
+Status: REPLACED by v2 (docs/KB-SECURITY-ROOM.md, 2026-11-01): the line is done at the security room's desk now and the tatami trays are gone. v1 was built with the recommended picks (section 9: the tatami room only,
 the $TROLL card, 20 s at x1.25 then 12 s at x0.85, the VIPs do lines) on
 branch claude/kb-candle-lines-801c94. Files: maps/kabukigrin-lines.js,
 modes/social-lines.js, sound/lines-sfx.js, view/stonks-fx.js; test
