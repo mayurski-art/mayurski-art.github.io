@@ -99,6 +99,10 @@ export function beachNpcs() {
   for (const [name, z, yaw, skill] of [["Deuce Dominguez", TENNIS.z - TENNIS.dl - 0.7, FACE_YAW["+z"], 0.7], ["Ace Alvarez", TENNIS.z + TENNIS.dl + 0.7, FACE_YAW["-z"], 0.9]]) {
     add(name, "Baller", "ready", { x: TENNIS.x + 1.5, z, y: 0.05, yaw }, { tennis: { skill } });
   }
+  /* the doubles partners (court-setup.js: bots fill the empty spots), waiting outside the north fence by the gate */
+  for (const [name, x, skill] of [["Volley Vera", 62.2, 0.6], ["Baseline Bo", 65.6, 0.55]]) {
+    add(name, "Baller", "ready", { x, z: TENNIS.z + TENNIS.d / 2 + 1.4, y: 0.05, yaw: FACE_YAW["-z"] }, { tennis: { skill } });
+  }
 
   /* ---- the surfers, by the racks, looking at the sets */
   for (const [rx, rz] of RACKS) {

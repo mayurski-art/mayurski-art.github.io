@@ -50,7 +50,9 @@ function mount() {
     <div class="to-court-word" hidden><b></b><span></span></div>
     <div class="to-court-callouts"></div>
     <div class="to-court-stamina" hidden><i></i></div>
-    <div class="to-court-call" hidden><b></b><span></span></div>`;
+    <div class="to-court-call" hidden><b></b><span></span></div>
+    <div class="to-court-note" hidden></div>
+    <div class="to-court-tut" hidden><div class="to-court-tut__head"><b></b><span></span></div><p class="to-court-tut__text"></p><p class="to-court-tut__hint"></p></div>`;
   document.body.appendChild(el);
   const $ = (s) => el.querySelector(s);
   parts = {
@@ -59,7 +61,8 @@ function mount() {
     sa: $(".to-court-card__sa"), sb: $(".to-court-card__sb"), mid: $(".to-court-card__mid"), status: $(".to-court-card__status"),
     meter: $(".to-court-meter"), kind: $(".to-court-meter__kind"), band: $(".to-court-meter__band"), fill: $(".to-court-meter__fill"), line: $(".to-court-meter__line"), tag: $(".to-court-meter__tag"),
     word: $(".to-court-word"), callouts: $(".to-court-callouts"), stamina: $(".to-court-stamina"), staminaFill: $(".to-court-stamina i"),
-    call: $(".to-court-call"),
+    call: $(".to-court-call"), note: $(".to-court-note"),
+    tut: $(".to-court-tut"), tutTitle: $(".to-court-tut__head b"), tutStep: $(".to-court-tut__head span"), tutText: $(".to-court-tut__text"), tutHint: $(".to-court-tut__hint"),
   };
   return parts;
 }
@@ -175,9 +178,10 @@ export const strokeWord = (f) => shotWord(f && { word: f.word, sub: f.stroke, gr
 
 /* The call over the court: { text ("ACE"), score ("3–2"), kind: good |
    bad | flat }, for a moment. */
-let callT = 0;
+let callT = 0, noteT = 0;
 export function pointCall(c, ms = 1500) {
   const P = mount();
+  P.note.hidden = true; clearTimeout(noteT);   // one slot: the call and the notice never stack
   P.call.hidden = false;
   P.call.dataset.kind = c.kind || "flat";
   P.call.querySelector("b").textContent = c.text;
@@ -187,13 +191,45 @@ export function pointCall(c, ms = 1500) {
   callT = setTimeout(() => { P.call.hidden = true; }, ms);
 }
 
+/* A line to the player in the call's slot ("Ball in", "Your serve: fire to
+   toss, fire at the top"): the court games' banner, so it never meets the
+   scorebug or the HUD's own wave banner. */
+export function courtNote(text, ms = 1500) {
+  const P = mount();
+  P.call.hidden = true; clearTimeout(callT);
+  P.note.hidden = false;
+  P.note.textContent = text;
+  P.note.classList.remove("is-in"); void P.note.offsetWidth; P.note.classList.add("is-in");
+  clearTimeout(noteT);
+  noteT = setTimeout(() => { P.note.hidden = true; }, ms);
+}
+
+/* The tutorial's card (court-tutorial.js), in the scorebug's slot: { sport,
+   title, i, of, text, hint, done } or null. */
+let tutKey = "";
+export function tutorialCard(c) {
+  const P = mount();
+  if (!c) { if (!P.tut.hidden) { P.tut.hidden = true; tutKey = ""; } return; }
+  const key = JSON.stringify(c);
+  if (key === tutKey) return;
+  tutKey = key;
+  P.tut.hidden = false;
+  P.tut.classList.toggle("is-done", !!c.done);
+  P.tutTitle.textContent = `${c.sport === "tennis" ? "Tennis" : "Hoops"} tutorial · ${c.title}`;
+  P.tutStep.textContent = `${c.i} / ${c.of}`;
+  P.tutText.textContent = c.text || "";
+  P.tutHint.textContent = c.hint || "";
+  P.tutHint.hidden = !c.hint;
+}
+
 /* Off the court (or the map): everything away. */
 export function courtHudOff() {
   if (!el) return;
   for (const o of ["hoops", "tennis"]) { scoreCard(null, o); shotMeter(null, o); shotWord(null, o); }
   stamina(null);
   parts.callouts.textContent = "";
-  parts.call.hidden = true;
+  parts.call.hidden = true; parts.note.hidden = true;
+  tutorialCard(null);
 }
 
 if (typeof window !== "undefined" && /[?&]tohooks=1/.test(location.search)) {
@@ -205,6 +241,8 @@ if (typeof window !== "undefined" && /[?&]tohooks=1/.test(location.search)) {
       callouts: [...parts.callouts.children].map((d) => d.textContent),
       stamina: !parts.stamina.hidden && parts.staminaFill.style.width,
       call: !parts.call.hidden && { text: parts.call.querySelector("b").textContent, score: parts.call.querySelector("span").textContent, kind: parts.call.dataset.kind },
+      note: !parts.note.hidden && parts.note.textContent,
+      tut: !parts.tut.hidden && { title: parts.tutTitle.textContent, step: parts.tutStep.textContent, text: parts.tutText.textContent, done: parts.tut.classList.contains("is-done") },
     },
   };
 }

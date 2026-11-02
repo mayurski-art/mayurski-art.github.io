@@ -30,7 +30,7 @@ import { buildDustbowlCity, CITY_PALMS } from "./dustbowl-city.js?v=db5-sr1-or1-
 import { buildSurfStrip } from "./surf-sea.js?v=gb1";
 import { buildVenice, VENICE_PALMS, VENICE_SPAWNS, RACKS } from "./grinbeach-venice.js?v=gb1-tb1-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6-hgb8";
 import { buildCourtGear, courtSpots } from "./grinbeach-courts.js?v=gb5-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6-hgb8";
-import { beachNpcs, beachFreeSeats } from "./grinbeach-social.js?v=gb3-rh1-gb4-tb1-gb7-gb8-gb9-tb2-bl1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6-hgb8";
+import { beachNpcs, beachFreeSeats } from "./grinbeach-social.js?v=gb3-rh1-gb4-tb1-gb7-gb8-gb9-tb2-bl1-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6-hgb8-cst1";
 import { buildUndergrin, UG_BOOTHS } from "./undergrin.js?v=ugb1-ug1-ug2-ug3-ug4-ugm1-hgb5-hgb6-hgb8";
 import { dressMap, beachWaterMaterial, palmTrees, shopSignMaterial, beachMural, rangeBoardMaterial } from "./map-dressing.js?v=hg6e-sr1-or1-tb1-tb2-ss1-ss2-ss3-tfm2-hgb5";
 

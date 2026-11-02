@@ -342,7 +342,8 @@ if (want("game")) {
   // the NPC stands on B's screen where A's brain has him (streamed 10 times a second)
   await pumpAll(both, 600);
   const npcA = (await GS(A)).npcs[0];
-  const npcB = await B.evaluate((id) => { const n = window.__trollOps.townNpcs?.list?.[+id.slice(3)]; return n && { x: +n.x.toFixed(2), z: +n.z.toFixed(2), visible: !!n.rig?.root?.visible, override: !!n.override, rx: +n.rig.root.position.x.toFixed(2), rz: +n.rig.root.position.z.toFixed(2) }; }, npcA?.id || "npc0");
+  const stateUrl = await modUrl(B, "core/state.js");
+  const npcB = await B.evaluate(async ({ id, url }) => { const { game } = await import(url); const n = game.townNpcs?.list?.[+id.slice(3)]; return n ? { x: +n.x.toFixed(2), z: +n.z.toFixed(2), visible: !!n.rig?.root?.visible, override: !!n.override, rx: +n.rig.root.position.x.toFixed(2), rz: +n.rig.root.position.z.toFixed(2) } : { missing: true, n: game.townNpcs?.list?.length }; }, { id: npcA?.id || "npc0", url: stateUrl });
   check("B's copy of the NPC stands where A's does", npcA && npcB && npcB.visible && Math.hypot(npcA.x - npcB.x, npcA.z - npcB.z) < 1.5, JSON.stringify({ npcA, npcB }));
   const hudA = await A.evaluate(() => window.__trollCourtHud.state());
   check("the scorebug names both sides and lights A's ball", hudA?.card && hudA.card.a === "baller_a" && /Baller/.test(hudA.card.b) && hudA.card.poss === 0, JSON.stringify(hudA?.card));

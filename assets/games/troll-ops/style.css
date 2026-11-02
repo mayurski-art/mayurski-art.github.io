@@ -7135,6 +7135,20 @@ body.to-aboard #to-touch-endstreak { display: none !important; }
 .to-court-call[data-kind="bad"] b { background: #ff4d3d; color: #fff; }
 .to-court-call span { display: block; margin-top: 6px; font: 700 15px/1 "DM Mono", ui-monospace, monospace; letter-spacing: 0.2em; color: #fff; text-shadow: 0 1px 4px #000; }
 .to-court-call[hidden] { display: none; }
+/* the tutorial card, where the scorebug goes (never both) */
+.to-court-tut { position: absolute; left: 50%; top: 54px; transform: translateX(-50%); width: min(560px, calc(100% - 24px)); border-radius: 8px; background: linear-gradient(180deg, rgba(16, 17, 22, 0.92), rgba(10, 10, 14, 0.88)); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16), 0 8px 24px rgba(0, 0, 0, 0.35); padding: 8px 14px 10px; border-left: 4px solid #9fe7ff; }
+.to-court-tut.is-done { border-left-color: #35e26b; }
+.to-court-tut__head { display: flex; align-items: baseline; gap: 10px; }
+.to-court-tut__head b { flex: 1; min-width: 0; font: 600 15px/1.2 "Oswald", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.to-court-tut__head span { flex: none; font: 600 11px/1 "DM Mono", ui-monospace, monospace; letter-spacing: 0.12em; color: #ffd23a; }
+.to-court-tut__text { margin: 5px 0 0; font: 600 14px/1.35 "DM Sans", system-ui, sans-serif; color: #f4f7f2; }
+.to-court-tut__hint { margin: 3px 0 0; font: 500 12px/1.35 "DM Sans", system-ui, sans-serif; color: #b9c2b6; }
+.to-court-tut__hint[hidden] { display: none; }
+.to-court-tut[hidden] { display: none; }
+.to-court-note { position: absolute; left: 50%; top: 17%; transform: translateX(-50%); max-width: min(680px, 86vw); padding: 7px 16px; border-radius: 4px; background: rgba(10, 10, 14, 0.78); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18); font: 600 15px/1.3 "Oswald", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; text-align: center; color: #ffdf6b; opacity: 0; }
+.to-court-note.is-in { animation: to-court-note 0.3s cubic-bezier(0.2, 1.2, 0.3, 1) forwards; }
+.to-court-note[hidden] { display: none; }
+@keyframes to-court-note { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @keyframes to-court-call { 0% { opacity: 0; transform: translate(-50%, -14px) scale(1.15); } 14% { opacity: 1; transform: translate(-50%, 0) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
 @media (max-width: 760px) {
   .to-court-card { top: 40px; min-width: 0; width: calc(100% - 24px); max-width: 360px; }
@@ -7149,9 +7163,41 @@ body.to-aboard #to-touch-endstreak { display: none !important; }
   .to-court-callout.is-big { font-size: 14px; }
   .to-court-word b { font-size: 26px; }
   .to-court-call b { font-size: 22px; }
+  .to-court-note { font-size: 12px; padding: 6px 10px; }
+  .to-court-tut { top: 40px; padding: 6px 10px 8px; }
+  .to-court-tut__head b { font-size: 13px; }
+  .to-court-tut__text { font-size: 12px; }
+  .to-court-tut__hint { font-size: 11px; }
   .to-court-stamina { bottom: 30%; width: 100px; }
 }
 @media (prefers-reduced-motion: reduce) { .to-court * { animation-duration: 0.01s !important; transition: none !important; } }
+
+/* ── The court games' setup card (modes/court-setup.js): format, bots, go ── */
+.to-court-setup { position: absolute; inset: 0; z-index: 32; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(4, 6, 10, 0.55); backdrop-filter: blur(6px); pointer-events: auto; font-family: "DM Sans", system-ui, sans-serif; color: #f4f7f2; }
+.to-court-setup[hidden] { display: none; }
+.to-court-setup__card { width: min(520px, 100%); max-height: 100%; overflow: auto; border-radius: 12px; background: linear-gradient(180deg, #171a21, #0e1015); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 18px 50px rgba(0, 0, 0, 0.55); padding: 16px 18px 18px; }
+.to-court-setup__head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.to-court-setup__head b { font: 700 28px/1 "Oswald", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
+.to-court-setup__head span { flex: 1; min-width: 0; font: 500 12px/1.3 "DM Mono", ui-monospace, monospace; letter-spacing: 0.08em; color: #9fe7ff; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.to-court-setup__head button { flex: none; padding: 6px 10px; border-radius: 8px; border: 0.5px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.06); color: #f4f7f2; font: 600 12px/1 "DM Sans", system-ui, sans-serif; cursor: pointer; }
+.to-court-setup__head button kbd { font: inherit; opacity: 0.7; margin-left: 4px; }
+.to-court-setup__row { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 10px; padding: 8px 0; border-top: 0.5px solid rgba(255, 255, 255, 0.1); }
+.to-court-setup__label { font: 700 12px/1 "DM Sans", system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #d7ded2; }
+.to-court-setup__seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.to-court-setup__seg button { padding: 8px 12px; border-radius: 8px; border: 0.5px solid rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.05); color: #f4f7f2; font: 600 13px/1 "DM Sans", system-ui, sans-serif; cursor: pointer; }
+.to-court-setup__seg button[aria-pressed="true"] { background: #ffd23a; border-color: #ffd23a; color: #1a1206; }
+.to-court-setup__seg button:hover, .to-court-setup__seg button:focus-visible { border-color: #fff; outline: none; }
+.to-court-setup__note { margin: 10px 0 12px; font: 500 12px/1.45 "DM Sans", system-ui, sans-serif; color: #b9c2b6; }
+.to-court-setup__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.to-court-setup__actions button { flex: 1 1 auto; padding: 12px 16px; border-radius: 10px; border: 0.5px solid rgba(255, 255, 255, 0.25); background: rgba(255, 255, 255, 0.07); color: #f4f7f2; font: 700 14px/1 "Oswald", sans-serif; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+.to-court-setup__actions button.is-primary { background: #35e26b; border-color: #35e26b; color: #0b1a0f; }
+.to-court-setup__actions button:hover, .to-court-setup__actions button:focus-visible { border-color: #fff; outline: none; }
+@media (max-width: 760px) {
+  .to-court-setup__card { padding: 12px 12px 14px; }
+  .to-court-setup__head b { font-size: 22px; }
+  .to-court-setup__row { grid-template-columns: 1fr; gap: 6px; }
+  .to-court-setup__seg button { padding: 9px 10px; font-size: 12px; }
+}
 
 /* ── Friends drawer (menu/friends.js) ─────────────────────────────────── */
 .to-fr-btn { position: relative; }

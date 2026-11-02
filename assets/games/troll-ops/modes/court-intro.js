@@ -264,7 +264,8 @@ function placeHero(I, camera, k) {
   const inK = ease(clamp01(k / 0.25));
   if (I.from && inK < 1) {
     camera.position.lerpVectors(I.from.pos, camera.position, inK);
-    camera.quaternion.slerpQuaternions(I.from.quat, camera.quaternion, inK);
+    _q.copy(camera.quaternion);   // (slerpQuaternions copies its first argument in before it reads the second)
+    camera.quaternion.slerpQuaternions(I.from.quat, _q, inK);
   }
   // the lens comes back to the game's over the last stretch
   const z = CI.zoom - (CI.zoom - 1) * ease(clamp01((k - 0.7) / 0.3));

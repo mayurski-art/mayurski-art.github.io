@@ -30,10 +30,9 @@
 
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-sk1-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h-kbc1-kbc2-kbc3";
-import { bar, rpExtras, rpListeners, seated } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3-jb4-jb5-jb6-sp1-hh1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2-jx3-jx4-jx5-mb1-mb2-gc1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2-kbc3-zft1-pqs1-fbo1";
+import { bar, rpExtras, rpListeners, seated } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3-jb4-jb5-jb6-sp1-hh1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2-jx3-jx4-jx5-mb1-mb2-gc1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2-kbc3-zft1-pqs1-fbo1-cst1";
 import { peerPosers } from "../net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-sk1-hb4-jx2-jx3-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h-kbc1-kbc2-kbc3";
-import { localPosers } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2-kbc3-zft1-pqs1-fbo1";
+import { localPosers } from "../view/third-person.js?v=tp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mv1-nd2-sp1-hh1-ch1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2-kbc3-zft1-pqs1-fbo1-cst1";
 import { loadClip, sampleClip, applyClip, CLIP_SPINE, CLIP_ARM_L, CLIP_ARM_R } from "../characters/clips.js?v=rc1";
 import { loadModel } from "../maps/battlefield-props.js?v=sr1-or1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1-hgb6";
 import { drawBoard } from "../maps/grinbeach-courts.js?v=gb5-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6-hgb8";
@@ -41,11 +40,12 @@ import { touchState } from "../input/touch.js?v=in1-th2-bp1-bf1-pd1-nf1-fs1-tn13
 import { roomNow } from "./room-clock.js?v=rc1-cd1-sh1";
 import { tennisWorld, newBall, stepBall, advanceBall, makeLaunch, solveDrive, predict, HZ } from "./court-ball.js?v=gb5-gb8";
 import { courtSound } from "../sound/court-sfx.js?v=gb6";
-import { CI, startCourtIntro, stopCourtIntro, courtIntroOn } from "./court-intro.js?v=cti1";
-import { serveMeter, strokeWord, pointCall, scoreCard, courtHudOff } from "./court-hud.js?v=chd1";
+import { CI, startCourtIntro, stopCourtIntro, courtIntroOn } from "./court-intro.js?v=cti1-cst1";
+import { serveMeter, strokeWord, pointCall, scoreCard, courtHudOff, courtNote } from "./court-hud.js?v=chd1-cst1";
+import { openCourtSetup } from "./court-setup.js?v=cst1";
 
 export const TN = {
-  hopper: 2.2, chair: 2.6, wait: 4,
+  hopper: 2.2, chair: 2.6, wait: 4, waitTeams: 8,   // s for others to join: longer when there are spots to fill
   intro: CI.secs,                     // s of the opening shots before the first serve (court-intro.js)
   reach: 1.75,                        // m from the body a ball can be struck
   lead: [0.26, 0.6],                  // s before contact a press is on time
@@ -84,10 +84,13 @@ const brains = new Map(), shown = new Map();
 const L = (S) => S.layout.tennis;
 const sideOf = (S, z) => (z > L(S).z ? 0 : 1);            // 0: the near (+z) half, 1: the far
 const toNet = (side) => (side === 0 ? -1 : 1);             // which way +z the net is from a side
-function inSingles(S, x, z, side, r = 0.034) {
+function inSingles(S, x, z, side, r = 0.034, wide = false) {
   const C = L(S);
-  return Math.abs(x - C.x) <= TN.singles + r && (side === 0 ? z >= C.z && z <= C.z + C.dl + r : z <= C.z && z >= C.z - C.dl - r);
+  return Math.abs(x - C.x) <= (wide ? C.dw : TN.singles) + r && (side === 0 ? z >= C.z && z <= C.z + C.dl + r : z <= C.z && z >= C.z - C.dl - r);
 }
+/* Which side of a match someone plays for (0 near, 1 far), -1 if not in it. */
+const teamOf = (s, id) => (!s?.teams ? -1 : s.teams[0].includes(id) ? 0 : s.teams[1].includes(id) ? 1 : -1);
+const teamName = (s, t) => (s.teams?.[t] || []).map((id) => s.names?.[id] || nameOf(id)).join(" & ") || "?";
 /* The service box a serve from `side` on the deuce (even) or ad court must
    land in: the receiver's half, cross court. */
 function inBox(S, x, z, side, deuce, r = 0.034) {
@@ -259,7 +262,9 @@ function strike(S, sw) {
   const pace = TN.pace[sw.kind] * (1 - 0.12 * Math.abs(e)) * (0.92 + 0.08 * Math.min(1, Math.max(0, (sw.lead - 0.2) / 0.4)));
   // topspin turns the ball's top toward the net: about x, signed by the way it goes
   const Lh = solveDrive(courtWorld(S), p, target, pace, spinFor(sw.kind, toNet(side)), roomNow(), sw.kind === "lob");
+  T.lastStroke = { kind: sw.kind, at: roomNow(), ball: b.id };
   hit(b.id, makeLaunch(Lh.p, Lh.v, Lh.w, roomNow(), myId()), {});
+  b.stroke = sw.kind;
   courtSound("tennis", { x: p[0], y: p[1], z: p[2] }, sw.kind === "smash" ? 1 : 0.8);
 }
 const spinFor = (kind, n) => [n * TN.spin[kind], 0, 0];
@@ -406,7 +411,8 @@ export function updateTennis(dt) {
   }
   stepPuffs(dt);
 
-  // ---- the match
+  // ---- the match (or the tutorial's feeder)
+  feederFrame(S, dt);
   if (s?.host === myId()) hostFrame(S, s, dt);
   if (s) playerFrame(S, s);
   if (s && s.introUntil && now < s.introUntil && s.players.includes(myId()) && M.introFor !== s.id) { M.introFor = s.id; openingShots(s); }
@@ -541,8 +547,9 @@ function hopperNear(S) {
   return Math.hypot(h.x - game.move.pos.x, h.z - game.move.pos.z) < TN.hopper;
 }
 function pros() {
-  return (game.townNpcs?.list || []).map((n, i) => ({ id: `npc${i}`, i, name: n.c.name, tennis: n.c.tennis })).filter((r) => r.tennis).sort((a, b) => a.tennis.skill - b.tennis.skill);
+  return (game.townNpcs?.list || []).map((n, i) => ({ id: `npc${i}`, i, name: n.c.name, tennis: n.c.tennis, pro: /Deuce|Ace/.test(n.c.name) })).filter((r) => r.tennis).sort((a, b) => a.tennis.skill - b.tennis.skill);
 }
+const ladderPros = () => pros().filter((r) => r.pro);
 function ladder() { try { return Math.max(0, +localStorage.getItem(TN.ladderKey) || 0); } catch { return 0; } }
 function setLadder(v) { try { localStorage.setItem(TN.ladderKey, String(v)); } catch { /* storage off */ } }
 const clean = (n) => String(n || "").replace(/[^\p{L}\p{N} _.'-]/gu, "").trim().slice(0, 16);
@@ -556,23 +563,55 @@ function tennisAction() {
     if (T.racket && performance.now() - (T.takenAt || 0) < 1500) return null;   // the same held X does not put it straight back
     if (T.racket) return { key: "tn:put", label: "Put the racket back", ctx: "Racket", time: 0.4, done: () => { T.racket = false; } };
     if (bar.role) return { key: "tn:busy", info: true, label: "One job at a time" };
-    return { key: "tn:take", label: "Take a racket", busy: "Picking one…", ctx: "Racket", time: 0.4, done: () => { T.racket = true; T.takenAt = performance.now(); setClip("tn-ready"); if (!T.taught) { T.taught = true; showWaveBanner(game.isTouch ? "Fire to toss, fire again at the top to serve · press early on a ball coming: the swing lands on it" : "Fire tosses, fire again at the top serves · W+fire topspin, Q+fire slice, Space+fire lob · press early: the swing lands on the ball", 4200); } } };
+    return { key: "tn:take", label: "Take a racket", busy: "Picking one…", ctx: "Racket", time: 0.4, done: () => { T.racket = true; T.takenAt = performance.now(); setClip("tn-ready"); if (!T.taught) { T.taught = true; courtNote(game.isTouch ? "Fire to toss, fire at the top to serve · press early on a ball coming" : "Fire tosses, fire at the top serves · W topspin, Q slice, Space lob · press early: the swing lands on the ball", 4200); } } };
   }
   if (!chairNear(S)) return null;
+  if (tennisHooks.tutorialOn?.()) return { key: "tn:quit", label: "Quit the tutorial", ctx: "Tutorial", time: 0.5, done: () => tennisHooks.quitTutorial?.() };
   const s = M.s;
-  if (s && s.phase === "wait" && s.host !== myId() && !s.players.includes(myId())) return { key: "tn:join", label: `Play ${nameOf(s.host)}`, ctx: "Play", time: 0.4, done: () => { T.racket = true; sendG({ e: "join", g: s.id }); } };
-  if (s && s.phase !== "done") return { key: "tn:on", info: true, label: s.players.includes(myId()) ? "You're on court" : "Match on: next" };
-  const r = pros();
-  const opp = r[Math.min(ladder(), r.length - 1)];
-  return { key: "tn:play", label: opp ? `Play ${opp.name}: a tiebreak to 7` : "Play a tiebreak to 7", ctx: "Play", time: 0.6, done: () => startMatch(S) };
+  if (s && s.phase === "wait" && s.host !== myId() && !s.players.includes(myId()) && !(s.joiners || []).includes(myId()))
+    return { key: "tn:join", label: `Play ${s.size > 1 ? "doubles" : "singles"} with ${nameOf(s.host)} (tiebreak to ${s.to || TN.to})`, ctx: "Play", time: 0.4, done: () => { T.racket = true; sendG({ e: "join", g: s.id }); } };
+  if (s && s.phase !== "done") return { key: "tn:on", info: true, label: s.players.includes(myId()) || (s.joiners || []).includes(myId()) ? "You're on court" : "Match on: next" };
+  return { key: "tn:setup", label: "Tennis: play, pick the format and the bots, or a tutorial", ctx: "Tennis", time: 0.5, done: () => openCourtSetup("tennis", (k, ch) => onSetup(S, k, ch)) };
 }
-function startMatch(S) {
+/* The card's buttons (court-setup.js). */
+function onSetup(S, k, ch) {
+  if (k === "play") startMatch(S, ch);
+  else if (k === "tutorial") tennisHooks.tutorial?.("tennis", S);
+}
+export const tennisHooks = { tutorial: null, tutorialOn: () => false, quitTutorial: null };   // court-tutorial.js fills these in
+export const tennisJudge = { inBox: (S, x, z, side, deuce) => inBox(S, x, z, side, deuce), inSingles: (S, x, z, side) => inSingles(S, x, z, side), sideOf: (S, z) => sideOf(S, z) };
+/* { size (1 singles, 2 doubles), to, bots: "ladder" | "pro" | "ace" } from the card. */
+function startMatch(S, ch = {}) {
   T.racket = true;
   const id = `${myId()}-t${++T.seq}`;
-  M.s = { id, host: myId(), players: [myId(), null], names: {}, score: [0, 0], first: 0, server: null, point: 0, serveNo: 1, deuce: true, phase: "wait",
-    waitUntil: roomNow() + TN.wait * 1000, seq: 0, winner: -1, rung: null };
+  const size = ch.size === 2 ? 2 : 1, to = ch.to === 10 ? 10 : TN.to;
+  const wait = size > 1 ? TN.waitTeams : TN.wait;
+  M.s = { id, host: myId(), players: [myId()], teams: null, joiners: [], size, to, bots: ch.bots || "ladder", names: {}, score: [0, 0], first: 0, server: null, point: 0, serveNo: 1, deuce: true, phase: "wait",
+    waitUntil: roomNow() + wait * 1000, seq: 0, winner: -1, rung: null };
   publishG(true);
-  showWaveBanner("Anyone at the chair in the next 4 s plays you", 2400);
+  courtNote(`${size > 1 ? "Doubles" : "Singles"}, a tiebreak to ${to}: anyone at the chair in the next ${wait} s plays, bots fill the rest`, 2800);
+}
+/* Who plays where: the host first, then the joiners, one side then the
+   other; the spots left are the bots' (the next pro on your ladder, the
+   club pros, or Ace; the partners fill a doubles), the far side first. */
+function formTeams(s) {
+  const size = s.size || 1;
+  const humans = [s.host, ...s.joiners || []].slice(0, 2 * size);
+  const a = [], b = [];
+  humans.forEach((id, i) => (i % 2 === 0 ? a : b).push(id));
+  const all = pros().filter((x) => !game.townNpcs.list[x.i].off);
+  const P = all.filter((x) => x.pro), rest = all.filter((x) => !x.pro);
+  let pool;
+  if (s.bots === "ace") pool = [...P.slice().reverse(), ...rest.slice().reverse()];
+  else if (s.bots === "pro") pool = [...P, ...rest];
+  else { const next = P[Math.min(ladder(), P.length - 1)]; pool = next ? [next, ...P.filter((x) => x !== next), ...rest] : all.slice(); }
+  const ladderBot = s.bots === "ace" || s.bots === "pro" ? null : pool[0];
+  for (const team of [b, a]) while (team.length < size && pool.length) team.push(pool.shift().id);
+  s.teams = [a, b];
+  s.players = [...a, ...b];
+  // the serving order: one side, then the other, each side's partners in turn
+  s.order = size > 1 ? [a[0], b[0], a[1], b[1]].filter(Boolean) : [a[0], b[0]].filter(Boolean);
+  if (ladderBot && b.includes(ladderBot.id)) s.rung = ladder();
 }
 function publishG(force = false) {
   const s = M.s;
@@ -586,8 +625,9 @@ function publishG(force = false) {
 /* The next point: who serves (one, then two each), from which court. */
 function nextPoint(S, s) {
   const k = s.point;
-  const turn = k === 0 ? 0 : Math.floor((k + 1) / 2) % 2;
-  s.server = s.players[(s.first + turn) % 2];
+  const order = s.order || s.players;
+  const turn = k === 0 ? 0 : Math.floor((k + 1) / 2) % order.length;
+  s.server = order[(s.first + turn) % order.length];
   s.deuce = k % 2 === 0;
   s.serveNo = 1;
   s.phase = "serve"; s.seq++;
@@ -603,15 +643,26 @@ function nextPoint(S, s) {
 function servePlaces(S, s) {
   const C = L(S);
   const out = {};
-  for (let i = 0; i < 2; i++) {
-    const id = s.players[i];
-    const side = i;   // players[0] on the near half
+  const servingSide = teamOf(s, s.server);
+  for (let side = 0; side < 2; side++) {
+    const team = s.teams?.[side] || [s.players[side]];
     const n = toNet(side), base = C.z - n * (C.dl + 0.4);
     const toRight = side === 0 ? 1 : -1;
-    const serving = id === s.server;
-    // the server: right of the mark on deuce; the receiver: the other diagonal
-    const sx = serving ? (s.deuce ? toRight : -toRight) * 1.2 : (s.deuce ? toRight : -toRight) * 3.0;
-    out[id] = { x: C.x + sx, z: serving ? base : base - n * 0.6, yaw: side === 0 ? 0 : Math.PI };
+    const yaw = side === 0 ? 0 : Math.PI;
+    if (side === servingSide) {
+      // the server: right of the mark on deuce; his partner at the net on the other half
+      for (const id of team) {
+        if (id === s.server) out[id] = { x: C.x + (s.deuce ? toRight : -toRight) * 1.2, z: base, yaw };
+        else out[id] = { x: C.x + (s.deuce ? -toRight : toRight) * 2.4, z: C.z - n * 3.2, yaw };
+      }
+    } else {
+      // the receiver on the other diagonal; his partner at the service line on the other half
+      const recv = team[(s.recvTurn?.[side] || 0) % team.length];
+      for (const id of team) {
+        if (id === recv) out[id] = { x: C.x + (s.deuce ? toRight : -toRight) * 3.0, z: base - n * 0.6, yaw };
+        else out[id] = { x: C.x + (s.deuce ? -toRight : toRight) * 2.2, z: C.z - n * (TN.service + 0.6), yaw };
+      }
+    }
   }
   return out;
 }
@@ -619,17 +670,13 @@ function hostFrame(S, s, dt) {
   const now = roomNow();
   if (s.phase === "wait") {
     if (now < s.waitUntil) return publishG();
-    if (!s.players[1]) {
-      const r = pros().filter((x) => !game.townNpcs.list[x.i].off);
-      const opp = r[Math.min(ladder(), r.length - 1)];
-      if (!opp) { M.s = null; showWaveBanner("Nobody to play", 1500); return; }
-      s.players[1] = opp.id; s.rung = ladder();
-    }
+    formTeams(s);
+    if (!s.teams[1].length || s.teams[0].length !== s.teams[1].length) { M.s = null; courtNote("Nobody to play", 1500); return; }
     for (const id of s.players) { s.names[id] = nameOf(id); if (isNpc(id)) takeNpc(id); }
     s.first = Math.random() < 0.5 ? 0 : 1;
     // the opening shots (court-intro.js), on the room clock so every screen cuts together
     s.introAt = now; s.introUntil = now + TN.intro * 1000;
-    setTimeout(() => { if (M.s === s) showWaveBanner(`${s.names[s.players[0]]} vs ${s.names[s.players[1]]}: a tiebreak to 7`, 2400); }, TN.intro * 1000 + 100);
+    setTimeout(() => { if (M.s === s) courtNote(`${teamName(s, 0)} vs ${teamName(s, 1)}: a tiebreak to ${s.to || TN.to}`, 2400); }, TN.intro * 1000 + 100);
     nextPoint(S, s);
     return;
   }
@@ -658,9 +705,9 @@ function award(S, s, to, call) {
   const a = s.score[to], b = s.score[1 - to];
   s.lastCall = { call, to, n: (s.lastCall?.n || 0) + 1 };
   umpire(s, call, to);
-  if (a >= TN.to && a - b >= TN.by) {
+  if (a >= (s.to || TN.to) && a - b >= TN.by) {
     s.phase = "over"; s.winner = to; s.overAt = roomNow() + 6000;
-    if (s.players[to] === myId() && isNpc(s.players[1 - to]) && s.rung != null) setLadder(Math.max(ladder(), s.rung + 1));
+    if (s.teams[to].includes(myId()) && s.teams[1 - to].some(isNpc) && s.rung != null) setLadder(Math.max(ladder(), s.rung + 1));
     publishG(true);
     return;
   }
@@ -687,7 +734,7 @@ function judgeEvent(S, b, e) {
   if (!s || s.host !== myId() || !b.match || b.toss || b.dead || (s.phase !== "rally" && s.phase !== "serve")) return;
   if (!b.id.startsWith(`${s.id}-p${s.point}-`)) return;   // a ball from a point that is over
   const at = b.sim.launch.at + e.n / HZ * 1000;
-  const hitterSide = s.players.indexOf(b.hitter) >= 0 ? s.players.indexOf(b.hitter) : sideOf(S, b.sim.launch.p[2]);
+  const hitterSide = teamOf(s, b.hitter) >= 0 ? teamOf(s, b.hitter) : sideOf(S, b.sim.launch.p[2]);
   const recv = 1 - hitterSide;
   const pend = (to, call) => { if (!M.pending.some((c) => c.ball === b.id && c.launch === b.sim.launch.at)) M.pending.push({ to, call, at, ball: b.id, launch: b.sim.launch.at }); };
   if (b.serve) {
@@ -709,7 +756,7 @@ function judgeEvent(S, b, e) {
   const side = sideOf(S, e.p[2]);
   if (b.bounces === 1) {
     if (side === hitterSide) { pend(recv, "NET"); return; }
-    if (!inSingles(S, e.p[0], e.p[2], side)) { pend(recv, "OUT"); return; }
+    if (!inSingles(S, e.p[0], e.p[2], side, 0.034, s.size > 1)) { pend(recv, "OUT"); return; }
     b.firstSide = side;
     return;
   }
@@ -719,7 +766,7 @@ function fault(S, s, call, b) {
   b.dead = true;   // a fault is played no further
   M.calls.push(`${s.point}:fault${s.serveNo}:${b.id}`);
   if (s.serveNo === 1) { s.serveNo = 2; s.phase = "serve"; s.seq++; s.lastCall = { call, to: -1, n: (s.lastCall?.n || 0) + 1 }; umpire(s, call, -1); publishG(true); return; }
-  const server = s.players.indexOf(s.server);
+  const server = teamOf(s, s.server);
   award(S, s, 1 - server, "DOUBLE FAULT");
 }
 
@@ -731,7 +778,7 @@ function playerFrame(S, s) {
   if (P) { game.move.reset(P.x, P.z, 0.06); game.look.yaw = P.yaw; game.look.pitch = 0; }
   T.racket = true; T.toss = null; T.swing = null; setClip("tn-ready");
   if (s.server === myId()) {
-    const say = () => showWaveBanner(`${s.serveNo === 2 ? "Second serve" : "Your serve"}: fire to toss, fire at the top`, 1500);
+    const say = () => courtNote(`${s.serveNo === 2 ? "Second serve" : "Your serve"}: fire to toss, fire at the top`, 1500);
     const wait = (s.introUntil || 0) - roomNow();   // after the opening shots, not under them
     if (wait > 0) setTimeout(() => { if (M.s === s && s.phase === "serve") say(); }, wait + 150); else say();
   }
@@ -749,13 +796,14 @@ function posOf(id) {
   return r ? { x: r.pos.x, y: r.pos.y, z: r.pos.z } : null;
 }
 function openingShots(s) {
-  const me = s.players.indexOf(myId()), opp = s.players[1 - me];
+  const me = teamOf(s, myId());
   const nm = (id) => s.names?.[id] || nameOf(id);
+  const mates = s.teams[me].filter((id) => id !== myId());
   startCourtIntro({
     id: s.id, sport: "tennis", at: s.introAt, until: s.introUntil,
-    kicker: "Troll Beach · centre court", title: "TENNIS", sub: `${nm(s.players[0])} vs ${nm(s.players[1])} · tiebreak to ${TN.to}`,
-    foeName: nm(opp), usName: nm(myId()),
-    foes: [opp], us: [myId()],
+    kicker: `Troll Beach · centre court · ${s.size > 1 ? "doubles" : "singles"}`, title: "TENNIS", sub: `${teamName(s, 0)} vs ${teamName(s, 1)} · tiebreak to ${s.to || TN.to}`,
+    foeName: teamName(s, 1 - me), usName: teamName(s, me),
+    foes: s.teams[1 - me].slice(), us: [myId(), ...mates],
     actor: (id) => { const p = posOf(id); return p && { name: nm(id), x: p.x, y: p.y, z: p.z, yaw: yawOf(id) }; },
     self: () => ({ feet: game.move.pos, yaw: game.look.yaw, name: nm(myId()) }),
   });
@@ -814,9 +862,10 @@ function streamNpcs(s) {
    better he is), back to the middle. */
 function npcThink(S, s, id, dt) {
   const b = brain(id), C = L(S);
-  const side = s.players.indexOf(id), skill = skillOf(id);
-  const opp = s.players[1 - side];
-  const op = opp === myId() ? game.move.pos : isNpc(opp) ? brains.get(opp) : game.remotes?.byId?.get(opp)?.pos;
+  const side = teamOf(s, id), skill = skillOf(id);
+  const posAny = (pid) => (pid === myId() ? game.move.pos : isNpc(pid) ? brains.get(pid) : game.remotes?.byId?.get(pid)?.pos);
+  // the opponent to hit away from: the one nearest the net (the net man in a doubles)
+  const op = s.teams[1 - side].map(posAny).filter(Boolean).sort((p, q) => Math.abs(p.z - C.z) - Math.abs(q.z - C.z))[0] || null;
   const now = roomNow();
   if (s.phase === "serve" && s.server === id) {
     b.serveT += dt;
@@ -835,8 +884,8 @@ function npcThink(S, s, id, dt) {
     return;
   }
   if (s.phase === "serve") { b.serveT = 0; b.tossId = null; b.moving = false; return; }
-  // the ball coming his way: a plan to meet it
-  const ball = [...tballs.values()].find((x) => x.id.startsWith(`${s.id}-p${s.point}-`) && !x.dead && x.sim && !x.sim.rest && !x.toss && x.hitter !== id);
+  // the ball coming his way: a plan to meet it (in a doubles, the partner nearer where it lands takes it)
+  const ball = [...tballs.values()].find((x) => x.id.startsWith(`${s.id}-p${s.point}-`) && !x.dead && x.sim && !x.sim.rest && !x.toss && teamOf(s, x.hitter) !== side);
   if (ball && (!b.plan || b.plan.launch !== ball.sim.launch.at)) {
     // where can he get to in time? try spots along its path near him
     let best = null;
@@ -852,6 +901,12 @@ function npcThink(S, s, id, dt) {
       const tt = i / HZ, d = Math.hypot(c.p[0] - b.x, c.p[2] - b.z);
       const speed = 5.2 + 2.2 * skill;
       if (d - TN.reach * 0.8 <= speed * tt) { best = { x: c.p[0], z: c.p[2], y: c.p[1], at: now + tt * 1000 }; break; }
+    }
+    // a partner nearer the spot takes it; this one holds his half
+    if (best && s.teams[side].length > 1) {
+      const dMe = Math.hypot(best.x - b.x, best.z - b.z);
+      const nearer = s.teams[side].some((pid) => { if (pid === id) return false; const q = posAny(pid); return q && Math.hypot(best.x - q.x, best.z - q.z) < dMe - 0.6; });
+      if (nearer) best = null;
     }
     b.plan = { launch: ball.sim.launch.at, ball: ball.id, spot: best, hit: false };
   }
@@ -887,8 +942,9 @@ function npcThink(S, s, id, dt) {
     }
     return;
   }
-  // back to the middle of the baseline
-  walkTo(b, C.x, C.z - toNet(side) * (C.dl + 0.6), 4, dt);
+  // back to the middle of the baseline (a doubles: the middle of his half)
+  const k = s.teams[side].length > 1 ? (s.teams[side].indexOf(id) === 0 ? -1 : 1) * (side === 0 ? 1 : -1) * 2.7 : 0;
+  walkTo(b, C.x + k, C.z - toNet(side) * (C.dl + 0.6), 4, dt);
   if (b.clip !== "tn-ready" && now - b.clipAt > 900) { b.clip = "tn-ready"; b.clipAt = now; }
 }
 function walkTo(b, x, z, speed, dt) {
@@ -897,6 +953,47 @@ function walkTo(b, x, z, speed, dt) {
   const k = Math.min(d, speed * dt);
   b.x += dx / d * k; b.z += dz / d * k;
   b.moving = true;
+}
+
+/* ------------------------------------------------------------ the feeder */
+
+/* The tutorial's club pro (court-tutorial.js): taken over, stood on the
+   far baseline, a ball hit toward the player every few seconds; the balls
+   are ordinary hits on the wire. */
+const feed = { on: null };
+export function startFeeder(S) {
+  if (feed.on || !S) return;
+  const pro = pros().filter((x) => !game.townNpcs.list[x.i].off).find((x) => x.pro) || pros()[0];
+  if (!pro) return;
+  const C = L(S), b = brain(pro.id);
+  b.x = C.x; b.z = C.z - C.dl - 0.6; b.yaw = Math.PI; b.clip = "tn-ready"; b.clipAt = roomNow(); b.plan = null;
+  takeNpc(pro.id);
+  feed.on = { id: pro.id, t: 1.5, n: 0 };
+}
+export function stopFeeder() {
+  if (!feed.on) return;
+  const id = feed.on.id;
+  feed.on = null;
+  releaseNpc(id);
+  for (const bid of [...tballs.keys()]) if (bid.includes("-feed")) dropTBall(bid);
+}
+function feederFrame(S, dt) {
+  const F = feed.on;
+  if (!F || M.s) { if (F && M.s) stopFeeder(); return; }
+  const b = brain(F.id), C = L(S), now = roomNow();
+  F.t -= dt;
+  // a fresh one once the last is dead or returned past him
+  const live = [...tballs.values()].some((x) => x.id.includes("-feed") && x.sim && !x.sim.rest && now - x.sim.launch.at < 4500);
+  if (F.t > 0 || live) { if (b.clip !== "tn-ready" && now - b.clipAt > 900) { b.clip = "tn-ready"; b.clipAt = now; } return; }
+  F.t = 4.2;
+  const me = game.move.pos;
+  const p = [b.x + 0.4, 1.0, b.z + 0.3];
+  const tx = Math.max(C.x - TN.singles + 0.8, Math.min(C.x + TN.singles - 0.8, me.x + (Math.random() - 0.5) * 2.4));
+  const tz = C.z + (C.dl - 2.6) + (Math.random() - 0.5) * 2;
+  const Lh = solveDrive(courtWorld(S), p, [tx, 0, tz], 19, [240, 0, 0], now, false);
+  b.clip = "tn-fh"; b.clipAt = now - 340;
+  hit(`${myId()}-feed${++F.n}`, makeLaunch(Lh.p, Lh.v, Lh.w, now, F.id), { by: F.id });
+  courtSound("tennis", { x: p[0], y: p[1], z: p[2] }, 0.8);
 }
 
 /* ------------------------------------------------------------- the wire */
@@ -921,10 +1018,11 @@ rpListeners.push((p, m) => {
     for (const id of m.g.players) if (isNpc(id) && !shown.has(id) && !brains.has(id)) { shown.set(id, { x: 0, z: 0, yaw: 0, clip: "tn-ready", clipAt: roomNow() }); takeNpc(id); }
     if (m.g.phase === "done") { for (const id of [...shown.keys()]) releaseNpc(id); M.s = null; }
     if (m.g.lastCall && m.g.lastCall.n !== (was?.lastCall?.n || 0) && m.g.phase !== "done") umpire(m.g, String(m.g.lastCall.call).slice(0, 16), m.g.lastCall.to | 0);
-    if (m.g.phase === "over" && was?.phase !== "over") showWaveBanner(`${m.g.names[m.g.players[m.g.winner]] || "?"} wins ${m.g.score[m.g.winner]}-${m.g.score[1 - m.g.winner]}`, 3000);
+    if (m.g.phase === "over" && was?.phase !== "over") courtNote(`${teamName(m.g, m.g.winner)} ${m.g.teams?.[m.g.winner]?.length > 1 ? "win" : "wins"} ${m.g.score[m.g.winner]}-${m.g.score[1 - m.g.winner]}`, 3000);
     drawMatch(m.g);
-  } else if (m.e === "join" && M.s && M.s.host === myId() && M.s.id === m.g && M.s.phase === "wait" && !M.s.players[1]) {
-    M.s.players[1] = p.id; M.s.names[p.id] = nameOf(p.id); publishG(true); showWaveBanner(`${nameOf(p.id)} is in`, 1200);
+  } else if (m.e === "join" && M.s && M.s.host === myId() && M.s.id === m.g && M.s.phase === "wait") {
+    M.s.joiners = M.s.joiners || [];
+    if (!M.s.joiners.includes(p.id) && M.s.joiners.length < 2 * (M.s.size || 1) - 1) { M.s.joiners.push(p.id); M.s.names[p.id] = nameOf(p.id); publishG(true); courtNote(`${nameOf(p.id)} is in`, 1200); }
   } else if (m.e === "n" && M.s && m.g === M.s.id && Array.isArray(m.n)) {
     for (const r of m.n) {
       const id = `npc${r[0] | 0}`;
@@ -940,21 +1038,22 @@ rpListeners.push((p, m) => {
 
 function drawMatch(s) {
   if (!s) return drawBoard("tennis", "TENNIS", [], "Tiebreak to 7");
-  const nm = (i) => s.names?.[s.players[i]] || nameOf(s.players[i]);
-  const srv = (i) => (s.server === s.players[i] && s.phase !== "over" ? " *" : "");
-  const foot = s.phase === "wait" ? "Hold X at the chair to play" : s.phase === "over" || s.phase === "done" ? `${nm(s.winner)} wins` : s.serveNo === 2 ? "Second serve" : "Tiebreak to 7";
-  drawBoard("tennis", "TENNIS", [[nm(0) + srv(0), s.score[0]], [nm(1) + srv(1), s.score[1]]], foot);
+  const nm = (i) => (s.teams ? teamName(s, i) : s.names?.[s.host] || "?");
+  const srv = (i) => (teamOf(s, s.server) === i && s.phase !== "over" ? " *" : "");
+  const foot = s.phase === "wait" ? "Hold X at the chair to play" : s.phase === "over" || s.phase === "done" ? `${nm(s.winner)} wins` : s.serveNo === 2 ? "Second serve" : `Tiebreak to ${s.to || TN.to}`;
+  drawBoard("tennis", "TENNIS", s.teams ? [[nm(0) + srv(0), s.score[0]], [nm(1) + srv(1), s.score[1]]] : [[nm(0), 0]], foot);
 }
 /* The scorebug (court-hud.js): the two, the count, the server's ball. */
 function cardHud(s) {
   const mine = s && s.phase !== "done";
   if (!mine) { scoreCard(null, "tennis"); return; }
-  const nm = (i) => s.names?.[s.players[i]] || nameOf(s.players[i]);
-  const over = s.phase === "over";
+  if (!s.teams) { scoreCard(null, "tennis"); return; }
+  const nm = (i) => teamName(s, i);
+  const over = s.phase === "over", to = s.to || TN.to;
   const [a, b] = s.score;
-  const matchPoint = (a >= TN.to - 1 && a - b >= TN.by - 1) || (b >= TN.to - 1 && b - a >= TN.by - 1);
-  const status = over ? `${nm(s.winner)} WINS` : s.serveNo === 2 && s.phase === "serve" ? "SECOND SERVE" : matchPoint ? "MATCH POINT" : a === b && a >= TN.to - 1 ? "WIN BY 2" : "";
-  scoreCard({ sport: "tennis", a: nm(0), b: nm(1), sa: a, sb: b, mid: over ? "FINAL" : "TIEBREAK TO 7", poss: over ? -1 : s.players.indexOf(s.server), status, final: over }, "tennis");
+  const matchPoint = (a >= to - 1 && a - b >= TN.by - 1) || (b >= to - 1 && b - a >= TN.by - 1);
+  const status = over ? `${nm(s.winner)} ${s.teams[s.winner].length > 1 ? "WIN" : "WINS"}` : s.serveNo === 2 && s.phase === "serve" ? "SECOND SERVE" : matchPoint ? "MATCH POINT" : a === b && a >= to - 1 ? "WIN BY 2" : "";
+  scoreCard({ sport: "tennis", a: nm(0), b: nm(1), sa: a, sb: b, mid: over ? "FINAL" : `${s.size > 1 ? "DOUBLES · " : ""}TIEBREAK TO ${to}`, poss: over ? -1 : teamOf(s, s.server), status, final: over }, "tennis");
 }
 /* The stroke and how on time it was (court-hud.js). */
 function flashHud() {
@@ -964,7 +1063,7 @@ function flashHud() {
 /* The umpire (court-hud.js): the call over the court, for everyone who
    sees the match (the host's `lastCall` rides the state packet). */
 function umpire(s, call, to) {
-  const me = s.players.indexOf(myId());
+  const me = teamOf(s, myId());
   const kind = me < 0 ? "flat" : to === me ? "good" : "bad";
   M.lastCallSeen = { call, to };
   pointCall({ text: call, score: `${s.score[0]} – ${s.score[1]}`, kind }, /FAULT|LET/.test(call) && !/DOUBLE/.test(call) ? 1000 : 1500);
@@ -974,7 +1073,7 @@ rpExtras.push(tennisAction);
 
 if (typeof window !== "undefined" && /[?&]tohooks=1/.test(location.search)) {
   window.__trollTennis = {
-    TN, T, M, tballs, brains, shown, strikePoint, pros, ladder, setLadder, startMatch: () => spots() && startMatch(spots()),
+    TN, T, M, tballs, brains, shown, strikePoint, pros, ladder, setLadder, startMatch: (ch) => spots() && startMatch(spots(), ch),
     award: (to, call) => M.s && award(spots(), M.s, to, call),
     // the presses, at exact times (headless frames are too coarse to time a key)
     tossNow: () => { const S = spots(), s = M.s, inM = s && s.players.includes(myId()); T.toss = toss(S, inM ? `${s.id}-p${s.point}-${s.serveNo}` : `${myId()}-tp${++T.seq}`); setClip("tn-serve", roomNow() - 320); return T.toss; },
@@ -984,7 +1083,7 @@ if (typeof window !== "undefined" && /[?&]tohooks=1/.test(location.search)) {
     incoming: () => { const S = spots(); const b = [...tballs.values()].find((x) => x.sim && !x.sim.rest && !x.toss && x.hitter !== myId()); const sp = b && strikePoint(S, b, game.move.pos.x, game.move.pos.z, sideOf(S, game.move.pos.z)); return sp ? { in: (sp.at - roomNow()) / 1000, x: sp.x, z: sp.z, y: sp.y } : null; },
     state: () => ({ racket: T.racket, clip: T.clip, swing: T.swing && { clip: T.swing.clip, kind: T.swing.kind, lead: +(T.swing.lead || 0).toFixed(2), done: T.swing.done }, flash: T.flash?.word || null, stroke: T.flash?.stroke || null,
       marks: { ringShown: marks.ringShown || 0, aimShown: marks.aimShown || 0, ringOn: !!marks.ring?.parent, aimOn: !!marks.aim?.parent }, lastCall: M.s?.lastCall || M.lastCallSeen || null,
-      s: M.s && { id: M.s.id, players: M.s.players, score: M.s.score, server: M.s.server, phase: M.s.phase, serveNo: M.s.serveNo, deuce: M.s.deuce, point: M.s.point, winner: M.s.winner },
+      s: M.s && { id: M.s.id, players: M.s.players, teams: M.s.teams, size: M.s.size, to: M.s.to, order: M.s.order, score: M.s.score, server: M.s.server, phase: M.s.phase, serveNo: M.s.serveNo, deuce: M.s.deuce, point: M.s.point, winner: M.s.winner },
       balls: [...tballs.values()].map((b) => ({ id: b.id, hitter: b.hitter, serve: b.serve, toss: b.toss, rest: !!b.sim?.rest, p: b.sim ? b.sim.p.map((v) => +v.toFixed(2)) : null, events: b.sim ? b.sim.events.map((e) => e.kind) : [] })),
       npcs: [...brains.entries()].map(([id, b]) => ({ id, x: +b.x.toFixed(2), z: +b.z.toFixed(2), clip: b.clip, plan: !!b.plan?.spot })) }),
   };

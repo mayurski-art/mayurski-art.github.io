@@ -22,17 +22,17 @@
 
 import * as THREE from "three";
 import { game } from "../core/state.js?v=st1";
-import { showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-sam1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-sk1-hb4-lu1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h-kbc1-kbc2-kbc3";
-import { rpExtras, rpListeners, seated } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3-jb4-jb5-jb6-sp1-hh1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2-jx3-jx4-jx5-mb1-mb2-gc1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2-kbc3-zft1-pqs1-fbo1";
-import { H, balls, HOOPS, hoopsHooks, CLIP_IDS, poseHoop, ballInHands, ballFor, dropBall, handPos, clipLen, courtWorld, MOVES, giveBall, npcTakes, npcSteals, setBallLaunch, hoopSpots } from "./social-hoops.js?v=gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-tw1-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2-kbc3-zft1-pqs1-fbo1-tb1-cti1-chd1";
+import { rpExtras, rpListeners, seated } from "./social-rp.js?v=rp1-si1-gj1-if1-fu1b7b7dec1c2-wb1m1c4-tc3-cup1-nc1-cid1-cid2-th2-ar2-ce5-cd1-sh1-cl1-bp1-sg1-bw1-gt1-gt2-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-ar1-aa0-ar0-rs1-kc1-dj2-bf1-pd1-jb1-pl2-pi1-sr1-br1-hl1-pf1-ub1-uw1-ug5-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-sb1-cf1-gs2-gf1-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-bt1-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-ffa1-cp1-dom1-tn1-tn2-dc1-ne1-dc2-dc3-dc4-rf1-ph1-wf1-rp2-wf2-tc1-tc2-ls1-rp3-rr1-op1-ld1-an1-zf1-rt1-ld2-ld3-na1-na2-fs1-kp1-bl1-rg1-tb1-ut1-is1-tg1-tw1-arw1-su1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-tcs2-mg1-kb12-tm2-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb2-jb3-jb4-jb5-jb6-sp1-hh1-yb1-chg1-kbt1-gb1-gb2-gb3-rh1-ls4-gb4-gb5-gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-jx2-jx3-jx4-jx5-mb1-mb2-gc1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2-kbc3-zft1-pqs1-fbo1-cst1";
+import { H, balls, HOOPS, hoopsHooks, CLIP_IDS, poseHoop, ballInHands, ballFor, dropBall, handPos, clipLen, courtWorld, MOVES, giveBall, npcTakes, npcSteals, setBallLaunch, hoopSpots } from "./social-hoops.js?v=gb6-gb7-gb8-gb9-tb2-pd2-ci6-kbb1-kbb2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-sam1-tfp1-tfp2-tfp3-rl1-tfp4-tfp7-tfb8-aar2-tfm2-rfx1-rfx2-rfx3-lz1-rr2-ret1-ret2-mrg1-hgb3-rm1-kzf1-fp2-lk1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-fr1-hgb5-hgb6-hgb8-hgb9-tw1-rt2-mmd1-rd1-fd1-rx1-hgo1-hje1-ng1-ng2-hwl1-p416-lmg1-wb1-mt2-sk1-hb4-tnt1-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-ll2-sp9-nft2531-nft2531h-tn12-tn13-rdf2-kbc3-zft1-pqs1-fbo1-tb1-cti1-chd1-cst1";
 import { solveShot, makeLaunch } from "./court-ball.js?v=gb5-gb8";
 import { roomNow } from "./room-clock.js?v=rc1-cd1-sh1";
 import { drawBoard } from "../maps/grinbeach-courts.js?v=gb5-tb2-kbb2-kbs1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-hgb2-ugb1-ug1-ugm1-hgb5-hgb6-hgb8";
-import { CI, startCourtIntro, stopCourtIntro } from "./court-intro.js?v=cti1";
-import { scoreCard, callout } from "./court-hud.js?v=chd1";
+import { CI, startCourtIntro, stopCourtIntro } from "./court-intro.js?v=cti1-cst1";
+import { scoreCard, callout, courtNote } from "./court-hud.js?v=chd1-cst1";
+import { openCourtSetup } from "./court-setup.js?v=cst1";
 
 export const GAME = {
-  to: 11, by: 2, wait: 4, check: 1.6,
+  to: 11, by: 2, wait: 4, waitTeams: 8, check: 1.6,   // s for others to join: longer when there are spots to fill
   intro: CI.secs,                 // s of the opening shots before the first check (court-intro.js)
   boardReach: 2.4,
   npcRate: 0.1,                   // s between NPC updates on the wire
@@ -74,7 +74,23 @@ const styleOf = (id) => game.townNpcs?.list?.[npcIndex(id)]?.c.hoops?.style ?? "
 const rimOf = (S) => S.layout.rims[0];
 function checkSpots(S) {
   const r = rimOf(S);
-  return { ball: { x: r.x, z: r.z + 7.4 }, def: { x: r.x, z: r.z + 5.9 }, wing: [{ x: r.x - 5.2, z: r.z + 4.6 }, { x: r.x + 5.2, z: r.z + 4.6 }] };
+  // the wings, then the corners (teams of up to three); a defender's spot is the same pulled in toward the rim
+  return { ball: { x: r.x, z: r.z + 7.4 }, def: { x: r.x, z: r.z + 5.9 }, wing: [{ x: r.x - 5.2, z: r.z + 4.6 }, { x: r.x + 5.2, z: r.z + 4.6 }, { x: r.x - 6.1, z: r.z + 1.3 }, { x: r.x + 6.1, z: r.z + 1.3 }] };
+}
+function pulled(spot, r, by = 1.6) {
+  const dx = r.x - spot.x, dz = r.z - spot.z, d = Math.hypot(dx, dz) || 1;
+  return { x: spot.x + dx / d * by, z: spot.z + dz / d * by };
+}
+/* Where everyone but the ball and his man stands at a check: the k-th of
+   the offence on a wing, the k-th extra defender on the same wing pulled in. */
+function checkSpotFor(S, s, id) {
+  const C = checkSpots(S), r = rimOf(S);
+  const t = teamOf(s, id), off = t === s.poss;
+  const others = s.teams[t].filter((x) => x !== (off ? s.holder : s.teams[t][0]));
+  const k = others.indexOf(id);
+  if (k < 0) return null;
+  const w = C.wing[k % C.wing.length];
+  return off ? w : pulled(w, r);
 }
 function posOf(id) {
   if (id === myId()) return { x: game.move.pos.x, z: game.move.pos.z, y: game.move.pos.y };
@@ -104,39 +120,49 @@ function gameAction() {
   if (!S || !game.player.alive || seated || !boardNear(S)) return null;
   const s = G.s;
   if (G.contest) return { key: "hg:busy", info: true, label: "Finish your 3-point contest first" };
+  if (hoopsHooks.tutorialOn?.()) return { key: "hg:quit", label: "Quit the tutorial", ctx: "Tutorial", time: 0.5, done: () => hoopsHooks.quitTutorial?.() };
   if (s && s.phase === "wait" && s.host !== myId() && !s.teams.flat().includes(myId()))
-    return { key: "hg:join", label: `Join ${nameOf(s.host)}'s game`, ctx: "Join", time: 0.4, done: () => send({ e: "join", g: s.id }) };
+    return { key: "hg:join", label: `Join ${nameOf(s.host)}'s game (${s.size || 1}v${s.size || 1} to ${s.to})`, ctx: "Join", time: 0.4, done: () => send({ e: "join", g: s.id }) };
   if (s && s.phase !== "done") return { key: "hg:on", info: true, label: s.teams.flat().includes(myId()) ? "You're in the game" : "Game on: next" };
-  const r = roster();
-  const next = r[Math.min(ladder(), r.length - 1)];
-  // two choices off one board: the side you stand on picks
+  // two choices off one board: the north side goes straight to the contest, the south side opens the setup card
   const north = game.move.pos.z > S.hoops.board.z;
   if (north) return { key: "hg:3pt", label: "3-point contest (60 s, north hoop)", ctx: "3PT", time: 0.5, done: () => startContest(S) };
-  return { key: "hg:run", label: next ? `Run it: 1v1 to 11 vs ${next.name}` : "Run it: 1v1 to 11", ctx: "Run it", time: 0.6, done: () => startGame(S) };
+  return { key: "hg:setup", label: "Hoops: run it, pick the format and the bots, or a tutorial", ctx: "Hoops", time: 0.5, done: () => openCourtSetup("hoops", (k, ch) => onSetup(S, k, ch)) };
 }
-function startGame(S) {
+/* The card's buttons (court-setup.js). */
+function onSetup(S, k, ch) {
+  if (k === "run") startGame(S, ch);
+  else if (k === "contest") startContest(S);
+  else if (k === "tutorial") hoopsHooks.tutorial?.("hoops", S);
+}
+/* { size (a side), to, bots: "ladder" | "regulars" | "legends" } from the card. */
+function startGame(S, ch = {}) {
   const id = `${myId()}-g${++G.seq}`;
-  G.s = { id, host: myId(), teams: [[myId()], []], score: [0, 0], poss: 0, phase: "wait", clear: true, to: GAME.to, ball: `${id}-b`,
-    waitUntil: roomNow() + GAME.wait * 1000, checkAt: 0, checkSeq: 0, holder: null, last: -1, winner: -1, names: {} };
+  const size = Math.max(1, Math.min(3, ch.size | 0 || 1)), to = ch.to === 21 ? 21 : GAME.to;
+  const wait = size > 1 ? GAME.waitTeams : GAME.wait;
+  G.s = { id, host: myId(), teams: [[myId()], []], score: [0, 0], poss: 0, phase: "wait", clear: true, to, size, bots: ch.bots || "ladder", ball: `${id}-b`,
+    waitUntil: roomNow() + wait * 1000, checkAt: 0, checkSeq: 0, holder: null, last: -1, winner: -1, names: {} };
   publish(true);
-  showWaveBanner("Run it: anyone at the board in the next 4 s joins", 2600);
+  courtNote(`Run it ${size}v${size} to ${to}: anyone at the board in the next ${wait} s joins, bots fill the rest`, 2800);
 }
-/* Teams from who turned up: one more = 1v1; three or four = 2v2, an NPC
-   making up the numbers; nobody = the next baller on our ladder. */
+/* Teams from who turned up: the host first, then the joiners, one side then
+   the other; the spots left are the bots' (the card's pick: the next
+   baller on your ladder, the regulars by skill, or the legends), the
+   other side filled before your own. */
 function formTeams(S, s) {
-  const humans = [s.host, ...s.joiners || []].slice(0, 4);
+  const size = s.size || 1;
+  const humans = [s.host, ...s.joiners || []].slice(0, 2 * size);
+  const a = [], b = [];
+  humans.forEach((id, i) => (i % 2 === 0 ? a : b).push(id));
   const r = roster().filter((x) => !game.townNpcs.list[x.i].off);
-  if (humans.length === 1) {
-    const opp = r[Math.min(ladder(), r.length - 1)];
-    s.teams = [[humans[0]], [opp ? opp.id : null].filter(Boolean)];
-    s.ladderRung = ladder();
-  } else if (humans.length === 2) s.teams = [[humans[0]], [humans[1]]];
-  else {
-    const a = [humans[0], humans[2]], b = [humans[1]];
-    if (humans[3]) b.push(humans[3]);
-    else { const fill = r[Math.min(2, r.length - 1)]; if (fill) b.push(fill.id); }
-    s.teams = [a, b];
-  }
+  let pool;
+  if (s.bots === "legends") pool = r.slice().sort((x, y) => y.hoops.skill - x.hoops.skill);
+  else if (s.bots === "regulars") pool = r.slice().sort((x, y) => x.hoops.skill - y.hoops.skill);
+  else { const next = r[Math.min(ladder(), r.length - 1)]; pool = next ? [next, ...r.filter((x) => x !== next)] : r.slice(); }
+  const ladderBot = s.bots === "legends" || s.bots === "regulars" ? null : pool[0];
+  for (const team of [b, a]) while (team.length < size && pool.length) team.push(pool.shift().id);
+  s.teams = [a, b];
+  if (ladderBot && b.includes(ladderBot.id)) s.ladderRung = ladder();
   for (const id of s.teams.flat()) s.names[id] = nameOf(id);
 }
 
@@ -167,7 +193,7 @@ function check(S, s, t, who) {
     if (!isNpc(id)) continue;
     const br = brain(id);
     const def = s.teams[1 - t].includes(id);
-    const spot = id === holder ? C.ball : def && s.teams[1 - t][0] === id ? C.def : C.wing[(s.teams[t].indexOf(id) + (def ? 1 : 0)) % 2];
+    const spot = id === holder ? C.ball : def && s.teams[1 - t][0] === id ? C.def : checkSpotFor(S, s, id) || C.wing[0];
     br.x = spot.x; br.z = spot.z; br.y = 0; br.vy = 0; br.shot = null; br.frozen = 0;
   }
   publish(true);
@@ -177,17 +203,17 @@ function hostFrame(S, s, dt) {
   if (s.phase === "wait") {
     if (now >= s.waitUntil) {
       formTeams(S, s);
-      if (!s.teams[1].length) { G.s = null; showWaveBanner("Nobody to run it with", 1600); return; }
+      if (!s.teams[1].length) { G.s = null; courtNote("Nobody to run it with", 1600); return; }
       for (const id of s.teams.flat()) if (isNpc(id)) takeNpc(id);
       ballFor(s.ball);
       // the opening shots (court-intro.js), on the room clock so every screen cuts together
       s.introAt = now; s.introUntil = now + GAME.intro * 1000;
-      setTimeout(() => { if (G.s === s) showWaveBanner(`${teamName(s, 0)} vs ${teamName(s, 1)}: to ${s.to}, 2s and 1s, win by 2`, 2600); }, GAME.intro * 1000 + 100);
+      setTimeout(() => { if (G.s === s) courtNote(`${teamName(s, 0)} vs ${teamName(s, 1)}: to ${s.to}, 2s and 1s, win by 2`, 2600); }, GAME.intro * 1000 + 100);
       check(S, s, 0, s.host);
     }
     return publish();
   }
-  if (s.phase === "check" && now >= s.checkAt) { s.phase = "live"; publish(true); showWaveBanner("Ball in", 700); }
+  if (s.phase === "check" && now >= s.checkAt) { s.phase = "live"; publish(true); courtNote("Ball in", 700); }
   if (s.phase === "over") {
     if (now >= s.overAt) endGame(s);
     return publish();
@@ -204,7 +230,7 @@ function hostFrame(S, s, dt) {
     const walked = b?.holder && (() => { const p = posOf(b.holder); return p && !inLines(S, p.x, p.z, 0.4); })();
     if (out || walked) {
       const t = walked ? 1 - teamOf(s, b.holder) : s.last >= 0 ? 1 - s.last : 1 - s.poss;
-      showWaveBanner(walked ? "Stepped out" : "Out of bounds", 900);
+      courtNote(walked ? "Stepped out" : "Out of bounds", 900);
       check(S, s, t);
     }
   }
@@ -232,7 +258,7 @@ hoopsHooks.onScore.push((b, e) => {
   const t = teamOf(s, b.shooter);
   if (t < 0) return;
   if (t !== s.poss || !s.clear) {
-    showWaveBanner("Take it back! Doesn't count", 1400);
+    courtNote("Take it back! Doesn't count", 1400);
     check(S, s, 1 - t);
     return;
   }
@@ -450,7 +476,7 @@ function npcThink(S, s, id, dt) {
       if (Math.random() < 0.28 * skill * (mv ? 0.4 : 1)) {
         const bp = ball.mesh?.position || { x: hp.x, y: 1, z: hp.z };
         npcSteals(s.ball, id, makeLaunch([bp.x, Math.max(0.4, bp.y), bp.z], [(b.x - hp.x) * 1.2, 2.2, (b.z - hp.z) * 1.2], [0, 0, 0], roomNow(), id));
-        if (hp !== game.move.pos) showWaveBanner(`${nameOf(id)} pokes it loose`, 1000);   // ours says STRIPPED (social-hoops.js)
+        if (hp !== game.move.pos) courtNote(`${nameOf(id)} pokes it loose`, 1000);   // ours says STRIPPED (social-hoops.js)
       }
     }
     // a block: a ball just up, at his hands
@@ -459,7 +485,7 @@ function npcThink(S, s, id, dt) {
   }
   // ---- our ball, someone else has it: get open on the wing
   const C = checkSpots(S);
-  walkTo(S, b, C.wing[(s.teams[t].indexOf(id)) % 2], GAME.npcSpeed, dt);
+  walkTo(S, b, C.wing[(s.teams[t].indexOf(id)) % C.wing.length], GAME.npcSpeed, dt);
   setNpcClip(b, "hoop-stance");
 }
 function shooterClip(id) {
@@ -578,7 +604,7 @@ function npcBlock(S, s, id, b) {
   if (Math.random() > 0.25 + 0.5 * skillOf(id)) { ball.blocked = true; return; }   // got a fingertip on nothing
   const v = ball.sim.v, dx = p[0] - b.x, dz = p[2] - b.z, n = Math.hypot(dx, dz) || 1;
   setBallLaunch(s.ball, makeLaunch(p.slice(), [-v[0] * 0.3 + dx / n * 2.4, -1.4, -v[2] * 0.3 + dz / n * 2.4], [0, 0, 0], roomNow(), id), { by: id, block: true });
-  if (ball.shooter === myId()) callout(`REJECTED BY ${nameOf(id)}`, "bad", 1300); else showWaveBanner(`Rejected by ${nameOf(id)}`, 1100);
+  if (ball.shooter === myId()) callout(`REJECTED BY ${nameOf(id)}`, "bad", 1300); else courtNote(`Rejected by ${nameOf(id)}`, 1100);
 }
 
 /* ------------------------------------------------- everyone, each frame */
@@ -607,6 +633,7 @@ function playerFrame(S, s) {
     const C = checkSpots(S);
     if (s.holder === myId()) { game.move.reset(C.ball.x, C.ball.z, 0.06); if (H.ball !== s.ball) giveBall(s.ball); }
     else if (t !== s.poss && s.teams[t][0] === myId()) game.move.reset(C.def.x, C.def.z, 0.06);
+    else { const p = checkSpotFor(S, s, myId()); if (p) game.move.reset(p.x, p.z, 0.06); }   // a wing, or guarding one
     face2(C.ball, rimOf(S));
   }
 }
@@ -642,11 +669,11 @@ rpListeners.push((p, m) => {
     // the NPCs in it: ours to pose from the stream
     for (const id of g.teams.flat()) if (isNpc(id) && !shown.has(id)) { shown.set(id, { x: 0, z: 0, yaw: 0, clip: "hoop-stance", clipAt: roomNow(), mirror: false, hand: 1 }); takeNpc(id); }
     if (g.phase === "done") { for (const id of [...shown.keys()]) releaseNpc(id); G.s = null; }
-    if (g.phase === "over" && was?.phase !== "over") showWaveBanner(`${teamName(g, g.winner)} win ${g.score[g.winner]}-${g.score[1 - g.winner]}`, 3000);
+    if (g.phase === "over" && was?.phase !== "over") courtNote(`${teamName(g, g.winner)} win ${g.score[g.winner]}-${g.score[1 - g.winner]}`, 3000);
     drawGame(g);
   } else if (m.e === "join" && G.s && G.s.host === myId() && G.s.id === m.g && G.s.phase === "wait") {
     G.s.joiners = G.s.joiners || [];
-    if (!G.s.joiners.includes(p.id) && G.s.joiners.length < 3) { G.s.joiners.push(p.id); G.s.names[p.id] = nameOf(p.id); publish(true); showWaveBanner(`${p.name || "Someone"} is in`, 1200); }
+    if (!G.s.joiners.includes(p.id) && G.s.joiners.length < 2 * (G.s.size || 1) - 1) { G.s.joiners.push(p.id); G.s.names[p.id] = nameOf(p.id); publish(true); courtNote(`${p.name || "Someone"} is in`, 1200); }
   } else if (m.e === "n" && G.s && m.g === G.s.id && Array.isArray(m.n)) {
     for (const r of m.n) {
       const id = `npc${r[0] | 0}`;
@@ -701,7 +728,7 @@ function startContest(S) {
   game.scene.add(ringMesh);
   game.move.reset(spots[0].x, spots[0].z, 0.06);
   face2(spots[0], S.layout.rims[1]);
-  showWaveBanner("3-point contest: 60 s, 25 balls, the 5th of each rack is the money ball", 2600);
+  courtNote("3-point contest: 60 s, 25 balls, the 5th of each rack is the money ball", 2600);
 }
 function contestFrame(S, dt) {
   const c = G.contest;
@@ -735,7 +762,7 @@ hoopsHooks.onLaunch.push((b) => {
   if (!rec || rec.shot) return;
   rec.shot = true;
   c.shot++;
-  if (c.shot >= GAME.contest.per && c.rack < GAME.contest.racks - 1) { c.rack++; c.shot = 0; showWaveBanner(`Rack ${c.rack + 1}`, 700); }
+  if (c.shot >= GAME.contest.per && c.rack < GAME.contest.racks - 1) { c.rack++; c.shot = 0; courtNote(`Rack ${c.rack + 1}`, 700); }
   else if (c.shot >= GAME.contest.per) c.last = true;
 });
 hoopsHooks.onScore.push((b, e) => {
@@ -753,7 +780,7 @@ function finishContest(S) {
   c.done = true;
   let best = 0;
   try { best = +localStorage.getItem(GAME.contest.key) || 0; if (c.score > best) localStorage.setItem(GAME.contest.key, String(c.score)); } catch { /* storage off */ }
-  showWaveBanner(c.score > best ? `New best: ${c.score} of 30` : `${c.score} of 30 (best ${best})`, 3000);
+  courtNote(c.score > best ? `New best: ${c.score} of 30` : `${c.score} of 30 (best ${best})`, 3000);
   drawBoard("hoops", "3-POINT CONTEST", [["Final", c.score], ["Best", Math.max(best, c.score)]], "Hold X on the north side to go again");
   ringMesh?.parent?.remove(ringMesh);
   if (H.ball && c.ballIds.some((x) => x.id === H.ball)) { const id = H.ball; dropBall(id); game.net?.publishRp?.({ k: "hb", e: "gone", id }); }
@@ -766,7 +793,8 @@ if (typeof window !== "undefined" && /[?&]tohooks=1/.test(location.search)) {
   window.__trollHoopsGame = {
     GAME, G, brains, shown, roster, ladder, setLadder, startGame: () => hoopSpots() && startGame(hoopSpots()), startContest: () => hoopSpots() && startContest(hoopSpots()),
     check: (t, who) => G.s && check(hoopSpots(), G.s, t, who), finishContest: () => finishContest(hoopSpots()),
-    state: () => ({ s: G.s && { id: G.s.id, host: G.s.host, teams: G.s.teams, score: G.s.score, poss: G.s.poss, phase: G.s.phase, clear: G.s.clear, holder: G.s.holder, winner: G.s.winner, last: G.s.last },
+    startGameWith: (ch) => hoopSpots() && startGame(hoopSpots(), ch),
+    state: () => ({ s: G.s && { id: G.s.id, host: G.s.host, teams: G.s.teams, score: G.s.score, poss: G.s.poss, phase: G.s.phase, clear: G.s.clear, holder: G.s.holder, winner: G.s.winner, last: G.s.last, size: G.s.size, to: G.s.to, bots: G.s.bots },
       npcs: [...brains.entries()].map(([id, b]) => ({ id, x: +b.x.toFixed(2), z: +b.z.toFixed(2), clip: b.clip, shot: b.shot?.kind || null, frozen: +b.frozen.toFixed(2) })),
       shown: [...shown.keys()], contest: G.contest && { score: G.contest.score, rack: G.contest.rack, shot: G.contest.shot, t: +G.contest.t.toFixed(1), done: G.contest.done } }),
   };
