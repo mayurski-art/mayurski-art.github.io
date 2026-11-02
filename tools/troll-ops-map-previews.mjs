@@ -50,7 +50,7 @@ const VIEWS = {
   hollowgrin: [38, 26, 34, 74, 3, -6, 62],   // the Grinmoor Fair: mansion, fountain, Ferris wheel, coaster
   grinleria: [22.5, 6.3, -1.2, -6, 2.0, 2.2, 72],
   trollcity: [-30, 6.2, 0.4, 44, 5.5, 0, 60],   // down Main Street: the saloon, the bank, the courthouse dome
-  kabukigrin: [-27.4, 2.4, -35.5, -28.1, 5.0, 4, 60],   // up A Main from the crossing: both near shop bands lettered, the snack bar neon, SLOT 777, the wet street, the club at the end
+  kabukigrin: [-13.5, -3.2, 19.5, -30, -5.2, 14.5, 74],   // the dug club from the B1 balcony. The shipped shot is a collage: run troll-ops-map-collage.mjs, not this
   trollface: [18, 385, 232, 18, -12, 20, 44],   // Trollface Island (Troll Royale): the whole island from high off the south, the lake its grin
 };
 // Maps that only build in their own mode (the island is a prestige reward map
