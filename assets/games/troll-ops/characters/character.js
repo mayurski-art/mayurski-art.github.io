@@ -17,6 +17,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { addInkRim } from "../view/rim-light.js?v=sr1";
+import { blacklit } from "../view/blacklight.js?v=bl1-kbc1-kbc2-kbc3";
 import { buildWatch, buildWristband, wristOf } from "./wristwear.js?v=ww1c2m1-or1";
 import { syncHeadwear } from "./pumpkin-head.js?v=pk1-mb1-mb2";
 import { sampleGait, applyClip, GAME_CLIPS, CLIP_HIPS, CLIP_SPINE, CLIP_ARM_L, CLIP_ARM_R } from "./clips.js?v=rc1";
@@ -154,6 +155,8 @@ HELLYA_HEAD_MAT.emissiveMap = HELLYA_TEXTURE;
    pick; the Sad trollface emote swaps the expression for a moment. An NFT
    body with a face of its own sets `rig.nftFace`, worn over the pick. */
 const FACE_ART = { grin: TROLLFACE_HEAD_MAT, sad: SAD_HEAD_MAT, ragebait: RAGEBAIT_HEAD_MAT, gum: GUM_HEAD_MAT, cracked: CRACKED_HEAD_MAT, goldtooth: GOLD_HEAD_MAT, relaxed: RELAXED_HEAD_MAT, hellya: HELLYA_HEAD_MAT };
+// every face glows under a map's blacklight (view/blacklight.js: Kabukigrin's club)
+for (const m of Object.values(FACE_ART)) blacklit(m);
 export function faceMaterial(key = "grin:og") {
   // later parts are the face covering and the wrist (cosmetics.js): the
   // material is the same with or without them

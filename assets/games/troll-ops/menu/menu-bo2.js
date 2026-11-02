@@ -34,8 +34,8 @@ import { CARDS, cardById, cardUnlocked, getMyCard, saveMyCard, cleanClan, withCl
 import { renderCard, myCardData, openProfileCard, openGuestCard, setInviteHandler } from "../progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1-nb2-nd2-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn13";
 import { shareCardOnX, saveCardPhoto } from "./card-share.js?v=cs1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-tw1-rfx1-bk1-mrg1-mrc1-ars1-p416-mt2-hb4-tnt1-gc1-tn13";
 import { FINISHES } from "../characters/skins.js?v=p5-wb1-or1-sk1";
-import { MAPS, REWARD_MAPS } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-hgb5-hgb6-hgb8-hgb9-tw1-op1-hgo1-wb1-mt2-hb4-tn13";
-import { MODES } from "../modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-ug1-ugm1-hgb8-hgb9-mt2-hb4-tn13";
+import { MAPS, REWARD_MAPS } from "../maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-hgb5-hgb6-hgb8-hgb9-tw1-op1-hgo1-wb1-mt2-hb4-tn13-kbc3-zft1-pqs1";
+import { MODES } from "../modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-ug1-ugm1-hgb8-hgb9-mt2-hb4-tn13-kbc3";
 import { setMapShot } from "../maps/map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1-sr1-ug5-or1-sp1-pv1-tb3-pv2-dm1-kbk2-tfp7-tfb8-rfx2-hgm1-ugb5-ugm1-hgb7";
 import { leaveToArcade, initExitLinks } from "./exit-links.js?v=ex1-cl1-rh1-wb1";
 import { game } from "../core/state.js?v=st1";
@@ -44,8 +44,8 @@ import { openKiosk } from "../view/zombies-kiosk.js?v=zk1-zh1-zc1-zc2-hr2-zp1-ar
 import { credits } from "../modes/zombies/credits.js?v=zc1-zc2-zf1-wb1-mt2-hb4-gc1";
 import { TROLL_RETICLE_LEVEL, trollReticleUnlocked, trollReticleLabel, toggleTrollReticle } from "../view/troll-reticle.js?v=tr1-ret1-mrg1-hd1-mrc1-tw1-rt2-rd1-ars1-p416-wb1-mt2-hb4-gc1-tn13";
 import { sidePref, setSidePref, SIDE_NAMES } from "../modes/royale-side.js?v=rs1-tw1";
-import { SQUAD_SIZES, squadSize, partySize, isRoyaleMode } from "../modes/royale-squads.js?v=sq1-wb1-mt2-hb4-tn13";
-import { pickRoyaleSize } from "./mode-picker.js?v=mp1-fu1b7b7d-wb1-ar1-ar2-cl1-bp1-fj1-zr9-zr10-zh1-zc1-zc2-nf1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-sam1-rl1-tfp4-tfp7-tfb8-rfx1-ret1-mrg1-ug1-ugm1-mrc1-hgb8-hgb9-tw1-ars1-p416-mt2-hb4-gc1-tn13";
+import { SQUAD_SIZES, squadSize, partySize, isRoyaleMode } from "../modes/royale-squads.js?v=sq1-wb1-mt2-hb4-tn13-kbc3";
+import { pickRoyaleSize } from "./mode-picker.js?v=mp1-fu1b7b7d-wb1-ar1-ar2-cl1-bp1-fj1-zr9-zr10-zh1-zc1-zc2-nf1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-sam1-rl1-tfp4-tfp7-tfb8-rfx1-ret1-mrg1-ug1-ugm1-mrc1-hgb8-hgb9-tw1-ars1-p416-mt2-hb4-gc1-tn13-kbc3";
 import { recordSupported, recordPref, setRecordPref } from "../modes/royale-record.js?v=rrc1-rfx1-rr2-ret1-mrg1-hd1";
 import { isNew, hasNew, markSeen } from "../progression/grants.js?v=pk1-mb1-mb2-mg2";
 import { nftScreens, nftInput, nftNote, wireNftInput, isOwnerSignedIn } from "./nft-access.js?v=nfh4-mg2-nft2531-nft2531h-tn13-fs1-fs2-rb1-rgb1-bdn1-msk1";
@@ -55,7 +55,7 @@ const LB_NEXT = { week: "month", month: "all", all: "week" };   // the Board opt
 import { PERK_DEFS, PERK_TIER_NAMES, PERK_TIER_COLORS, perksInTier, perkUnlocked, perkIconSvg } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn13";
 import { STREAK_DEFS } from "../streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn13";
 import { renderClassPreview } from "./class-preview.js?v=cp1-rb4-hp1-bx1-sp1-sam1-rfx1-mrg1-mrc1-tw1-p416-mt2-sk1-hb4-gc1-tn13";
-import { lobby, enterLobby, leaveLobby, lobbyActivity, round, candidates, tally, renderPanel, tickClock } from "./map-vote.js?v=mv1-vs1-vt2-sp1-hh1-yb1-pv1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-tb3-pv2-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rfx2-rm1-kzf1-hgm1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugb5-ugm1-hgb4-hgb5-hgb6-hgb7-hgb8-hgb9-tw1-op1-hgo1-wb1-mt2-hb4-tn13";
+import { lobby, enterLobby, leaveLobby, lobbyActivity, round, candidates, tally, renderPanel, tickClock } from "./map-vote.js?v=mv1-vs1-vt2-sp1-hh1-yb1-pv1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-tb3-pv2-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rfx2-rm1-kzf1-hgm1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugb5-ugm1-hgb4-hgb5-hgb6-hgb7-hgb8-hgb9-tw1-op1-hgo1-wb1-mt2-hb4-tn13-kbc3-zft1-pqs1";
 
 /* Everything prestige unlocks, by prestige (prestige phase 5): finishes,
    calling cards and the private-match maps. */

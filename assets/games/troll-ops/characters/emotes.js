@@ -21,6 +21,7 @@ import * as THREE from "three";
 import { DANCES, setHandPose, setFace, resetSecondaryJoints, reachHand, placeFoot, beginPose, endPose } from "./character.js?v=to-hb4-em1-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-zr10-bf1-sr1-or1-nf2-em2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-mg1-sp1-pk1-mb1-mb2-nft2531-fs1-fs2-rb1-rgb1-bdn1-msk1";
 import { LeanKit, LEAN, LEAN_SECONDS, leanFp } from "../weapons/lean-cup.js?v=ng1-or1-lp1-ht1-bx1";
 import { HellfireFx } from "../weapons/soul-blazer.js?v=sb1-or1";
+import { MoneyGunKit, MONEY_GUN, MONEY_GUN_ICON, moneyGunFp } from "../weapons/money-gun.js?v=cash1-kbc1-kbc2-kbc3";
 
 const PI = Math.PI;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -349,12 +350,38 @@ function poseLeanTP(rig, t) {
   done(rig);
 }
 
-/* Our own first-person props for it, on the streak-arm hands (game.js). */
-let fpLean = null;
-function fpLeanProps(parent, handR, handL, t) { (fpLean ||= new LeanKit()).fp(parent, handR, handL, t); }
-export function hideFpEmoteProps() { fpLean?.hide(); }
+/* Our own first-person props, on the streak-arm hands (view/fp-emote.js):
+   Pour up's cup and bottle, Make it rain's gun; `fpActive` the kit placed
+   last, whose props the rods reach for. */
+let fpLean = null, fpMoney = null, fpActive = null;
+function fpLeanProps(parent, handR, handL, t) { (fpActive = fpLean ||= new LeanKit()).fp(parent, handR, handL, t); }
+function fpMoneyGunProps(parent, handR, handL, t) { (fpActive = fpMoney ||= new MoneyGunKit()).fp(parent, handR, handL, t); }
+export function hideFpEmoteProps() { fpLean?.hide(); fpMoney?.hide(); }
 /* Where arm `side`'s rod should end on a held prop, or null. */
-export function fpEmoteRodTip(side, from, hand, out, pad = 0) { return fpLean ? fpLean.rodTip(side, from, hand, out, pad) : null; }
+export function fpEmoteRodTip(side, from, hand, out, pad = 0) { return fpActive ? fpActive.rodTip(side, from, hand, out, pad) : null; }
+
+/* Make it rain (weapons/money-gun.js, doc MONEY-RAIN.md 3): the right arm
+   up and out at about 40°, the money gun in the fist spraying bills over
+   whoever's in front, a slow sweep, the shoulders turned into it. The gun
+   hangs on the right fist (emoteBit: hidden between emotes) and sprays
+   off the emote clock, so a remote's rig sprays in step with the packet. */
+function poseMoneyGunTP(rig, t) {
+  const p = rig.parts;
+  base(rig);
+  const up = env(t, 0, 0.4, MONEY_GUN.seconds - 0.5, MONEY_GUN.seconds);
+  const spraying = t > MONEY_GUN.sprayFrom && t < MONEY_GUN.sprayTo;
+  const sweep = Math.sin(t * 2.6) * 0.16 * up, kick = spraying ? Math.max(0, Math.sin(t * 28)) * 0.03 * up : 0;
+  p.armR.rotation.set(1.95 * up + kick, 0, (-0.5 + sweep) * up);
+  p.elbowR.rotation.set(0.25 * up, 0, 0);
+  setHandPose(rig, 1, "fist");
+  p.armL.rotation.set(0.3 * up, 0, 0.3 * up);
+  p.torso.rotation.set(-0.08 * up, 0.18 * up, 0);
+  head(rig, -0.35 * up, 0.25 * up, 0);
+  const kit = rig.moneyGunKit ||= new MoneyGunKit();
+  emoteBit(rig, "moneyGun", p.gripR, () => kit.gun);
+  kit.tp(rig, t, up);
+  done(rig);
+}
 
 /* -------------------------------------------------------------- duo */
 // Both players face each other; each pose is written from its own side, so
@@ -1312,6 +1339,7 @@ export const EMOTES = [
   { id: "cigar", name: "Cigar", kind: "tp", pose: poseCigar, seconds: LIGHT.seconds, token: 1272, icon: CIGAR_ICON },
   { id: "chug", name: "Chug", kind: "tp", pose: poseChug, seconds: CHUG.seconds },
   { id: "blunt", name: "Blunt", kind: "tp", pose: poseBlunt, seconds: LIGHT.seconds, token: 1272, icon: BLUNT_ICON },
+  { id: "moneygun", name: "Make it rain", kind: "fp", pose: poseMoneyGunTP, fp: moneyGunFp, fpProps: fpMoneyGunProps, props: true, seconds: MONEY_GUN.seconds, icon: MONEY_GUN_ICON },
 ];
 
 export const DEFAULT_EMOTE_SECONDS = 8;

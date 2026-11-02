@@ -11,7 +11,7 @@ import { CharacterInspector } from "./menu/char-inspector.js?v=hb4-wst-soc1-sb2c
 import { Loadout } from "./progression/loadout.js?v=p5tc-nf-k9-wst-ig1-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-gj1-fu1b7b7dc1c2-wb1m1-tc3-nc1-th2-ar2-cd1-sh1-cl1-bp1-sg1-bw1-cw1-fj1-zr9-zr10-zh1-zc1-zc2-hr2-zp1-jb1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-nf1-or1-bw2-bt1-wf1-wf2-zf1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-rb4-hp1-bx1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-hvs1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-ret1-mrg1-hgb3-rm1-kzf1-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-mrc1-hgb5-hgb6-hgb8-hgb9-tw1-op1-hgo1-p416-wb1-mt2-sk1-hb4-gc1-tn13";
 import { StreakPicker } from "./streaks/streak-picker.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn13";
 import { StreakState, STREAK_DEFS, SCORE, streaksAllowed, streakIconSvg, streakBadgeSvg, streakShortName, PACKAGE_STREAK_POOL } from "./streaks/scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn13";
-import { K9Pack, K9, resolveK9 } from "./bots/k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d-sr1-fl1-or1-gf1-tg1-tcs1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-ugb1-ug1-ugm1-hgb6-hb4-tn13";
+import { K9Pack, K9, resolveK9 } from "./bots/k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d-sr1-fl1-or1-gf1-tg1-tcs1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-ugb1-ug1-ugm1-hgb6-hb4-tn13-kbc3";
 import {
   CarePackage, MarkerCanister, HunterDrone, HelicopterGunship, ReconPlane, AirstrikeRun, BlastFx,
   VtolWarship, WARSHIP_GUNS, VsatSatellite,
@@ -30,10 +30,10 @@ import { playerIconSvg } from "./progression/rank-icons.js?v=rk1-or1-tn13";
 import { recordMatch } from "./progression/record.js?v=rec1-or1-gc1";
 import { getMyCard, withClan } from "./progression/calling-cards.js?v=p5-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn13";
 import { openProfileCard } from "./progression/profile-card.js?v=pc1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zh1-zc1-zc2-nf1-or1-nb2-nd2-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn13";
-import { buildMap, disposeMap, settleMap, MAPS, MAP_IDS } from "./maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-hgb5-hgb6-hgb8-hgb9-tw1-op1-hgo1-wb1-mt2-hb4-tn13";
+import { buildMap, disposeMap, settleMap, MAPS, MAP_IDS } from "./maps/maps.js?v=p5tc-k9-em1-wst-tl1-bs1-tl2-sb1-rp1-dj1-cr1-db1-sb2-db2a-db2b-db2c-db3-db4-db5-gj1-fu1b7b7dc1c2f1m1u-tc3-nc1-cd1-sh1-sg1-bw1-cw1-zr10-zh1-hr2-zp1-jb1-nh1-pi1-sr1-hl1-pf1-ub1-uw1-ug5-or1-bw2-bt1-wf1-wf2-zf1-bp1-is1-gf1-tg1-tcs1-kb0-kb1-kb2-kb3-cl1-kb4-kb5-kb6-kb7-kb8-kb9-kb10-kb11-ip1-tcs2-mg1-kb12-tm3-tm4-tm6-tm7-tcp1-tx1-trk1-bt2-bt3-ch1-jb3-jb6-sp1-hh1-yb1-kbt1-gb1-gb3-rh1-gb4-tb1-gb5-gb7-gb8-gb9-tb2-bl1-kbb1-kbb2-dj2-kbb3-kbs1-mn1-nd1-dm1-gr1-kbk1-pm1-kbk2-zw1-kco1-tfp1-tfp2-tfp3-tfp4-tfp7-tfb8-tfs1-ss1-ta1-ss2-ss3-ta2-tfm2-rfx1-rm1-kzf1-hgb1-hgb2-hgb3-ugb1-ug1-ug2-ug3-ug4-ugm1-hgb4-hgb5-hgb6-hgb8-hgb9-tw1-op1-hgo1-wb1-mt2-hb4-tn13-kbc3-zft1-pqs1";
 import { createMapPreloader } from "./maps/map-preload.js?v=mp4-or1-mdl1-tfp7-tfb8-tw1";
 import { createMapLoadScreen, mapShotAttrs } from "./maps/map-load-screen.js?v=ml3-wst-tl1-ng1-db5-gj1-fu1-sr1-ug5-or1-sp1-pv1-tb3-pv2-dm1-kbk2-tfp7-tfb8-rfx2-hgm1-ugb5-ugm1-hgb7";
-import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net/net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-pl2-nf1-or1-bw2-bt1-dom1-jb3-jb4-sp1-gb4-gb6-gb8-gb9-tfb8-rfx3-tw1-sqd1-lmg1-wb1-hs1-tn13";
+import { Net, makeRoomCode, MAX_PLAYERS, MAX_PLAYERS_ROYALE, isSyntheticId } from "./net/net.js?v=umb3-rm1-ld2-em1-sb1-cb1-rp1-p22-bh1b7c4-th2-cd1-sh1-cl1-bp1-bw1-bk1-fj1-zr9-zr10-hr2-zp1-rs1-dj2-pl2-nf1-or1-bw2-bt1-dom1-jb3-jb4-sp1-gb4-gb6-gb8-gb9-tfb8-rfx3-tw1-sqd1-lmg1-wb1-hs1-tn13-kbc3";
 import { MatchChat, safeUid } from "./net/chat.js?v=to-social1-or1-pc2-gf1-tw1-wb1-tnt1";
 import { RemotePlayers, TEAMS, STANCE_LOWER, ROLL_TIME, rollRig, poseDrop, DROP_BUS, DROP_FALL, DROP_GLIDE, setFunnyDeaths, setSeatLookup } from "./net/remote-players.js?v=umb3g-pc1-nf-em1-mi2-wst-ig1-bs1-sb1-cb2-rp1-hf1-sb2-gj1-fu1b7b7dc2-wb1m1c4-cup1-th2-ar2-cd1-sh1-cl1-bp1-gt1-gt2-bk1-cw1-fj1-zr9-zr10-zc1-zc2-hr2-zp1-dj2-bf1-pl2-pi1-sr1-br1-nf1-fl1-nx1-or1-nf2-nb1-em2-nb2-pc2-cf1-gs2-ci1-fh1-lh1-dl1-ci2-fc1-bj1-ci3-ci4-nk1-nk2-hv1-fm1-mr1-ci5-fg2-wh1-bd1-ms1-ht1-mj1-lp1-bw2-rb1-fg3-hd1-rc1-rc2-rc3-rc4-rc5-dc2-dc3-rp2-ls1-rp3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-er1-cu1-rb2-rb3-rb4-rb5-rb6-hp1-mh1-ht2-bx1-ba1-sf1-cg1-hl1-mg1-tx1-sp1-chg1-kbt1-gb1-rh1-ci6-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-wb1-mt2-sk1-hb4-jx2-jx3-mb1-mb2-gc1-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h-tn13-fs1-fs2-rgb1-bdn1-msk1";
 import { ROLES, roleCode, DOCTOR, poseSeated, posePianoArms, PianoVoice, TUNES } from "./modes/rp-roles.js?v=rp1b7-cd1-sh1-dj2-or1-bw2-sp1-mb1-mb2-nft2531-fs1-fs2-rb1-rgb1-bdn1-msk1";
@@ -51,15 +51,15 @@ import { MatchIntro } from "./modes/match-intro.js?v=mi5-wst-or1";
 import {
   MODES, MODE_IDS, QUICKPLAY_BASE, weaponForMode, playerWon, matchWinner, matchWinnerOnTimeout,
   Hill, Bomb, pickBombSites, pickHillPoints, splitSpawnSides, PLANT_TIME, DEFUSE_TIME, INFECTION,
-} from "./modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-ug1-ugm1-hgb8-hgb9-mt2-hb4-tn13";
-import { BotManager } from "./bots/bots.js?v=cg5-em1-wst-bs1-p22-bs2-sb2-gj1-fu1b7b7d-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-ob1-nl1-nf1-fl1-or1-tn2-bc1-gf1-tg1-mg1-bt2-sp1-tfb8-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn12-tn13";
+} from "./modes/modes.js?v=umb1-rn-wst-tl1-bs1-soc1-t69-u69b7b7d-wb1-ar1-ar2-zh1-fl1-or1-ffa1-dom1-gf1-tg1-kb9-sp1-gb2-tb1-dm1-tfb8-ug1-ugm1-hgb8-hgb9-mt2-hb4-tn13-kbc3";
+import { BotManager } from "./bots/bots.js?v=cg5-em1-wst-bs1-p22-bs2-sb2-gj1-fu1b7b7d-wb1-th2-ar1-ar2-cl1-bp1-fj1-zr10-zc1-zc2-ob1-nl1-nf1-fl1-or1-tn2-bc1-gf1-tg1-mg1-bt2-sp1-tfb8-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn12-tn13-kbc3";
 import { resolveWeapon, defaultLoadoutFor } from "./weapons/attachments.js?v=cg1-wst-sb2-fu1-wb1-ar1-ar2-cl1-fj1-zc1-zc2-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4";
 import { GameAudio } from "./sound/audio.js?v=zr4-hf1-wb1-th2-zr9-zr10-zp1-ar1-pl2-or1-bz1-ch1-hb4";
 import { MapAmbience } from "./sound/ambience.js?v=amb1-wst-tl1-gj1-ug5-or1";
 import { insidePolygon } from "./maps/edge.js?v=or1";
-import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./modes/royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1-rt1-ut1-gf1-tg1-rb4-hp1-bx1-mg1-sp1-zw1-tfb8-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-mrc1-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-mt2-sk1-hb4-tn13";
+import { ROYALE, RoyaleZone, ZoneVisual, LootField, lootSpots, seededRng, hashSeed, gunDisplayName, ITEM_NAMES } from "./modes/royale-zone.js?v=p5-wst-bs1-sb2-fu1b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-pi1-fl1-or1-rt1-ut1-gf1-tg1-rb4-hp1-bx1-mg1-sp1-zw1-tfb8-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-mrc1-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-mt2-sk1-hb4-tn13-kbc3";
 import { GameMusic, EQ_BANDS, EQ_RANGE } from "./sound/music.js?v=to-gs1-sg1-zr10-jb1-nh1-hl1-or1-hh1-yb1-gr1-rfx1";
-import { DjLulz } from "./maps/dj-lulz.js?v=dj1-sg1-zr10-dj2-jb1-hl1-or1-hh1-yb1-gr1";
+import { DjLulz } from "./maps/dj-lulz.js?v=dj1-sg1-zr10-dj2-jb1-hl1-or1-hh1-yb1-gr1-djm1";
 import { stage, rise, damp, smoothstep } from "./characters/anim-curves.js?v=or1";
 import { AnimDebugLab } from "./labs/anim-debug.js?v=or1";
 import { buildStreakDevice, buildMarkerDevice, drawTabletScreen } from "./streaks/streak-device.js?v=to-df1-or1-sr1-mb1-mb2-tn13";
@@ -95,7 +95,7 @@ import { ControllerLayout, padEmotePressed } from "./menu/controller-layout.js?v
 import { CosmeticsPanel, cleanFaceKey, loadCosmetics } from "./characters/cosmetics.js?v=hb4-fc1-wst-soc1-ww1c2f1m1u-gt1-gt2-bk1-cw1-fj1-zr10-zc1-zc2-bf1-sr1-nf1-or1-nf2-nb1-em2-nb2-pc2-lh1-fg2-fg3-rc1-ls1-ut1-er1-cl1-rb4-rb6-hp1-ht1-bx1-sf1-mg1-sp1-pk1-mb1-mb2-bt1-nft33-nfh1-nfh5-mg2-nft2531-nft2531h-tn13-fs1-fs2-rb1-rgb1-bdn1-msk1";
 import { Dragonfire, DF_DAMAGE, DF_RANGE, DF_SPREAD, DF_HP } from "./streaks/dragonfire-drone.js?v=df3-sb2-or1";
 import { SamTurret, SAM_RANGE, SAM_LOCK, SAM_SALVO_GAP, SAM_RELOAD } from "./streaks/sam-turret.js?v=sam1-fj1-or1-sr7-mb1-mb2";
-import { DROP, RoyaleDrop, Flight, buildParaglider } from "./modes/royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-mt2-sk1-hb4-jx2-mb1-mb2-tn13";
+import { DROP, RoyaleDrop, Flight, buildParaglider } from "./modes/royale-drop.js?v=rp3-wst-bs1-sb2-fu1b7b7d-wb1-ar1-ar2-cl1-fj1-zr10-zc1-zc2-bf1-pl2-pi1-sr1-fl1-or1-dc2-dc3-rr1-ld1-rt1-ld2-ld3-ut1-gf1-tg1-rb4-hp1-bx1-mg1-tx1-sp1-kbt1-gb1-pm1-kbk2-zw1-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-rfx2-lz1-ret1-ret2-mrg1-hd1-ugb1-ug1-ugm1-mrc1-hgb6-hgb8-tw1-rt2-fd1-ars1-mrg3-p416-mt2-sk1-hb4-jx2-mb1-mb2-tn13-kbc3";
 import { preloadHalloweenMelee, setHalloweenEnvMap } from "./weapons/melee-models.js?v=hw2-or1";
 import {
   HellfireFx, updateSoulBlazerView, soulBlazerShot, soulBlazerKick, soulBlazerIgnite, soulBlazerMouth,
@@ -158,7 +158,7 @@ import { initSunShadow, fitSunShadow, updateSunShadow } from "./view/sun-shadow.
 import { makeGtao } from "./view/ssao.js?v=ao1-zr10-ao2-gt1-mg2-sp1";
 import { sky, applySky, setSkyCloudQuality } from "./view/sky.js?v=sr1-ss1-ss2-ss3-tfm2";
 import { initWorldEnv, refreshWorldEnv } from "./view/environment.js?v=sr1-ss1-ss2-ss3-tfm2";
-import { GradePass, ViewmodelPass } from "./view/grade-pass.js?v=sr1-tm5-sp1";
+import { GradePass, ViewmodelPass } from "./view/grade-pass.js?v=sr1-tm5-sp1-kbc1-kbc2-kbc3";
 /* What the split-out modules reach back into game.js for (see core/state.js).
    Functions go in as they are; everything else as a getter, so nothing is
    read before game.js declares it. game.js only ever gets smaller: an

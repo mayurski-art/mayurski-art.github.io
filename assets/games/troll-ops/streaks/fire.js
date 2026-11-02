@@ -12,9 +12,9 @@ import { updateStreakHud, showWaveBanner } from "../core/hud.js?v=cr1-si1-gj1-fu
 import { spawnSentry, sentryDeployPoint } from "./sentry-gun.js?v=sg1-tn13-fs2-rgb1-bdn1-msk1";
 import { STREAK_DEFS, PACKAGE_STREAK_POOL, streakIconSvg } from "./scorestreaks.js?v=umb1-wst-sb2-fu1-wb1-ar1-ar2-cl1-bp1-fj1-zc1-zc2-nf1-or1-sam1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn13";
 import { groundHeightAt } from "../core/movement.js?v=umb2-sb2-gj1b7-or1-gf1-tg1-rfx1-hb4-tn13";
-import { FlowField } from "../bots/nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8-tn13";
+import { FlowField } from "../bots/nav.js?v=ti1-bs1b7d-fl1-or1-gf1-tg1-tfb8-tn13-kbc3";
 import { StrikeTablet, STRIKE_TARGETS } from "./streak-tablet.js?v=wu1-or1";
-import { K9Pack } from "../bots/k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d-sr1-fl1-or1-gf1-tg1-tcs1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-ugb1-ug1-ugm1-hgb6-hb4-tn13";
+import { K9Pack } from "../bots/k9-unit.js?v=k9c-bs1-sb2-gj1b7b7d-sr1-fl1-or1-gf1-tg1-tcs1-tx1-sp1-kbt1-gb1-pm1-kbk2-tfp7-tfb8-ss1-ss2-ss3-tfm2-rfx1-ugb1-ug1-ugm1-hgb6-hb4-tn13-kbc3";
 import { game } from "../core/state.js?v=st1";
 import { hasPerk, peerHas } from "../progression/perks.js?v=pk1-cl1-bp1-fj1-zc1-zc2-nf1-or1-rfx1-ret1-mrg1-mrc1-tw1-ars1-p416-mt2-hb4-gc1-tn13";
 

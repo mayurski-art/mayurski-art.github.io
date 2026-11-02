@@ -143,7 +143,11 @@ export class DjLulz {
         // smaller, so the least-delayed of the last few is the best guess.
         this.offs.push(m.rn - Date.now());
         if (this.offs.length > 12) this.offs.shift();
-        this.skew = Math.max(...this.offs);
+        // Up at once, down only 20 ms a reading: when the best reading ages
+        // out of the window the clock used to step back by the trip's jitter
+        // (100s of ms on a phone), and the record jumped to follow it.
+        const best = Math.max(...this.offs);
+        this.skew = !this.skewed || best > this.skew ? best : Math.max(best, this.skew - 20);
         this.skewed = true;
       }
       this.st = { seq: m.seq | 0, now: this._cleanNow(m.now), q: (Array.isArray(m.q) ? m.q : []).slice(0, MAX_QUEUE + 2).map((e) => this._cleanEntry(e)).filter(Boolean), held: m.held ? 1 : 0 };
@@ -391,14 +395,25 @@ export class DjLulz {
         this.el.play().then(() => { this.blocked = false; }).catch(() => { this.blocked = true; }).finally(() => { this._playing = false; });
       }
     } else if (!this.el.seeking && this.el.readyState >= 2) {
-      // in step with the room: a small drift is played out (a hair fast or
-      // slow), a big one is a jump, aimed a little ahead to cover the seek
-      const drift = this.el.currentTime - pos, now = performance.now();
-      if (Math.abs(drift) > 0.4 && now - (this._seekAt || 0) > 1500) {
+      // in step with the room. The drift is smoothed (a phone's currentTime
+      // moves in steps of a quarter second); a small one is played out a hair
+      // fast or slow, with a dead band so the rate doesn't flip every frame;
+      // a big one is a jump, aimed a little ahead to cover the seek. Touch
+      // devices never change the rate (iOS stutters the record on every
+      // change) and only jump when it's well out, at most every 8 s.
+      const raw = this.el.currentTime - pos, now = performance.now();
+      this._drift = this._drift == null || Math.abs(raw - this._drift) > 1 ? raw : this._drift + (raw - this._drift) * 0.1;
+      const drift = this._drift, touch = !!this.h.isTouch;
+      const jumpAt = touch ? 0.75 : 0.4, every = touch ? 8000 : 1500;
+      let rate = this.el.playbackRate;
+      if (Math.abs(drift) > jumpAt && now - (this._seekAt || 0) > every) {
         this._seekAt = now;
+        this._drift = null;
         this.el.currentTime = pos + 0.15;
-        this.el.playbackRate = 1;
-      } else this.el.playbackRate = Math.abs(drift) < 0.06 ? 1 : drift > 0 ? 0.97 : 1.03;
+        rate = 1;
+      } else if (touch || Math.abs(drift) < 0.03) rate = 1;
+      else if (Math.abs(drift) > 0.08) rate = drift > 0 ? 0.97 : 1.03;
+      if (rate !== this.el.playbackRate) this.el.playbackRate = rate;
     }
   }
 

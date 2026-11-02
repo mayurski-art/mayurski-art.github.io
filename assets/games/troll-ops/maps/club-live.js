@@ -29,7 +29,7 @@ import {
   signsTexture, tileGlowTexture, fringeTexture, beamTexture, facetTexture, djTexture,
 } from "./trollingloud-kit.js?v=tl3-tc3-sh1-sr1-or1-tcs1-tx1-ch1-sp1-kbt1-pm1-ss1-ss2-ss3-tfm2-ugb1-ug1-ugm1";
 import { BEATS } from "../sound/music-beats.js?v=bg1-sg1-zr10-jb1-nh1-hl1-or1-hh1-yb1-gr1";
-import { moneyTick, moneyDebug } from "./club-money.js?v=mn1";
+import { moneyTick, moneyDebug } from "./club-money.js?v=mn2-kbc1-mn3-kbc2-kbc3";
 
 /* A build's live state: the lobby's map thumbnails and the preloader also
    run build(), so each build keeps its own and the ticker (it only runs
@@ -166,7 +166,8 @@ function rayToHall(P, a) {
 
 /* The dance floor: black glass over a mirror pit, LED tiles. `edgeY`: the
    lit edge's height, on the step down (0.18) or flush with the floor. */
-export function danceFloor(K, M, N, P, { edgeY = 0.18 } = {}) {
+// `tileK`: how bright the LED tiles burn (a dark room wants them brighter)
+export function danceFloor(K, M, N, P, { edgeY = 0.18, tileK = 0.42 } = {}) {
   const { HALL, DANCE, DC } = P;
   K.add(M.danceGlass, place(new THREE.PlaneGeometry(DANCE.x1 - DANCE.x0, DANCE.z1 - DANCE.z0), { x: DC.x, y: 0.0, z: DC.z, rx: -Math.PI / 2 }), { shadow: false });
   // the pit under it: black all round, deep enough to hold the reflection
@@ -180,7 +181,7 @@ export function danceFloor(K, M, N, P, { edgeY = 0.18 } = {}) {
     const x = DANCE.x0 + 0.5 + i, z = DANCE.z0 + 0.5 + j;
     const pal = [0xff2ab4, 0x3ff0ff, 0x8a4aff, 0xff2ab4];
     const r = Math.hypot(x - DC.x, z - DC.z);
-    N.quad(M.neonTile, x, 0.012, z, 0.96, 0.96, { rx: -Math.PI / 2, color: pal[(i + j) % 4], k: 0.42, chase: 0.75, phase: -r * 0.18, beat: 0.6, rip: 1 });
+    N.quad(M.neonTile, x, 0.012, z, 0.96, 0.96, { rx: -Math.PI / 2, color: pal[(i + j) % 4], k: tileK, chase: 0.75, phase: -r * 0.18, beat: 0.6, rip: 1 });
   }
   // a lit edge where the dance floor steps down
   for (const [x, z, w, d] of [[DC.x, DANCE.z0 - 0.01, nx, 0.02], [DC.x, DANCE.z1 + 0.01, nx, 0.02], [DANCE.x0 - 0.01, DC.z, 0.02, nz], [DANCE.x1 + 0.01, DC.z, 0.02, nz]]) {

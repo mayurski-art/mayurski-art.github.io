@@ -279,9 +279,9 @@ export function setBombSiteMarkers(sites) {
       new THREE.MeshBasicMaterial({ color: 0xff8a5a, transparent: true, opacity: 0.28, depthWrite: false }),
     );
     ring.userData.noBulletCollide = true;
-    // Ground-level support only: sites sit on open floor, and a ceiling of
-    // 40 used to put the ring on whatever roof or catwalk was overhead.
-    const y = groundHeightAt(game.colliders, site.x, site.z, 1) ?? 0;
+    // Its own floor's support only: sites sit on open floor, and a ceiling
+    // of 40 used to put the ring on whatever roof or catwalk was overhead.
+    const y = groundHeightAt(game.colliders, site.x, site.z, (site.y ?? 0) + 1) ?? 0;
     ring.position.set(site.x, y + 0.06, site.z);
     game.scene.add(ring);
     const label = makeSiteLabel(site.id);

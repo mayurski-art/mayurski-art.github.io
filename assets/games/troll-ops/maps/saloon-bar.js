@@ -18,9 +18,14 @@ export const WHISKEY_SIPS = 1;
 // Kek & Sons' goods (modes/social-shop.js) ride the drink's hand and wire too
 export const CANTEEN_SIPS = 6;
 export const APPLE_BITES = 3;
-export const DRINK_KINDS = new Set(["beer", "whiskey", "canteen", "apple"]);
+// Kabukigrin's bar (modes/kb-bar.js, docs/KB-BAR-SERVICE.md): sake in an
+// ochoko, a highball, the glowing Grin Sour, and green tea to steady you
+export const SAKE_SIPS = 1, HIGHBALL_SIPS = 3, SOUR_SIPS = 2, TEA_SIPS = 2;
+export const DRINK_KINDS = new Set(["beer", "whiskey", "canteen", "apple", "sake", "highball", "sour", "tea"]);
 /* Only the saloon's own make you tipsy. */
-export const isLiquor = (kind) => kind === "beer" || kind === "whiskey";
+export const isLiquor = (kind) => kind === "beer" || kind === "whiskey" || kind === "sake" || kind === "highball" || kind === "sour";
+/* The glass goes back to the bar when it's empty (a mug you keep and refill). */
+export const glassGoesBack = (kind) => kind === "whiskey" || kind === "sake" || kind === "highball" || kind === "sour" || kind === "tea";
 export const GRAB_TIME = 0.35;            // hold X at the rack for a mug
 export const FILL_TIME = 2.0;             // hold X at a tap, empty to full
 export const FILL_TIME_BARTENDER = 0.8;   // the bartender pours faster
@@ -35,25 +40,31 @@ export const BARTENDER_LEAVE_SECONDS = 8; // out of the saloon this long hangs t
 export const TIPSY = {
   perBeerSip: 0.25,    // a whole mug is one point
   perShot: 1,
+  // ...and Kabukigrin's round (docs/KB-BAR-SERVICE.md 3): green tea takes some off
+  perSip: { beer: 0.25, whiskey: 1, sake: 1.2, highball: 0.4, sour: 0.9, tea: -0.4 },
   onset: 2,            // nothing shows below this
-  max: 6,
+  max: 6,              // the steady sway's full strength
+  cap: 8,              // you pass out (modes/drunk.js)
   decay: 1 / 60,       // points per second: a mug a minute
 };
+export const tipsyPerSip = (kind) => TIPSY.perSip[kind] || 0;
 
 /* The drink on the wire (state `dk`): 0 nothing, otherwise kind * 10 +
    sips left, kind 1 beer, 2 whiskey. Beer with 0 sips left is an empty
    mug (10). */
-const KIND_CODE = { beer: 10, whiskey: 20, canteen: 30, apple: 40 };
+const KIND_CODE = { beer: 10, whiskey: 20, canteen: 30, apple: 40, sake: 50, highball: 60, sour: 70, tea: 80 };
+const CODE_KIND = ["beer", "whiskey", "canteen", "apple", "sake", "highball", "sour", "tea"];
 export function drinkCode(d) {
   if (!d) return 0;
   return (KIND_CODE[d.kind] || 10) + Math.max(0, Math.min(9, d.sips | 0));
 }
 export function drinkFromCode(c) {
   c |= 0;
-  if (c < 10 || c >= 50) return null;
-  return { kind: ["beer", "whiskey", "canteen", "apple"][Math.floor(c / 10) - 1], sips: c % 10 };
+  if (c < 10 || c >= 90) return null;
+  return { kind: CODE_KIND[Math.floor(c / 10) - 1], sips: c % 10 };
 }
-export function drinkMax(kind) { return kind === "whiskey" ? WHISKEY_SIPS : kind === "canteen" ? CANTEEN_SIPS : kind === "apple" ? APPLE_BITES : BEER_SIPS; }
+const MAX_SIPS = { beer: BEER_SIPS, whiskey: WHISKEY_SIPS, canteen: CANTEEN_SIPS, apple: APPLE_BITES, sake: SAKE_SIPS, highball: HIGHBALL_SIPS, sour: SOUR_SIPS, tea: TEA_SIPS };
+export function drinkMax(kind) { return MAX_SIPS[kind] || BEER_SIPS; }
 
 /* ------------------------------------------------------------- the models */
 
@@ -67,6 +78,9 @@ const WHISKEY = new THREE.MeshStandardMaterial({ color: 0x9a4a12, roughness: 0.2
 export function buildDrink(kind = "beer") {
   if (kind === "canteen") return buildCanteen();
   if (kind === "apple") return buildApple();
+  if (kind === "sake" || kind === "tea") return buildCup(kind);
+  if (kind === "highball") return buildHighball();
+  if (kind === "sour") return buildCoupe();
   const g = new THREE.Group();
   const whiskey = kind === "whiskey";
   const r = whiskey ? 0.024 : 0.042, h = whiskey ? 0.055 : 0.115;
@@ -153,6 +167,118 @@ function buildApple() {
   };
   g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
   return g;
+}
+
+/* ------------------------------------------- Kabukigrin's bar (kb-bar.js) */
+
+/* A liquid column that reads its fill from `setSips`: base at `floor`, the
+   top at `h * 0.88` when full. */
+function liquidFill(g, liquid, max, h, floor, onTop = null) {
+  g.userData.setSips = (sips) => {
+    const k = Math.max(0, Math.min(1, sips / max));
+    liquid.visible = k > 0;
+    const top = floor + (h * 0.88 - floor) * k;
+    liquid.scale.y = Math.max(0.001, top - floor);
+    liquid.position.y = floor + (top - floor) / 2;
+    onTop?.(top, k);
+  };
+  g.userData.setSips(max);
+}
+const finishDrink = (g, kind, h, r) => { g.userData.kind = kind; g.userData.height = h; g.userData.radius = r; g.traverse((o) => { if (o.isMesh) o.castShadow = false; }); return g; };
+const PORCELAIN = new THREE.MeshStandardMaterial({ color: 0xf1ece2, roughness: 0.3 });
+const INDIGO = new THREE.MeshStandardMaterial({ color: 0x2b3f7a, roughness: 0.35 });
+const CELADON = new THREE.MeshStandardMaterial({ color: 0x4d6b55, roughness: 0.4 });
+const SAKE = new THREE.MeshStandardMaterial({ color: 0xe9e4cf, roughness: 0.1, transparent: true, opacity: 0.8 });
+const TEA = new THREE.MeshStandardMaterial({ color: 0x9fb04a, roughness: 0.2, emissive: 0x1e2a06, emissiveIntensity: 0.3 });
+const HIGHBALL = new THREE.MeshStandardMaterial({ color: 0xe6c36a, roughness: 0.1, transparent: true, opacity: 0.72, emissive: 0x3a2a05, emissiveIntensity: 0.25 });
+const ICE = new THREE.MeshStandardMaterial({ color: 0xeef7ff, roughness: 0.05, transparent: true, opacity: 0.6 });
+const LEMON = new THREE.MeshStandardMaterial({ color: 0xf5d83a, roughness: 0.6 });
+const SOUR = new THREE.MeshStandardMaterial({ color: 0x5aff3c, roughness: 0.1, emissive: 0x2cff10, emissiveIntensity: 0.9, transparent: true, opacity: 0.85 });
+
+/* An ochoko (sake: small, a blue ring under the lip) or a yunomi (tea:
+   taller, celadon). Ceramic, so the liquid shows only from above. */
+function buildCup(kind) {
+  const g = new THREE.Group();
+  const tea = kind === "tea";
+  const r = tea ? 0.03 : 0.026, h = tea ? 0.07 : 0.045;
+  const wall = new THREE.Mesh(new THREE.CylinderGeometry(r, r * (tea ? 0.86 : 0.7), h, 16, 1, true), tea ? CELADON : PORCELAIN);
+  wall.material.side = THREE.DoubleSide;
+  wall.position.y = h / 2;
+  g.add(wall);
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(r * (tea ? 0.86 : 0.7), r * (tea ? 0.86 : 0.7), h * 0.1, 16), tea ? CELADON : PORCELAIN);
+  foot.position.y = h * 0.05;
+  g.add(foot);
+  if (!tea) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r * 1.005, 0.0022, 6, 20), INDIGO);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = h * 0.82;
+    g.add(ring);
+  }
+  const liquid = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.92, r * 0.8, 1, 16), tea ? TEA : SAKE);
+  g.add(liquid);
+  liquidFill(g, liquid, drinkMax(kind), h, h * 0.1);
+  return finishDrink(g, kind, h, r);
+}
+
+/* A highball: a tall straight glass, two ice cubes, a lemon wheel on the rim. */
+function buildHighball() {
+  const g = new THREE.Group();
+  const r = 0.03, h = 0.14;
+  const wall = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.96, h, 16, 1, true), GLASS);
+  wall.position.y = h / 2;
+  wall.renderOrder = 2;
+  g.add(wall);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.96, r * 0.96, h * 0.08, 16), GLASS);
+  base.position.y = h * 0.04;
+  g.add(base);
+  const liquid = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.92, r * 0.9, 1, 16), HIGHBALL);
+  g.add(liquid);
+  const cubes = [[-0.008, 0.012], [0.009, -0.006]].map(([x, z]) => {
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.02), ICE);
+    c.position.set(x, 0, z);
+    c.rotation.set(0.3, x * 40, 0.2);
+    g.add(c);
+    return c;
+  });
+  const lemon = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.004, 14), LEMON);
+  lemon.rotation.z = 0.35;
+  lemon.position.set(r * 0.9, h + 0.008, 0);
+  g.add(lemon);
+  // the ice rides the level down; the lemon goes with the last sip
+  liquidFill(g, liquid, HIGHBALL_SIPS, h, h * 0.08, (top, k) => { cubes.forEach((c, i) => { c.position.y = Math.max(h * 0.08 + 0.012, top - 0.008 - i * 0.004); }); lemon.visible = k > 0; });
+  return finishDrink(g, "highball", h, r);
+}
+
+/* The Grin Sour: a coupe on a stem, neon green and glowing. */
+function buildCoupe() {
+  const g = new THREE.Group();
+  const h = 0.11, r = 0.042;
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.03, 0.004, 16), GLASS);
+  foot.position.y = 0.002;
+  g.add(foot);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.005, 0.055, 8), GLASS);
+  stem.position.y = 0.03;
+  g.add(stem);
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(r, 0.012, 0.045, 18, 1, true), GLASS);
+  bowl.position.y = 0.08;
+  bowl.renderOrder = 2;
+  g.add(bowl);
+  const bottom = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.004, 12), GLASS);
+  bottom.position.y = 0.058;
+  g.add(bottom);
+  // the bowl flares, so the liquid is a cone from its floor
+  const liquid = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.9, 0.013, 1, 18), SOUR);
+  g.add(liquid);
+  const floor = 0.06, full = h * 0.88;
+  g.userData.setSips = (sips) => {
+    const k = Math.max(0, Math.min(1, sips / SOUR_SIPS));
+    liquid.visible = k > 0;
+    const top = floor + (full - floor) * k;
+    liquid.scale.set(k, Math.max(0.001, top - floor), k);
+    liquid.position.y = floor + (top - floor) / 2;
+  };
+  g.userData.setSips(SOUR_SIPS);
+  return finishDrink(g, "sour", h, r);
 }
 
 /* Where a drink sits relative to a hand from hand-model.js (palm faces -Y,

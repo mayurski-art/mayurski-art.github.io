@@ -379,16 +379,29 @@ function walk(n, target, dt) {
   if (dist > 0.15) n.yaw = Math.atan2(-dx, -dz);
 }
 
+/* Turn us to our bouncer where he stands now, not where he stood when the
+   door was set up (Big Lulz steps to the rope's hook and back, so that yaw
+   went stale and left you facing the wall); `l.yaw` if he's not there. */
+function faceBouncer(l, dt) {
+  const n = game.townNpcs?.list?.[l.bi], p = game.move.pos;
+  const yaw = n && Math.hypot(n.x - p.x, n.z - p.z) > 0.2 ? yawTo(p.x, p.z, n.x, n.z) : l.yaw;
+  game.look.yaw = turn(game.look.yaw, yaw, dt * 5);
+}
+
 /* Our own way through it. */
 function stepMe(d, dt) {
   const p = game.move.pos;
-  // Up at the bouncer, eyes on his hands.
-  if (["lane", "id", "ask", "bandana"].includes(club.phase) && club.lane >= 0 && near(p, club.lanes[club.lane], 0.3)) game.look.pitch += (-0.2 - game.look.pitch) * Math.min(1, dt * 3);
+  // Up at the bouncer: eyes on his hands, on his face while he asks.
+  if (["lane", "id", "ask", "bandana"].includes(club.phase) && club.lane >= 0 && near(p, club.lanes[club.lane], 0.3)) {
+    const want = club.phase === "ask" || club.phase === "bandana" ? 0.02 : -0.2;
+    game.look.pitch += (want - game.look.pitch) * Math.min(1, dt * 3);
+  }
+  if (["id", "ask", "bandana", "band"].includes(club.phase) && club.lane >= 0) faceBouncer(club.lanes[club.lane], dt);
   switch (club.phase) {
     case "lane": {
       const l = club.lanes[club.lane];
       if (!near(p, l, 0.05)) break;
-      game.look.yaw = turn(game.look.yaw, l.yaw, dt * 5);
+      faceBouncer(l, dt);
       if (club.t > 0.6) {
         if (wornBandana() && !club.bandOff) { ui.ask(answerBandana, "bandana"); go("bandana"); break; }
         const signed = !!window.TrollrunnerAccounts?.getCachedProfile?.();
@@ -398,11 +411,9 @@ function stepMe(d, dt) {
       break;
     }
     case "id":
-      game.look.yaw = turn(game.look.yaw, club.lanes[club.lane].yaw, dt * 5);
       if (club.t > T.idSecs) { ui.hideCard(); ui.ask(answer); go("ask"); }
       break;
     case "bandana":
-      game.look.yaw = turn(game.look.yaw, club.lanes[club.lane].yaw, dt * 5);
       // Ignoring the bouncer counts as a no.
       if (club.t > T.bandanaAskSecs) { ui.hideAll(); answerBandana(false); }
       else if (club.t > T.afkSecs && othersWaiting()) toBack();
@@ -412,7 +423,6 @@ function stepMe(d, dt) {
       if (club.t > T.afkSecs && othersWaiting()) toBack();
       break;
     case "band":
-      game.look.yaw = turn(game.look.yaw, club.lanes[club.lane].yaw, dt * 5);
       game.look.pitch += (-0.55 - game.look.pitch) * Math.min(1, dt * 4);   // down at your wrist
       if (!club.snapped && club.t >= T.bandSecs * SNAP_AT) {
         club.snapped = true;

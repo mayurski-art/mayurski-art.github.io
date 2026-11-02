@@ -148,12 +148,14 @@ if (!SIM_ONLY) {
     if (ONLY_MAPS.length && !ONLY_MAPS.includes(id)) continue;
     const res = await page.evaluate(async ({ id, mods }) => {
       const THREE = await import("three");
-      const { buildMap } = await import(mods.maps);
+      const { buildMap, settleMap } = await import(mods.maps);
       const { BotManager } = await import(mods.bots);
       const { FlowField } = await import(mods.nav);
       const { groundHeightAt } = await import(mods.movement);
       const colliders = [], arena = {};
       const bm = buildMap(id, { colliders, arena });
+      // as game.js does when a map goes live: its ground field (Kabukigrin's dug club) set
+      settleMap(bm.map, bm.spawnPoints || [], colliders);
       // What game.js (k9Stairs) hands the bots: the map's flights plus a
       // zombies map's own links.
       const stairs = [...(bm.stairs || [])];
@@ -171,8 +173,8 @@ if (!SIM_ONLY) {
         && x > arena.minX + 1 && x < arena.maxX - 1 && z > arena.minZ + 1 && z < arena.maxZ - 1;
       const fieldAt = new Map();
       const levelField = (y) => {
-        const level = Math.max(0, Math.round(y * 2) / 2);
-        if (!fieldAt.has(level)) fieldAt.set(level, new FlowField(colliders, arena, level, { ...(arena.navCell ? { cell: arena.navCell } : {}), needSupport: level > 0.5 }));
+        const level = Math.round(y * 2) / 2;
+        if (!fieldAt.has(level)) fieldAt.set(level, new FlowField(colliders, arena, level, { ...(arena.navCell ? { cell: arena.navCell } : {}), needSupport: Math.abs(level) > 0.5 }));
         return fieldAt.get(level);
       };
       // A spot on p's level, about `r` metres off, that walks to p on that level.
