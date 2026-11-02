@@ -1,7 +1,7 @@
 # Troll Forces: the arsenal upgrade (geometry, materials, gun mechanics)
 
-Status: **analysis + Phase 1 plan, awaiting buy-in.** No game code written
-for it yet. The Arms Book (renders of all 35 guns as they ship) is the
+Status: **Phase 1 live on main (2026-10-30: the 416, MTAR and Ballista; THE BEAST
+dropped). Part 2 in progress on `claude/arsenal-part2` (§9).** The Arms Book (renders of all 35 guns as they ship) is the
 "before"; the user's four concept renders (2026-10-26: an OD-green AR, a
 tan bullpup, THE BEAST in white, a black bolt chassis rifle) are the target
 look for Phase 1.
@@ -274,6 +274,82 @@ worktree and branch off the foundation branch. Shared files they all touch
 (`ar-reload.js SPECS`, `weapon-model.js DETAILED`, `weapons.js`) take one
 entry per gun, so merges stay mechanical. Each gun branch skips the `?v=`
 cascade (CLAUDE.md rule 1); the session that merges them runs it once.
+
+## 9. Shared runtime contracts (Part 2, 2026-11-02)
+
+Part 1 landed the 416, the MTAR and the Ballista on these conventions
+(`HB_Bolt` / `BoltKnob` / `tf_lift` / `tf_round` were agreed between the
+Ballista and MTAR sessions). Part 2 (the Grinmington 870, the Bellylaugh
+M60, the Snicker MP7, the Smug XPR) adds the pump, the feed cover and the
+belt. Each mechanism has ONE runtime home, written once and used by every
+gun that exports its nodes; a builder never carries its own animation.
+
+Every v2 gun exports under a two-letter prefix `<P>`: moving parts are
+`gunkit.moving()` Parts (names in `gunkit.MOVING`) with extras `tf_part`,
+`tf_kind` ("slide" | "hinge"), `tf_axis`, `tf_travel` (metres along the
+axis, + = toward the tail; or radians about it); points are empties
+(`gunkit.POINTS`). `weapon-model.js buildDetailed` reads them into
+`userData.gunParts` (node, kind, axis, travel, follow, rest pos / rot) and
+`userData.gunPoints`; `view/gun-action.js setPart(part, k)` places a part
+`k` (0..1) of the way along its travel. A part not exported is simply not
+moved; a point not exported falls back to the old gun-local offsets.
+
+### 9.1 The nodes and extras
+
+| Mechanism | Nodes / extras | Runtime home | What drives it |
+|---|---|---|---|
+| Carrier / bolt (closed bolt: AR, SMG, PDW, semi sniper) | `<P>_Carrier` slide z; `<P>_Trigger` hinge x; `<P>_Catch` hinge; `<P>_DustCover` hinge; `<P>_Selector` | `gun-action.js placeParts` | a round gone outside a reload: back 30 ms, home 40 ms; locks back on the last round; released by the catch or a let-go handle |
+| Reciprocating handle | `<P>_Charge` slide with `tf_follow: "Carrier"` | `placeParts` | rides back with the carrier each shot (travel scaled); sits back with it when it locks |
+| Charging handle pulled on empty | `<P>_Charge` slide + `<P>_ChargeHand` point | `ar-reload.js` (finish `part: "charge"`), `arPartState` | the hand draws it to full travel, holds, lets go; carrier snaps home over `LET_GO` |
+| Bolt catch slapped on empty | `<P>_Catch` + `<P>_CatchHand` point | `ar-reload.js` (finish `part: "catch"`) | pressed and held; drops the carrier |
+| **Open bolt** (belt LMG) | `tf_open_bolt: 1` on `<P>_Carrier`; the part is BUILT at rest = back, `tf_travel` negative (the run forward to the breech) | `placeParts` | a shot runs it forward (k 1) and back (k 0) on the same curve; empty it stays forward (k 1, closed on nothing); the empty reload's charge pull returns it to 0 and it stays there (no slam, no catch) |
+| Brass | `<P>_Eject` point; DETAILED `brass`: "556", "762", "338", "12ga", "9mm", "46" (4.6x30, MP7), "50" (.50 BMG, XPR); optional DETAILED `brassThrow: [right, up, back]` scale (default [1, 1, 1]; the M60 throws under the receiver) | `brass.js ejectBrass` | at 60 % of the carrier's run back; a pump gun on the pump stroke (below); rate-limited 0.04 s |
+| **Pump** (shotgun) | `<P>_Pump` slide z, travel 0.085 (+ = back); `<P>_Support` point ON the pump (the support hand is parented to the pump node, so the arm rides a rack); `<P>_Shell` a loose 12 ga shell, hidden at rest (origin mid-shell, head +z); `<P>_LoadPort` point (the loading gate under the receiver); `<P>_Eject` at the port | `gun-action.js placePump` (kit guns; `weapon-view.js placePump` keeps the legacy curve for the Soul Blazer and the procedural pumps) | after a shot: a beat, back over `w.pumpDur` (weapons.js `pumpTime`), hold, home; the red hull ejects as the pump passes 55 % on the way back; an empty shell reload ends on the rack (`shellReload.rack`, `rl.rack`); the shell-by-shell reload itself stays `weapon-view.js shellReloadPose` / `placeReloadShell` (any gun with `def.shellReload`, kit or not) |
+| **Feed cover** (belt LMG) | `<P>_FeedCover` hinge x, pivot at its rear hinge, travel the opening angle (radians); `<P>_CoverHand` point (the latch, where the hand goes) | `placeParts` reads `arPartState().cover` | `ar-reload.js` spec `cover: true`: both reloads open it after the box is seated, lay the belt, slam it; the empty one then racks `<P>_Charge` (finish `part: "charge"`) |
+| **Belt** | `<P>_Belt` node, a child of `<P>_Mag` (the box), with `tf_rounds: 1`, `tf_rounds_pitch` (one link), `tf_rounds_max`, `tf_rounds_axis: "x"` (the MTAR's stack uses "y") | `placeRounds` | pulled through +x a link a shot (capped at max); fresh with the new box (gone = 0 from 35 % of a reload); leaves with the box because it is its child |
+| Box / mag | `<P>_Mag` (pivot = the mag point; `magazinePoint`) | `ar-reload.js` | stripped, fetched, seated (templates below) |
+| Bipod | `<P>_BipodL` / `<P>_BipodR` hinge, built folded | `gun-action.js updateBipod` | down prone, still and aiming (PRONE.md phase 3) |
+| Bolt rifle | `<P>_Bolt` (+ `tf_lift`), `<P>_BoltKnob`, `<P>_Round` (`tf_round`) | `rifle-action.js` | unchanged from Part 1 |
+| Hands | `<P>_Grip`, `<P>_Support`, DETAILED `rake`, `supportDrop` | `weapon-model.js buildDetailed` | the hidden hand meshes the rods and the TROLLS block arms aim at; the pump parents the support hand (above) |
+| Sights | `<P>_IronRear` / `<P>_IronFront`, `<P>_Rail`, `<P>_Aim`, DETAILED `railY`, `adsDistance`, own `scope` | `buildDetailed` | §6a |
+
+`gunkit.MOVING` gains "Pump" and "FeedCover"; `gunkit.POINTS` gains
+"LoadPort" and "CoverHand". `KIT_VER` and the glb `?v=` tag bump on every
+re-bake (full bake only: the mask shares the unwrap, DESIGN-SKINS §3.1).
+
+### 9.2 Reload templates (`ar-reload.js TEMPLATES`)
+
+| Template | Guns | Finish |
+|---|---|---|
+| `ar` | 416 | catch slap |
+| `bullpup` | MTAR | forward handle, let go |
+| `smg` | MP7 | rear T-handle drawn back, held, let go (`part: "charge"`, sound "rack"); the gun canted toward the camera as the 416's rack is |
+| `semiSniper` | XPR | side handle racked on empty; heavy .50 recoil is `weapons.js` (recoilKickKnockback), not the reload |
+| `beltLmg` (new keys) | M60 | `cover: true`: box off, new box on, cover up (`CoverHand`), belt laid, cover slammed (beat "slap"); empty adds the handle (`ChargeHand`, beat "rack") |
+| shell-by-shell | 870 | not a template: `def.shellReload` stages in `weapons.js` drive `shellReloadPose`; an empty gun ends on the rack |
+
+Timing in the belt template (empty): seat 0.50, reach the latch 0.58,
+cover open 0.64, belt in 0.70, cover slam 0.76, handle grab 0.80, pull
+0.86, let go 0.88, home 0.96. Tactical: the same without the handle, the
+cover slam at 0.86. Both reloads on an open-bolt gun open the cover: the
+real M60 is reloaded that way whether or not the belt ran out.
+
+### 9.3 Rates and tests
+
+- A cycle faster than the carrier's 70 ms (the MP7 at 950 rpm fires every
+  63 ms) restarts the curve on each shot: the carrier never settles, which
+  reads as the blur; brass keeps its 0.04 s gap (a case every shot up to
+  1500 rpm). No per-gun timing.
+- Every gun's test freezes the reload clock (`w.reloadTime = 1e4`,
+  `w.reloadT = 1e4 * (1 - t)`) to sample the hands and parts at fixed
+  progress; a shell reload is sampled by setting `shellStage`, `shellT`
+  and `shellDur` the same way. The cycle is held with
+  `userData.gunAction.hold`.
+- Shots for the user: `OUT/<gun>-*.png` from the gun's test (hip view
+  `<gun>-0-hip.png`), the 2x2 four-view sheet from
+  `tools/troll-ops-arms-four.mjs` (side, front-right 3/4, rear-left 3/4,
+  top through `labs/arms-sheet.html`), and the TROLLS #1718 hip view from
+  `tools/troll-ops-nft-action-shots.mjs` (`action-1p-hip.png`).
 
 ## Open questions (my default in brackets)
 
