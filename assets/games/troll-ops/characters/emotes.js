@@ -356,7 +356,7 @@ function poseLeanTP(rig, t) {
 let fpLean = null, fpMoney = null, fpActive = null;
 function fpLeanProps(parent, handR, handL, t) { (fpActive = fpLean ||= new LeanKit()).fp(parent, handR, handL, t); }
 function fpMoneyGunProps(parent, handR, handL, t) { (fpActive = fpMoney ||= new MoneyGunKit()).fp(parent, handR, handL, t); }
-export function hideFpEmoteProps() { fpLean?.hide(); fpMoney?.hide(); }
+export function hideFpEmoteProps() { fpLean?.hide(); fpMoney?.hide(); fpBump?.hide(); }
 /* Where arm `side`'s rod should end on a held prop, or null. */
 export function fpEmoteRodTip(side, from, hand, out, pad = 0) { return fpActive ? fpActive.rodTip(side, from, hand, out, pad) : null; }
 
@@ -382,6 +382,149 @@ function poseMoneyGunTP(rig, t) {
   kit.tp(rig, t, up);
   done(rig);
 }
+
+/* Bump (user, 2026-11-01: "an emote for snorting white powder off your
+   hand"): the left fist comes up in front of the chest, back of the hand
+   on top; the right tips a little baggie over it and a small white mound
+   lands on the knuckles; the baggie goes away, the fist comes up to the
+   nose, one sharp sniff, the mound's gone, the head snaps back with a
+   shake, a wipe of the nose with the back of the hand. First person: you
+   see your own hands do it, the view dipping to the fist and kicking back.
+   The baggie and the mound ride the hands (rig.emoteBits; BumpKit for the
+   first-person hands). */
+const BUMP = {
+  seconds: 4.2,
+  up: [0, 0.45],          // the fist up in front of the chest
+  pour: [0.55, 1.35],     // the baggie tipped over the knuckles
+  bagAway: [1.35, 1.7],
+  lift: [1.6, 2.05],      // the fist to the nose
+  sniff: [2.05, 2.35],    // the mound goes
+  snap: [2.35, 2.9],      // the head back, a shake
+  wipe: [2.9, 3.6],       // the back of the hand across the nose
+  down: [3.6, 4.2],
+};
+const bspan = (t, [a, b]) => clamp01((t - a) / (b - a));
+function bumpState(t) {
+  const fist = env(t, BUMP.up[0], BUMP.up[1], BUMP.wipe[1], BUMP.down[1]);
+  const bag = env(t, BUMP.up[0] + 0.2, BUMP.pour[0], BUMP.bagAway[0], BUMP.bagAway[1]);
+  const tip = env(t, BUMP.pour[0], BUMP.pour[0] + 0.25, BUMP.pour[1] - 0.15, BUMP.pour[1]);
+  const mound = ease(bspan(t, BUMP.pour)) * (1 - ease(bspan(t, BUMP.sniff)));
+  const lift = ease(bspan(t, BUMP.lift)) * (1 - ease(bspan(t, BUMP.snap)));
+  const snap = t >= BUMP.snap[0] && t < BUMP.snap[1] ? Math.sin(bspan(t, BUMP.snap) * PI) : 0;
+  const shake = t >= BUMP.snap[0] && t < BUMP.wipe[0] + 0.2 ? Math.sin(t * 34) * (1 - bspan(t, [BUMP.snap[0], BUMP.wipe[0] + 0.2])) : 0;
+  const wipe = env(t, BUMP.wipe[0], BUMP.wipe[0] + 0.15, BUMP.wipe[1] - 0.15, BUMP.wipe[1]);
+  return { fist, bag, tip, mound, lift, snap, shake, wipe, rub: Math.sin(t * 18) * wipe };
+}
+const BUMP_WHITE = new THREE.MeshStandardMaterial({ color: 0xf6f6f2, roughness: 0.9, emissive: 0x2a2a2a });
+const BUMP_BAG = new THREE.MeshStandardMaterial({ color: 0xe8f0ff, roughness: 0.15, transparent: true, opacity: 0.45, depthWrite: false });
+/* The mound: a heap of grains on a squashed dome (origin: its base). */
+function bumpMound(k = 1) {
+  const g = new THREE.Group();
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.012 * k, 12, 6, 0, PI * 2, 0, PI / 2), BUMP_WHITE);
+  dome.scale.set(1.3, 0.55, 1);
+  g.add(dome);
+  for (let i = 0; i < 9; i++) {
+    const a = i * 2.4, r = (0.006 + (i % 3) * 0.004) * k;
+    const grain = new THREE.Mesh(new THREE.IcosahedronGeometry(0.0022 * k, 0), BUMP_WHITE);
+    grain.position.set(Math.cos(a) * r * 1.5, 0.001, Math.sin(a) * r);
+    g.add(grain);
+  }
+  return g;
+}
+/* The baggie: a little clear bag with white in its bottom corner and a red
+   zip (origin: its middle). */
+function bumpBag(k = 1) {
+  const g = new THREE.Group();
+  const bag = new THREE.Mesh(new THREE.BoxGeometry(0.035 * k, 0.045 * k, 0.004 * k), BUMP_BAG);
+  bag.renderOrder = 2;
+  const inside = new THREE.Mesh(new THREE.BoxGeometry(0.028 * k, 0.014 * k, 0.003 * k), BUMP_WHITE);
+  inside.position.y = -0.013 * k;
+  const zip = new THREE.Mesh(new THREE.BoxGeometry(0.035 * k, 0.003 * k, 0.005 * k), new THREE.MeshStandardMaterial({ color: 0xc8202a, roughness: 0.5 }));
+  zip.position.y = 0.0215 * k;
+  g.add(bag, inside, zip);
+  return g;
+}
+
+const _bw = new THREE.Vector3(), _bn = new THREE.Vector3(), _bq = new THREE.Quaternion();
+function poseBumpTP(rig, t) {
+  const p = rig.parts, s = rig.scale;
+  base(rig);
+  const S = bumpState(t);
+  // the head: down to the fist for the sniff, back with a shake
+  head(rig, 0.25 * S.fist + 0.35 * S.lift - 0.55 * S.snap, 0.25 * S.shake, 0.12 * S.shake);
+  rig.root.updateMatrixWorld(true);
+  // the left fist: in front of the chest, then at the nose, then rubbing under it
+  const front = new THREE.Vector3(-0.04, -0.05, -0.32).multiplyScalar(s);
+  const nose = facePoint(rig, 0.05, -0.35, 0.09);
+  const target = front.clone().lerp(nose, Math.max(S.lift, S.wipe));
+  if (S.wipe > 0) target.x += S.rub * 0.05 * s;
+  reachFrom(rig, -1, target, S.fist, POLE_OUT_L);
+  setHandPose(rig, -1, "fist");
+  // the right: the baggie up over the knuckles, tipped, then away
+  const over = front.clone().add(new THREE.Vector3(0.05 * s, 0.09 * s, 0));
+  reachFrom(rig, 1, over, S.bag, POLE_OUT_R);
+  setHandPose(rig, 1, "fist");
+  p.wristR.rotation.z += -1.1 * S.tip;
+  // the props
+  // (bigger than life, like the candle kit, so they read from a few metres)
+  const bag = emoteBit(rig, "bumpBag", p.gripR, () => bumpBag(s * 1.6));
+  bag.visible = S.bag > 0.05;
+  const mound = emoteBit(rig, "bumpMound", p.handL, () => bumpMound(s * 1.8));
+  mound.visible = S.mound > 0.02;
+  if (mound.visible) {
+    // on top of the fist, whichever way the hand's turned
+    p.handL.updateWorldMatrix(true, false);
+    p.handL.getWorldPosition(_bw);
+    _bw.y += 0.03 * s;
+    mound.position.copy(p.handL.worldToLocal(_bw));
+    mound.quaternion.copy(p.handL.getWorldQuaternion(_bq).invert());
+    mound.scale.setScalar(S.mound);
+  }
+  done(rig);
+}
+
+/* First person: the hands in view (game.js poses them). */
+const mix3 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+function bumpFp(t) {
+  const S = bumpState(t);
+  let L = mix3([-0.2, -0.55, -0.42], [-0.03, -0.24, -0.34], S.fist);
+  L = mix3(L, [-0.01, -0.09, -0.16], S.lift);
+  if (S.wipe > 0) L = [L[0] + S.rub * 0.04, L[1] + 0.12 * S.wipe, -0.14];
+  const R = S.bag > 0.02 ? { pos: mix3([0.2, -0.55, -0.42], [0.04, -0.15, -0.33], S.bag), rot: [0.3, 0, -PI / 2 - 1.1 * S.tip], pose: "fist" } : null;
+  return {
+    R,
+    L: S.fist > 0.02 ? { pos: L, rot: [0.15 + 0.6 * S.lift, 0, 0.1], pose: "fist" } : null,
+    gun: false,
+    cam: { pitch: -0.22 * S.fist * (1 - S.lift) - 0.12 * S.lift + 0.16 * S.snap, yaw: 0.04 * S.shake },
+  };
+}
+class BumpKit {
+  constructor() {
+    this.bag = bumpBag(1.3);
+    this.mound = bumpMound(1.4);
+    this.bag.visible = this.mound.visible = false;
+    this.seen = 0;
+    // (put away when nobody's placed them lately: the emote's over)
+    const stale = () => { if (performance.now() - this.seen > 250) this.hide(); };
+    this.bag.children[0].onBeforeRender = stale;
+    this.mound.children[0].onBeforeRender = stale;
+  }
+  fp(parent, handR, handL, t) {
+    const S = bumpState(t);
+    this.seen = performance.now();
+    if (this.bag.parent !== parent) parent.add(this.bag);
+    if (this.mound.parent !== parent) parent.add(this.mound);
+    this.bag.visible = S.bag > 0.05;
+    if (this.bag.visible) { this.bag.position.copy(handR.position).add(_bn.set(-0.01, 0.045, -0.01)); this.bag.rotation.set(0, 0, -1.1 * S.tip); }
+    this.mound.visible = S.mound > 0.02;
+    if (this.mound.visible) { this.mound.position.copy(handL.position).add(_bn.set(0, 0.032, 0)); this.mound.scale.setScalar(S.mound); }
+  }
+  hide() { this.bag.visible = this.mound.visible = false; }
+  rodTip() { return null; }
+}
+let fpBump = null;
+function fpBumpProps(parent, handR, handL, t) { (fpActive = fpBump ||= new BumpKit()).fp(parent, handR, handL, t); }
+const BUMP_ICON = '<svg viewBox="0 0 40 12" aria-hidden="true"><rect x="4" y="3" width="13" height="7" rx="2.5" fill="#d8b48c" stroke="#111"/><ellipse cx="10.5" cy="2.9" rx="4" ry="1.6" fill="#fff" stroke="#111" stroke-width=".6"/><rect x="24" y="2" width="9" height="8" rx="1" fill="#e8f0ff" fill-opacity=".6" stroke="#111"/><rect x="24" y="2" width="9" height="1.2" fill="#c8202a"/><rect x="25" y="7" width="7" height="2.4" fill="#fff"/></svg>';
 
 /* -------------------------------------------------------------- duo */
 // Both players face each other; each pose is written from its own side, so
@@ -1340,6 +1483,7 @@ export const EMOTES = [
   { id: "chug", name: "Chug", kind: "tp", pose: poseChug, seconds: CHUG.seconds },
   { id: "blunt", name: "Blunt", kind: "tp", pose: poseBlunt, seconds: LIGHT.seconds, token: 1272, icon: BLUNT_ICON },
   { id: "moneygun", name: "Make it rain", kind: "fp", pose: poseMoneyGunTP, fp: moneyGunFp, fpProps: fpMoneyGunProps, props: true, seconds: MONEY_GUN.seconds, icon: MONEY_GUN_ICON },
+  { id: "bump", name: "Bump", kind: "fp", pose: poseBumpTP, fp: bumpFp, fpProps: fpBumpProps, props: true, seconds: BUMP.seconds, icon: BUMP_ICON },
 ];
 
 export const DEFAULT_EMOTE_SECONDS = 8;
