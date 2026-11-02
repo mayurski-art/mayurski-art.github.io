@@ -72,6 +72,31 @@ export const linesSfx = {
     noise(a, at, { gain: 0.26, dur, type: "bandpass", f0: 700, f1: 2600, q: 0.8, rate: 1.1 });
     noise(a, at, { gain: 0.1, dur: dur * 0.9, type: "highpass", f0: 2500, f1: 6000, q: 0.5, delay: dur * 0.1 });
   },
+  // v2 (docs/KB-SECURITY-ROOM.md): the screen giving way round the wrist, the bottle rolling on the glass, the card flicked off, the launch, the landing
+  bloop(at = null) {
+    const a = ready(); if (!a) return;
+    tone(a, at, { gain: 0.09, dur: 0.35, f: 180, type: "sine", bend: 2.6, attack: 0.02 });
+    noise(a, at, { gain: 0.05, dur: 0.3, f0: 600, f1: 2400, q: 4 });
+  },
+  roll(at = null) {
+    const a = ready(); if (!a) return;
+    noise(a, at, { gain: 0.12, dur: 0.3, type: "lowpass", f0: 500, f1: 260, q: 2, rate: 0.6 });
+    tone(a, at, { gain: 0.04, dur: 0.28, f: 95, type: "triangle", bend: 1.2 });
+  },
+  flick(at = null) {
+    const a = ready(); if (!a) return;
+    noise(a, at, { gain: 0.1, dur: 0.18, f0: 2500, f1: 6500, q: 1.5 });
+  },
+  whoosh(at = null) {
+    const a = ready(); if (!a) return;
+    noise(a, at, { gain: 0.3, dur: 1.1, type: "bandpass", f0: 300, f1: 2600, q: 0.7, rate: 1.2 });
+    tone(a, at, { gain: 0.07, dur: 0.9, f: 110, type: "sawtooth", bend: 4 });
+  },
+  thud(at = null) {
+    const a = ready(); if (!a) return;
+    tone(a, at, { gain: 0.2, dur: 0.25, f: 70, type: "sine", bend: 0.5, attack: 0.004 });
+    noise(a, at, { gain: 0.12, dur: 0.2, type: "lowpass", f0: 900, f1: 200, q: 0.8 });
+  },
   snap(at = null) {
     const a = ready(); if (!a) return;
     noise(a, at, { gain: 0.16, dur: 0.18, type: "lowpass", f0: 1400, f1: 300, q: 0.7 });

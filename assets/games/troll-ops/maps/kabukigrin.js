@@ -312,8 +312,8 @@ function buildClub(api) {
   buildRooms({ root, K, N, M, S, jpSign, sfx: CLUB.sfx });
   // the office's security side and the club's CCTV (docs/KB-SECURITY-ROOM.md)
   CCTV = buildCctv({ root });
-  // the tatami room's candle lines (docs/CANDLE-LINES.md): the trays on its tables
-  LINES = buildLines({ root });
+  // the candle lines, v2 (docs/KB-SECURITY-ROOM.md 5): at the security room's desk
+  LINES = buildLines({ root, cctv: CCTV });
   // and the street's (doc 3.5 a): the pachinko parlour across the line
   buildStreet({ root, N, M });
   // the shop signs, lettered in Japanese (the build cut Grinjuku's made-up glyphs)
@@ -542,7 +542,7 @@ export const KABUKIGRIN = {
     door: KB_DOOR,
     // the pachinko parlour (modes/social-pachinko.js): its machines, who plays, its bounds
     pachinko: () => ({ machines: MACHINES, play: PLAY, minX: PARLOUR.minX }),
-    // the candle lines (modes/social-lines.js): the tatami tables' trays and their states
+    // the candle lines (modes/social-lines.js): the security desk's station and its state
     lines: () => LINES,
     // the security room (modes/social-cctv.js): the cameras, their feeds, the desk and the chair
     cctv: () => CCTV,

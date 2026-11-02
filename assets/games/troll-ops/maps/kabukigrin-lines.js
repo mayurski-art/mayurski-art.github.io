@@ -1,103 +1,130 @@
-// Troll Forces — Kabukigrin's candle lines (docs/CANDLE-LINES.md): the props
-// on the tatami room's three low tables and the timeline they play when
-// someone cuts a line. The joke is crypto: a green candle off the stonks
-// chart, crushed on a mirror with a $TROLL card, cut into a line, snorted
-// through a rolled "ONE TROLL" bill.
+// Troll Forces — Kabukigrin's candle lines, v2 (docs/KB-SECURITY-ROOM.md 5;
+// v1's tatami trays are gone, docs/CANDLE-LINES.md): the props and the
+// timeline at the security room's desk (maps/kabukigrin-cctv.js). The joke
+// is still crypto, done the way the user's concept video does it: the hand
+// goes INTO the $TROLL chart on the monitor and pulls the tall green candle
+// out, a bottle rolled over it like a rolling pin crushes it on the desk's
+// glass, a card chops it into a line and gets flicked away, the face goes
+// down on it, then up, then straight up through the roof, and back over
+// the desk's edge.
 //
-// Everything here is a live mesh on the map's root (never the Kit, which
-// merges what it's given): a gold-framed mirror tray, an acrylic stand of
-// five chart candles (one red dip for the joke), the tall green one that
-// gets taken, the powder as a pile then a line, the card, the bill, and the
-// dust that puffs up on each press. Each table has one state (`st`) the
-// mode drives (modes/social-lines.js): `start` (performance.now ms) and who,
-// `cancelAt` (the beat a line stopped at: the powder stays 20 s), `face`
-// (the user's nose in world space: the bill goes there) and `hideHand`
-// (the local user in first person holds their own card and bill).
+// Everything here is a live mesh on the map's root: the candle, the powder
+// (a pile, then the line), the card, the screen's ripple, the dust; the
+// bottle, the chart and the chair are the security room's (cctv.bottle,
+// .chart, .chair) and this moves them. One state (`st`) per station the
+// mode drives (modes/social-lines.js): `start` (performance.now ms) and
+// who, `cancelAt` (the beat a line stopped at: the powder stays 20 s).
 //
-// Rule 9: it all lies on the table tops (0.75); the stand is the tallest
-// piece at under 2 cm (a kneeling eye by the tank grazed anything taller). The test raycasts the room's eye points at the koi tank,
-// the noren, the lattice window and the doors against these boxes.
+// Rule 9: at rest it all lies on the desk's glass, under the monitor wall's
+// lower edge; the card ends on the floor by the clutter.
 
 import * as THREE from "three";
 
 /* ------------------------------------------------------------ the beats */
 
-// seconds from the hold-X; the mode, the hands and the camera share these
+// seconds from the hold-X; the mode, the body, the hands and the camera share these
 export const BEATS = {
-  down: 0.6,     // leaning in over the mirror
-  pick: 1.2,     // the candle's off the stand, flat on the glass
-  crush: 2.4,    // three presses with the card
-  cut: 3.6,      // chop, chop, the long drag: the pile is a line
-  bill: 4.2,     // the bill's up at the nose
-  snort: 5.0,    // the line's gone, end to end
-  end: 5.6,      // the head's snapped back
+  down: 0.5,     // leaning in to the chart monitor
+  reach: 1.1,    // the hand's in the screen
+  pull: 1.7,     // ...and out, the candle in it
+  lay: 2.0,      // the candle's on the glass
+  cut: 3.1,      // the bottle's back: the card's up
+  plant: 4.15,   // the face goes down (no stopping it from here)
+  snap: 4.8,     // up again, STONKS
+  launch: 5.2,   // straight up
+  apex: 6.1,
+  land: 7.0,     // back down, behind the desk
+  grab: 7.25,    // hands on the desk's edge
+  end: 8.4,      // over it, on your feet
 };
-export const PRESSES = [1.3, 1.65, 2.0];    // when the card comes down
-export const CHOPS = [2.45, 2.7, 2.95];
-export const DRAG = [3.1, 3.55];
+export const ROLLS = [[2.3, 2.6], [2.6, 2.9]];   // the bottle's two passes
+export const CHOPS = [3.3, 3.45, 3.6];
+export const DRAG = [3.65, 3.95];
+export const FLICK = [3.95, 4.15];
 export const LEFTOVER_SECS = 20;            // a cancelled line stays this long
 export const STONKS_GREEN = 0x1fd35a;
+export const APEX_M = 35;                   // how high the launch goes
+// where you come down: behind the desk, right of the chair
+export const LAND = { dx: 0.5, dz: -0.3 };
 
 const span = (t, [a, b]) => Math.max(0, Math.min(1, (t - a) / (b - a)));
 const ease = (k) => k * k * (3 - 2 * k);
 const easeOut = (k) => 1 - (1 - k) * (1 - k);
 
+/* The flight: metres above the floor and how far along to the landing (0..1). */
+export function flight(t) {
+  if (t < BEATS.launch || t >= BEATS.land) return { h: 0, k: t >= BEATS.land ? 1 : 0, up: false };
+  if (t < BEATS.apex) { const k = span(t, [BEATS.launch, BEATS.apex]); return { h: APEX_M * easeOut(k), k: k * 0.5, up: true }; }
+  const k = span(t, [BEATS.apex, BEATS.land]);
+  return { h: APEX_M * (1 - k * k), k: 0.5 + k * 0.5, up: false };
+}
+
 /* What everything's doing `t` seconds in (t < 0: idle). `cancelAt`, when
-   set, freezes the powder where the line stopped and sends the card and the
-   bill back. Fractions are 0..1; positions are tray-local metres. */
+   set, freezes the powder where it stopped and puts the rest back.
+   Positions are station-local metres (+x east along the line, +z toward
+   the chair, y up off the glass). */
 export function lineState(t, cancelAt = null) {
-  const S = { active: t >= 0, pick: 0, squash: 0, gone: 0, pile: 0, line: 0, eaten: 0, bill: 0, snap: 0,
-    card: { x: 0.1, z: -0.085, y: 0, yaw: -0.3, pitch: 0, on: false }, press: 0, chop: 0, drag: 0, puffs: [], billSweep: 0, done: false };
+  const S = { active: t >= 0, lean: 0, reach: 0, ripple: 0, taken: false, candle: "stand", pull: 0, squash: 0,
+    bottle: { mode: "rest", k: 0, z: -0.1, spin: 0 }, pile: 0, line: 0, eaten: 0, plant: 0, snap: 0,
+    card: { x: 0.2, z: 0.1, y: 0, yaw: -0.3, pitch: 0, on: false, fly: -1 }, chop: 0, drag: 0, puffs: [], flight: flight(t), climb: 0, done: false };
   if (t < 0) return S;
   const tc = cancelAt != null ? Math.min(t, cancelAt) : t;
   const cancelled = cancelAt != null && t > cancelAt;
-  S.pick = ease(span(tc, [BEATS.down, BEATS.pick]));
-  // the presses: each one squashes the candle a third more and raises a third of the pile
-  let presses = 0;
-  for (const p of PRESSES) {
-    if (tc >= p) presses++;
-    const a = tc - p;
-    if (a >= 0 && a < 0.3) S.press = Math.max(S.press, a < 0.1 ? a / 0.1 : 1 - (a - 0.1) / 0.2);
-    if (a >= 0 && a < 0.7) S.puffs.push({ age: a / 0.7, seed: p });
-  }
-  S.squash = presses / 3;
-  S.gone = presses >= 3 ? 1 : 0;
-  S.pile = presses / 3;
+  S.lean = ease(span(tc, [0, BEATS.down])) * (1 - ease(span(t, [BEATS.snap, BEATS.launch])));
+  S.reach = cancelled ? 0 : ease(span(tc, [BEATS.down, BEATS.reach])) * (1 - ease(span(tc, [BEATS.reach + 0.2, BEATS.pull])));
+  S.ripple = tc >= BEATS.down + 0.3 && tc < BEATS.pull + 0.3 ? Math.sin(span(tc, [BEATS.down + 0.3, BEATS.pull + 0.3]) * Math.PI) : 0;
+  S.taken = tc >= BEATS.reach + 0.15 && t < BEATS.end;
+  // the candle: in the chart, in the hand, on the glass, crushed
+  if (tc < BEATS.reach + 0.15) S.candle = "chart";
+  else if (tc < BEATS.lay) { S.candle = "hand"; S.pull = span(tc, [BEATS.reach + 0.15, BEATS.lay]); }
+  else S.candle = "glass";
+  if (cancelled && S.candle === "hand") S.candle = "glass";   // dropped where it was going
+  // the bottle: lifted and laid across, two passes, stood back up
+  const B = S.bottle;
+  if (!cancelled && tc >= BEATS.lay && tc < ROLLS[0][0]) { B.mode = "lift"; B.k = ease(span(tc, [BEATS.lay, ROLLS[0][0]])); }
+  else if (!cancelled && tc >= ROLLS[0][0] && tc < ROLLS[1][1]) {
+    B.mode = "roll";
+    const first = tc < ROLLS[0][1], k = ease(span(tc, first ? ROLLS[0] : ROLLS[1]));
+    B.z = first ? -0.1 + 0.16 * k : 0.06 - 0.16 * k;
+    B.spin = (B.z + 0.1) / 0.038;
+  } else if (!cancelled && tc >= ROLLS[1][1] && tc < BEATS.cut) { B.mode = "back"; B.k = ease(span(tc, [ROLLS[1][1], BEATS.cut])); }
+  // crushed as the bottle crosses it, once each pass
+  const crossed = (tc >= (ROLLS[0][0] + ROLLS[0][1]) / 2 ? 1 : 0) + (tc >= (ROLLS[1][0] + ROLLS[1][1]) / 2 ? 1 : 0);
+  S.squash = crossed / 2;
+  for (const [a, b] of ROLLS) { const m = (a + b) / 2, d = tc - m; if (d >= 0 && d < 0.7) S.puffs.push({ age: d / 0.7, seed: m }); }
+  S.pile = crossed / 2;
   for (const c of CHOPS) {
     const a = tc - c;
-    if (a >= 0 && a < 0.22) S.chop = Math.max(S.chop, a < 0.08 ? a / 0.08 : 1 - (a - 0.08) / 0.14);
+    if (a >= 0 && a < 0.12) S.chop = Math.max(S.chop, a < 0.05 ? a / 0.05 : 1 - (a - 0.05) / 0.07);
   }
   S.drag = span(tc, DRAG);
   S.line = ease(S.drag);
   S.pile *= 1 - S.line;
-  S.bill = cancelled ? 0 : ease(span(t, [BEATS.cut, BEATS.bill])) * (1 - ease(span(t, [BEATS.snort, BEATS.snort + 0.5])));
-  S.eaten = ease(span(tc, [BEATS.bill, BEATS.snort]));
-  S.billSweep = S.eaten;
-  S.snap = t >= BEATS.snort ? Math.max(0, 1 - (t - BEATS.snort) / 0.6) : 0;
-  S.done = t >= BEATS.end;
-  // the card: in the hand from the pick to the end of the drag, else at rest
-  const cardOn = !cancelled && tc >= BEATS.down + 0.3 && tc < DRAG[1] + 0.3;
-  S.card.on = cardOn;
-  if (cardOn) {
-    const inCrush = tc < BEATS.cut;
-    if (inCrush) {
-      const k = ease(span(tc, [BEATS.down + 0.3, BEATS.pick]));
-      S.card.x = 0.1 + (0 - 0.1) * k; S.card.z = -0.085 + (0.0 + 0.085) * k;
-      S.card.y = 0.03 - 0.027 * S.press + 0.01 * (1 - k);
-      S.card.yaw = -0.3 * (1 - k) + 0.15 * k;
-      S.card.pitch = 0.18 * (1 - S.press) * k;   // tipped up at the near edge, pressed flat
+  if (S.candle === "glass" && S.squash >= 1) S.candle = "gone";
+  // the card: picked up, chops, the drag, flicked over the shoulder
+  const C = S.card;
+  if (!cancelled && tc >= BEATS.cut && tc < FLICK[0]) {
+    C.on = true;
+    const pick = ease(span(tc, [BEATS.cut, BEATS.cut + 0.15]));
+    if (tc < DRAG[0]) {
+      const chopX = tc < CHOPS[1] ? -0.03 : tc < CHOPS[2] ? 0.0 : 0.03;
+      C.x = 0.2 + (chopX - 0.2) * pick; C.z = 0.1 - 0.1 * pick;
+      C.y = 0.02 - 0.018 * S.chop + 0.03 * (1 - pick);
+      C.yaw = -0.3 + (Math.PI / 2 + 0.3) * pick; C.pitch = 0.2;
     } else {
-      // chopping across the pile, then the drag along x that draws the line
-      const chopX = tc < CHOPS[0] ? -0.03 : tc < CHOPS[1] ? 0.0 : 0.03;
-      const dragK = easeOut(S.drag);
-      const inDrag = tc >= DRAG[0];
-      S.card.x = inDrag ? -0.07 + 0.14 * dragK : chopX;
-      S.card.z = inDrag ? 0.012 : 0.0;
-      S.card.y = inDrag ? 0.0015 : 0.02 - 0.018 * S.chop;
-      S.card.yaw = inDrag ? Math.PI / 2 - 0.12 : Math.PI / 2;   // on edge, across the line
-      S.card.pitch = inDrag ? 0.5 : 0.2;
+      C.x = -0.08 + 0.16 * easeOut(S.drag); C.z = 0.012; C.y = 0.0015;
+      C.yaw = Math.PI / 2 - 0.12; C.pitch = 0.5;
     }
+  } else if (!cancelled && tc >= FLICK[0]) {
+    C.fly = span(tc, FLICK);
   }
+  // the face: down on the line, the line gone, up again
+  S.plant = ease(span(t, [BEATS.plant, BEATS.plant + 0.3])) * (1 - ease(span(t, [BEATS.snap - 0.1, BEATS.snap + 0.15])));
+  if (cancelled) S.plant = 0;
+  S.eaten = ease(span(tc, [BEATS.plant + 0.15, BEATS.plant + 0.45]));
+  S.snap = t >= BEATS.snap ? Math.max(0, 1 - (t - BEATS.snap) / 0.5) : 0;
+  S.climb = ease(span(t, [BEATS.grab, BEATS.end - 0.15]));
+  S.done = t >= BEATS.end;
   return S;
 }
 
@@ -106,110 +133,41 @@ export function lineState(t, cancelAt = null) {
 const canvas = (w, h, draw) => { const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d"), w, h); return c; };
 const tex = (c, srgb = true) => { const t = new THREE.CanvasTexture(c); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
 const rng = (seed) => () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-const TROLL_URL = new URL("../../../images/wallpaper/trollface%20transparent.png", import.meta.url).href;
-
-// the mirror: near-black glass with the club's pink and cyan smeared across
-// it, finger smudges, and one old green streak
-function mirrorTexture() {
-  const r = rng(11);
-  return tex(canvas(512, 384, (g, W, H) => {
-    g.fillStyle = "#07080c"; g.fillRect(0, 0, W, H);
-    const smear = (x0, y0, x1, y1, c0, c1, a) => {
-      const lg = g.createLinearGradient(x0, y0, x1, y1);
-      lg.addColorStop(0, c0); lg.addColorStop(0.5, c1); lg.addColorStop(1, c0);
-      g.globalAlpha = a; g.fillStyle = lg; g.fillRect(0, 0, W, H);
-    };
-    smear(0, 0, W, H * 0.6, "rgba(255,42,180,0)", "rgba(255,42,180,0.35)", 1);
-    smear(W, 0, 0, H, "rgba(63,240,255,0)", "rgba(63,240,255,0.28)", 1);
-    g.globalAlpha = 1;
-    for (let i = 0; i < 14; i++) {
-      // finger smudges: soft ovals
-      const x = r() * W, y = r() * H, rr = 14 + r() * 30;
-      const rg = g.createRadialGradient(x, y, 0, x, y, rr);
-      rg.addColorStop(0, "rgba(255,255,255,0.07)"); rg.addColorStop(1, "rgba(255,255,255,0)");
-      g.fillStyle = rg; g.fillRect(x - rr, y - rr, rr * 2, rr * 2);
-    }
-    // the old green streak, where a line once was
-    g.strokeStyle = "rgba(31,211,90,0.18)"; g.lineWidth = 9; g.lineCap = "round";
-    g.beginPath(); g.moveTo(W * 0.22, H * 0.68); g.quadraticCurveTo(W * 0.5, H * 0.6, W * 0.74, H * 0.66); g.stroke();
-  }));
-}
 
 // the card's face: matte black, a gold chip, $TROLL embossed, a number
 function cardTexture() {
   return tex(canvas(512, 324, (g, W, H) => {
     g.fillStyle = "#0e0e11"; g.fillRect(0, 0, W, H);
-    // a brushed sheen
     const lg = g.createLinearGradient(0, 0, W, H);
     lg.addColorStop(0, "rgba(255,255,255,0.05)"); lg.addColorStop(0.5, "rgba(255,255,255,0)"); lg.addColorStop(1, "rgba(255,255,255,0.06)");
     g.fillStyle = lg; g.fillRect(0, 0, W, H);
-    // the chip
     g.fillStyle = "#c9a24a"; g.beginPath(); g.roundRect(54, 108, 78, 62, 8); g.fill();
     g.strokeStyle = "#8a6a26"; g.lineWidth = 2;
     for (const y of [128, 150]) { g.beginPath(); g.moveTo(54, y); g.lineTo(132, y); g.stroke(); }
     g.beginPath(); g.moveTo(93, 108); g.lineTo(93, 170); g.stroke();
-    // the embossed name
     g.font = "700 64px Oswald, 'DM Sans', sans-serif";
-    g.textBaseline = "alphabetic";
     g.fillStyle = "rgba(0,0,0,0.6)"; g.fillText("$TROLL", 58, 262);
     g.fillStyle = "#d8b45a"; g.fillText("$TROLL", 54, 258);
     g.font = "500 22px 'DM Mono', monospace";
     g.fillStyle = "#8f8f96"; g.fillText("4200 6900 0420 1337", 56, 300);
     g.font = "700 20px Oswald, sans-serif"; g.fillStyle = "#b9b9c2"; g.textAlign = "right";
     g.fillText("TROLLNITE BLACK", W - 40, 56);
-    g.textAlign = "left";
   }));
 }
-
-// the bill, drawn portrait so the roll's length runs down the canvas: a
-// green-grey note, "ONE TROLL", the trollface art in the oval, the serial
-// ending 420
-function billTexture() {
-  const c = canvas(440, 1024, (g, W, H) => {
-    g.save();
-    g.translate(W, 0); g.rotate(Math.PI / 2);   // draw landscape: 1024 x 440
-    const w = H, h = W;
-    g.fillStyle = "#cfd8bf"; g.fillRect(0, 0, w, h);
-    // guilloche-ish bands
-    g.strokeStyle = "rgba(40,90,50,0.25)"; g.lineWidth = 1;
-    for (let i = 0; i < 40; i++) { g.beginPath(); g.ellipse(w / 2, h / 2, 300 + i * 4, 120 + i * 2.5, (i / 40) * Math.PI, 0, Math.PI * 2); g.stroke(); }
-    g.strokeStyle = "#2f5a36"; g.lineWidth = 10; g.strokeRect(18, 18, w - 36, h - 36);
-    g.lineWidth = 3; g.strokeRect(34, 34, w - 68, h - 68);
-    g.fillStyle = "#1f3f27";
-    g.font = "700 64px Georgia, serif"; g.textAlign = "center";
-    g.fillText("FEDERAL TROLL NOTE", w / 2, 100);
-    g.font = "900 120px Georgia, serif";
-    g.fillText("ONE TROLL", w / 2, h - 90);
-    g.font = "700 96px Georgia, serif";
-    for (const [x, y] of [[90, 130], [w - 90, 130], [90, h - 60], [w - 90, h - 60]]) g.fillText("1", x, y);
-    g.font = "500 30px 'DM Mono', monospace"; g.fillStyle = "#4a2a2a"; g.textAlign = "left";
-    g.fillText("TN 69420420 A", 120, 170);
-    g.textAlign = "right"; g.fillText("SERIES 2026", w - 120, 170);
-    // the portrait oval: the art goes in once it loads
-    g.fillStyle = "#e4eacf"; g.beginPath(); g.ellipse(w / 2, h / 2 + 10, 150, 125, 0, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = "#2f5a36"; g.lineWidth = 6; g.stroke();
-    g.restore();
-  });
-  const t = tex(c);
-  const img = new Image();
-  img.onload = () => {
-    const g = c.getContext("2d");
-    g.save(); g.translate(c.width, 0); g.rotate(Math.PI / 2);
-    g.beginPath(); g.ellipse(512, 230, 140, 115, 0, 0, Math.PI * 2); g.clip();
-    g.filter = "grayscale(1) sepia(0.6) hue-rotate(70deg) saturate(0.7) contrast(1.1)";
-    g.drawImage(img, 512 - 125, 230 - 125, 250, 250);
-    g.restore();
-    t.needsUpdate = true;
-  };
-  img.src = TROLL_URL;
-  return t;
-}
-
 function puffTexture() {
   return tex(canvas(64, 64, (g) => {
     const rg = g.createRadialGradient(32, 32, 0, 32, 32, 32);
     rg.addColorStop(0, "rgba(120,255,160,0.9)"); rg.addColorStop(0.4, "rgba(60,220,110,0.35)"); rg.addColorStop(1, "rgba(31,211,90,0)");
     g.fillStyle = rg; g.fillRect(0, 0, 64, 64);
+  }));
+}
+// the screen's ripple round the wrist: rings
+function ringTexture() {
+  return tex(canvas(128, 128, (g) => {
+    for (const [r, a] of [[60, 0.9], [44, 0.6], [28, 0.4]]) {
+      g.strokeStyle = `rgba(110,255,160,${a})`; g.lineWidth = 5;
+      g.beginPath(); g.arc(64, 64, r, 0, Math.PI * 2); g.stroke();
+    }
   }));
 }
 
@@ -224,27 +182,23 @@ function roundedRect(w, h, r) {
   s.lineTo(-w / 2, -h / 2 + r); s.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2);
   return s;
 }
-// a flat shape lying in the x/z plane (ExtrudeGeometry builds in x/y, +z deep)
 function slab(shape, depth) {
   const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false });
-  g.rotateX(-Math.PI / 2);   // x/y -> x/-z, depth up
+  g.rotateX(-Math.PI / 2);
   return g;
 }
-
-/* The line: a 12 cm strip along x with jagged edges and a few stray grains.
-   Its triangles run from -x to +x, so a draw range eats it from one end. */
+/* The line: a 15 cm strip along x with jagged edges. Its triangles run from
+   -x to +x, so a draw range eats it from one end. */
+const LINE_SEGS = 28, LINE_L = 0.15;
 function lineGeometry(seedN = 5) {
-  const r = rng(seedN), N = 28, L = 0.12, pos = [], idx = [];
-  for (let i = 0; i <= N; i++) {
-    const x = -L / 2 + (i / N) * L;
-    const taper = Math.sin((i / N) * Math.PI) ** 0.35;
-    const w = (0.0045 + r() * 0.0025) * taper, w2 = (0.0045 + r() * 0.0025) * taper;
+  const r = rng(seedN), pos = [], idx = [];
+  for (let i = 0; i <= LINE_SEGS; i++) {
+    const x = -LINE_L / 2 + (i / LINE_SEGS) * LINE_L;
+    const taper = Math.sin((i / LINE_SEGS) * Math.PI) ** 0.35;
+    const w = (0.0055 + r() * 0.003) * taper, w2 = (0.0055 + r() * 0.003) * taper;
     pos.push(x, 0.0012, -w2, x, 0.0012, w);
   }
-  for (let i = 0; i < N; i++) {
-    const a = i * 2;
-    idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-  }
+  for (let i = 0; i < LINE_SEGS; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   g.setIndex(idx);
@@ -252,58 +206,23 @@ function lineGeometry(seedN = 5) {
   return g;
 }
 
-/* ------------------------------------------------------------ the tables
-
-   Studio's three low tables in the tatami room (kabukigrin-layout.js
-   colliders), top 0.75 on the tatami (0.3). `axis`: the long side. The
-   tray and the stand sit in a frame with +x along it. `stand`: where you
-   stand to use it (the open end, or the side clear of the cushions), the
-   camera yaw facing the table. `cushions`: the rp seats beside it. */
-// Each stand sits at the table edge away from the doors (rule 9: a
-// kneeling eye by the tank looks across the table middle at their feet).
-// The tray frame's +x runs left-to-right as seen from `at`, so the line
-// always lies across the user's view (`ry` turns the frame; the tray and
-// the stand are placed in it). Tables 1 and 2 are used from their east
-// end, facing west; table 3 from its west side (its east is the wall).
-export const LINE_TABLES = [
-  { x: -29.9, z: 25.9, top: 0.75, floor: 0.3, ry: Math.PI / 2, tray: [0, 0.26], stand: [-0.17, -0.04], at: { x: -28.95, z: 25.9, yaw: Math.PI / 2 }, cushions: [[-29.9, 25.2], [-29.9, 26.6]] },
-  { x: -29.9, z: 28.3, top: 0.75, floor: 0.3, ry: Math.PI / 2, tray: [0, 0.26], stand: [0.17, -0.04], at: { x: -28.95, z: 28.3, yaw: Math.PI / 2 }, cushions: [[-29.9, 27.6], [-29.9, 29.0]] },
-  { x: -24.9, z: 27.0, top: 0.75, floor: 0.3, ry: -Math.PI / 2, tray: [0, 0.1], stand: [0.3, -0.08], at: { x: -25.78, z: 27.0, yaw: -Math.PI / 2 }, cushions: [[-24.9, 26.0], [-24.9, 28.0]] },
-];
-
-const KIT_SCALE = 1.5;
-const CANDLES = [   // the stand, left to right: [height, red?]
-  [0.016, false], [0.024, false], [0.019, true], [0.03, false], [0.037, false],
-];
-const TAKEN = 4;    // the tall one on the right is the one you take
-const CANDLE_W = 0.009, WICK = 0.006, BASE_H = 0.003, GRAINS = 120, STRAYS = 36;
-
 let MATS = null;
 export function materials() {
   if (MATS) return MATS;
-  const green = new THREE.MeshStandardMaterial({ color: STONKS_GREEN, emissive: STONKS_GREEN, emissiveIntensity: 0.35, roughness: 0.35, metalness: 0.1 });
   MATS = {
-    gold: new THREE.MeshStandardMaterial({ color: 0xc9a24a, metalness: 0.85, roughness: 0.32, emissive: 0x3a2a0a, emissiveIntensity: 0.5 }),
-    glass: new THREE.MeshStandardMaterial({ color: 0x14161c, roughness: 0.06, metalness: 0.8, emissive: 0xffffff, emissiveIntensity: 0.55, emissiveMap: mirrorTexture() }),
-    acrylic: new THREE.MeshStandardMaterial({ color: 0xd8ecff, roughness: 0.08, metalness: 0.05, transparent: true, opacity: 0.32, depthWrite: false }),
-    green,
-    red: new THREE.MeshStandardMaterial({ color: 0xff3b3b, emissive: 0xff3b3b, emissiveIntensity: 0.3, roughness: 0.35 }),
-    wick: new THREE.MeshStandardMaterial({ color: 0xe8ffe8, emissive: 0x9fffb0, emissiveIntensity: 0.4, roughness: 0.5 }),
-    powder: new THREE.MeshStandardMaterial({ color: 0x3df07a, emissive: STONKS_GREEN, emissiveIntensity: 0.45, roughness: 0.25, metalness: 0.35 }),
+    green: new THREE.MeshStandardMaterial({ color: STONKS_GREEN, emissive: STONKS_GREEN, emissiveIntensity: 0.6, roughness: 0.35, metalness: 0.1 }),
+    wick: new THREE.MeshStandardMaterial({ color: 0xe8ffe8, emissive: 0x9fffb0, emissiveIntensity: 0.5, roughness: 0.5 }),
+    powder: new THREE.MeshStandardMaterial({ color: 0x3df07a, emissive: STONKS_GREEN, emissiveIntensity: 0.5, roughness: 0.25, metalness: 0.35 }),
     cardBody: new THREE.MeshStandardMaterial({ color: 0x0c0c0f, roughness: 0.45, metalness: 0.2 }),
     cardFace: new THREE.MeshStandardMaterial({ map: cardTexture(), roughness: 0.38, metalness: 0.3 }),
-    bill: new THREE.MeshStandardMaterial({ map: billTexture(), roughness: 0.75, side: THREE.DoubleSide }),
-    billIn: new THREE.MeshStandardMaterial({ color: 0x9aa88a, roughness: 0.8, side: THREE.BackSide }),
     puff: new THREE.MeshBasicMaterial({ map: puffTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
+    ring: new THREE.MeshBasicMaterial({ map: ringTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }),
   };
-  MATS.bill.map.wrapS = MATS.bill.map.wrapT = THREE.RepeatWrapping;
-  MATS.bill.map.repeat.set(0.3, 0.58);
-  MATS.bill.map.offset.set(0.35, 0.21);
   return MATS;
 }
 
-/* The card: a black slab with the printed face on top (its origin at the
-   middle of its underside). The first-person hands hold one too. */
+/* The card: a black slab with the printed face on top (origin: the middle
+   of its underside). */
 export function makeCard(M) {
   const card = new THREE.Group();
   const body = new THREE.Mesh(slab(roundedRect(0.0856, 0.054, 0.003), 0.0008), M.cardBody);
@@ -312,240 +231,209 @@ export function makeCard(M) {
   card.add(body, face);
   return card;
 }
-/* The bill: a rolled note, open at both ends so the roll shows (its axis
-   along y, the origin at its middle). */
-export function makeBill(M) {
-  const bill = new THREE.Group();
-  const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.0032, 0.0032, 0.09, 14, 1, true), M.bill);
-  const inner = new THREE.Mesh(new THREE.CylinderGeometry(0.0026, 0.0026, 0.088, 12, 1, true), M.billIn);
-  const core = new THREE.Mesh(new THREE.CylinderGeometry(0.0019, 0.0019, 0.086, 10, 1, true), M.bill);
-  bill.add(roll, inner, core);
-  return bill;
-}
-
-function candle(h, red, M) {
+/* The candle off the chart: a green body with its wicks (origin: its middle). */
+const CANDLE = { w: 0.018, h: 0.075, wick: 0.012 };
+export function makeCandle(M) {
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(CANDLE_W, h, CANDLE_W), red ? M.red : M.green);
-  body.position.y = h / 2;
-  const wick = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0012, h + WICK * 2, 6), M.wick);
-  wick.position.y = h / 2;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(CANDLE.w, CANDLE.h, CANDLE.w), M.green);
+  const wick = new THREE.Mesh(new THREE.CylinderGeometry(0.0018, 0.0018, CANDLE.h + CANDLE.wick * 2, 6), M.wick);
   g.add(body, wick);
-  g.userData.h = h;
   return g;
 }
 
-/* One table's props, in the tray frame. */
-function buildTable(T, M, i) {
+/* ------------------------------------------------------------ the station
+
+   One: the security desk's glass, in front of the keyboard, the chair
+   facing it (kabukigrin-cctv.js DESK, CHAIR). */
+const GRAINS = 140, STRAYS = 40;
+function buildStation(cctv, M) {
+  const D = cctv.desk, C = cctv.chair;
+  const T = { i: 0, x: C.x, z: 19.93, top: D.glassTop, floor: 3, ry: 0, seat: { x: C.x, z: C.z, y: C.seat } };
   const g = new THREE.Group();
   g.position.set(T.x, T.top, T.z);
-  g.rotation.y = T.ry;
-  // a touch bigger than life, so it reads from where you stand (the
-  // stand's candles are shorter to keep it under 9 cm all told)
-  g.scale.setScalar(KIT_SCALE);
-  const [tx, tz] = T.tray;
-  const [sx, sz] = T.stand;
-
-  // the mirror tray: a gold bevel frame round the glass
-  const frame = roundedRect(0.36, 0.26, 0.02);
-  frame.holes.push(roundedRect(0.34, 0.24, 0.012));
-  const rim = new THREE.Mesh(slab(frame, 0.012), M.gold);
-  rim.position.set(tx, 0, tz);
-  const back = new THREE.Mesh(slab(roundedRect(0.36, 0.26, 0.02), 0.004), M.gold);
-  back.position.set(tx, 0, tz);
-  const glass = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.24).rotateX(-Math.PI / 2), M.glass);
-  glass.position.set(tx, 0.0045, tz);
-  g.add(back, rim, glass);
-
-  // the candle box: a shallow acrylic tray, five candles laid side by side
-  // in it longest last, the red dip in the middle (flat: rule 9, an upright
-  // stand on a table this low crossed some kneeling sightline to a door)
-  const base = new THREE.Mesh(new THREE.BoxGeometry(0.06, BASE_H, 0.075), M.acrylic);
-  base.position.set(sx, BASE_H / 2, sz);
-  base.renderOrder = 2;
-  g.add(base);
-  const slots = [];
-  CANDLES.forEach(([h, red], k) => {
-    const c = candle(h, red, M);
-    // lying along -x from its base end (the roll turns its length that way)
-    c.position.set(sx + 0.025, BASE_H + CANDLE_W / 2, sz - 0.028 + k * 0.014);
-    c.rotation.z = Math.PI / 2;
-    slots.push(c.position.clone());
-    if (k === TAKEN) c.userData.taken = true;
-    g.add(c);
-  });
-  const taken = g.children.find((o) => o.userData.taken);
-
+  const candle = makeCandle(M);
+  candle.visible = false;
+  g.add(candle);
   // the powder: a mound of grains, then the line and its strays
-  const grainGeo = new THREE.IcosahedronGeometry(0.0022, 0);
-  const pile = new THREE.InstancedMesh(grainGeo, M.powder, GRAINS);
-  const r = rng(100 + i);
+  const pile = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.0028, 0), M.powder, GRAINS);
+  const r = rng(101);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s3 = new THREE.Vector3(), p3 = new THREE.Vector3(), e = new THREE.Euler();
   for (let k = 0; k < GRAINS; k++) {
-    const a = r() * Math.PI * 2, d = Math.sqrt(r()) * 0.016;
-    const y = 0.0025 + Math.max(0, 0.014 - d) * (0.6 + r() * 0.5);
-    p3.set(tx + Math.cos(a) * d * 1.3, 0.004 + y, tz + Math.sin(a) * d);
+    const a = r() * Math.PI * 2, d = Math.sqrt(r()) * 0.022;
+    p3.set(Math.cos(a) * d * 1.8, 0.002 + Math.max(0, 0.016 - d) * (0.5 + r() * 0.5), Math.sin(a) * d * 0.8);
     q.setFromEuler(e.set(r() * 3, r() * 3, r() * 3));
     const sc = 0.7 + r() * 0.6;
-    m4.compose(p3, q, s3.set(sc, sc * 0.8, sc));
-    pile.setMatrixAt(k, m4);
+    pile.setMatrixAt(k, m4.compose(p3, q, s3.set(sc, sc * 0.7, sc)));
   }
   pile.instanceMatrix.needsUpdate = true;
   pile.count = 0;
-  const line = new THREE.Mesh(lineGeometry(7 + i), M.powder);
-  line.position.set(tx, 0.0045, tz);
+  const line = new THREE.Mesh(lineGeometry(9), M.powder);
   line.geometry.setDrawRange(0, 0);
-  const strays = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.0012, 0), M.powder, STRAYS);
+  const strays = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.0014, 0), M.powder, STRAYS);
   for (let k = 0; k < STRAYS; k++) {
-    p3.set(tx - 0.07 + r() * 0.14, 0.0055, tz + (r() - 0.5) * 0.03);
+    p3.set(-0.085 + r() * 0.17, 0.001, (r() - 0.5) * 0.035);
     q.setFromEuler(e.set(r() * 3, r() * 3, 0));
-    m4.compose(p3, q, s3.set(1, 1, 1));
-    strays.setMatrixAt(k, m4);
+    strays.setMatrixAt(k, m4.compose(p3, q, s3.set(1, 1, 1)));
   }
   strays.instanceMatrix.needsUpdate = true;
   strays.count = 0;
   g.add(pile, line, strays);
-
-  // the card, at rest on the near corner of the tray
+  // the card at rest on the glass, right of the line
   const card = makeCard(M);
-  card.userData.rest = { x: tx + 0.1, z: tz - 0.085, yaw: -0.3 };
-  card.position.set(tx + 0.1, 0.0045, tz - 0.085);
-  card.rotation.y = -0.3;
+  card.scale.setScalar(1.3);
   g.add(card);
-
-  // the bill, lying along the tray's far edge
-  const bill = makeBill(M);
-  bill.userData.rest = { x: tx - 0.02, z: tz + 0.09 };
-  bill.position.set(tx - 0.02, 0.0045 + 0.0032, tz + 0.09);
-  bill.rotation.z = Math.PI / 2;   // lying along x
-  g.add(bill);
-
-  // the dust: a few soft puffs over the candle
+  // the dust: a puff per pass of the bottle
   const puffs = [];
-  for (let k = 0; k < 6; k++) {
-    const pf = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.05), M.puff);
+  for (let k = 0; k < 4; k++) {
+    const pf = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.07), M.puff);
     pf.visible = false;
     pf.renderOrder = 3;
     g.add(pf);
     puffs.push(pf);
   }
-
   g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
-  return { g, tx, tz, sx, sz, taken, slot: slots[TAKEN], pile, line, strays, card, bill, puffs, glass };
+  // the ripple on the chart monitor, over its tall candle (the chart's group: x along the screen)
+  const ring = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.12), M.ring);
+  ring.position.set(cctv.chart.w * 0.44, cctv.chart.h * 0.24, 0.02);
+  ring.visible = false;
+  ring.renderOrder = 3;
+  cctv.chart.mesh.add(ring);
+  // the roof's puffs where the launch goes through (world)
+  const roof = [];
+  for (let k = 0; k < 5; k++) {
+    const pf = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), M.puff);
+    pf.visible = false;
+    pf.renderOrder = 3;
+    roof.push(pf);
+  }
+  return { T, g, candle, pile, line, strays, card, puffs, ring, roof };
 }
 
 /* ------------------------------------------------------------ animating */
 
-const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0);
-const LINE_SEGS = 28;
+const _v = new THREE.Vector3(), _w = new THREE.Vector3();
+// the floor spot the flicked card lands on (station-local)
+const CARD_FLOOR = { x: -0.78, y: -0.752, z: 1.36 };
 
-function poseTable(P, st, now, cam) {
+function pose(P, cctv, st, now, cam) {
   const t = st.start ? (now - st.start) / 1000 : -1;
   const S = lineState(t, st.cancelAt);
   const leftover = st.cancelAt != null && st.start && now - st.start > (st.cancelAt + LEFTOVER_SECS) * 1000;
-  const finished = S.done || leftover;
-  const g = P.g;
-  // the candle: on the stand, then flat on the glass, squashed, then gone;
-  // a new one on the stand once the line's over (the market printed one)
-  const c = P.taken;
-  if (!S.active || finished) {
-    c.visible = true;
-    c.position.copy(P.slot);
-    c.rotation.set(0, 0, Math.PI / 2);
-    c.scale.setScalar(1);
-    if (S.done && t < BEATS.end + 0.4) { const k = (t - BEATS.end) / 0.4; c.scale.setScalar(0.2 + 0.8 * k); }   // pops back up
-  } else {
-    const k = S.pick, h = c.userData.h;
-    c.visible = S.gone < 1;
-    // out of the box and onto the glass in an arc, still lying along x,
-    // centred on the tray (its origin is the base end, so half its length over)
-    const gx = P.tx + h / 2;
-    c.position.set(P.slot.x + (gx - P.slot.x) * k, P.slot.y + (0.0045 + CANDLE_W / 2 - P.slot.y) * k + Math.sin(k * Math.PI) * 0.06, P.slot.z + (P.tz - P.slot.z) * k);
-    c.rotation.set(0, 0, Math.PI / 2);
-    const sq = 1 - 0.85 * S.squash;
-    c.scale.set(1 - 0.75 * S.squash, 1 + 0.25 * S.squash, 1 + 0.9 * S.squash);   // lying: local x is up, pressed flat and spread
-    c.children[0].material.transparent = false;
+  const idle = !S.active || S.done || leftover;
+  cctv.taken = idle ? 0 : S.taken ? 1 : 0;
+  // the ripple, grown and faded on the chart
+  P.ring.visible = !idle && S.ripple > 0.01;
+  if (P.ring.visible) { P.ring.scale.setScalar(0.5 + S.ripple * 1.2 + Math.sin(now / 90) * 0.06); P.ring.material.opacity = S.ripple; }
+  // the candle: from the chart to the hand to the glass, squashed, gone
+  const c = P.candle;
+  c.visible = !idle && (S.candle === "hand" || S.candle === "glass");
+  if (c.visible) {
+    P.ring.updateMatrixWorld(true);
+    P.ring.getWorldPosition(_w);
+    P.g.worldToLocal(_w);
+    const k = S.candle === "hand" ? S.pull : 1;
+    // out of the screen toward the chair, up, then down flat on the glass
+    _v.set(_w.x * (1 - k), _w.y * (1 - k) + Math.sin(k * Math.PI) * 0.12 + CANDLE.w / 2 * k, _w.z * (1 - k));
+    c.position.copy(_v);
+    c.rotation.set(0, 0, (Math.PI / 2) * ease(Math.max(0, k * 1.6 - 0.6)));
+    c.scale.set(1 - 0.7 * S.squash, 1 + 0.3 * S.squash, 1 + 1.4 * S.squash);
   }
-  // the powder
-  P.pile.count = Math.round(GRAINS * Math.min(1, S.pile * 1.08));
-  const segs = Math.round(LINE_SEGS * S.line);
-  const eaten = Math.round(segs * S.eaten);
+  // the bottle (the room's): lifted, laid across, rolled, stood back up
+  const b = cctv.bottle, rest = b.userData.rest, B = S.bottle;
+  const laid = (z) => { _v.set(0, 0.038, z); P.g.localToWorld(_v); return _v; };
+  if (idle || B.mode === "rest") { b.position.copy(rest); b.rotation.set(0, 0, 0); }
+  else if (B.mode === "lift" || B.mode === "back") {
+    const k = B.mode === "lift" ? B.k : 1 - B.k;
+    const to = laid(-0.1).clone();
+    to.x += 0.135;   // laid, it runs from its foot toward -x: its middle over the line
+    b.position.lerpVectors(rest, to, k);
+    b.position.y += Math.sin(k * Math.PI) * 0.12;
+    b.rotation.set(0, 0, (Math.PI / 2) * k);
+  } else {
+    const p = laid(B.z);
+    b.position.set(p.x + 0.135, p.y, p.z);
+    b.rotation.set(B.spin, 0, Math.PI / 2, "XYZ");
+  }
+  // the powder (a stopped line's stays till its 20 s are up)
+  const segs = idle ? 0 : Math.round(LINE_SEGS * S.line), eaten = Math.round(segs * S.eaten);
+  P.pile.count = idle ? 0 : Math.round(GRAINS * Math.min(1, S.pile * 1.08));
   P.line.geometry.setDrawRange(eaten * 6, Math.max(0, (segs - eaten) * 6));
-  P.strays.count = Math.round(STRAYS * S.line * (1 - S.eaten * 0.9));
-  if (finished && !S.active) { P.pile.count = 0; P.line.geometry.setDrawRange(0, 0); P.strays.count = 0; }
-  // the card: at rest, or in the hand over the mirror
-  const card = P.card, R = card.userData.rest;
-  card.visible = !(st.hideHand && S.card.on);
-  if (S.card.on) {
-    card.position.set(P.tx + S.card.x, 0.0045 + S.card.y, P.tz + S.card.z);
-    card.rotation.set(0, S.card.yaw, 0);
-    card.rotateX(-S.card.pitch);
-    if (S.card.yaw > 1) card.rotation.z = -S.card.pitch;   // on its edge: tipped, not pitched
+  P.strays.count = idle ? 0 : Math.round(STRAYS * S.line * (1 - S.eaten * 0.9));
+  // the card: at rest, in the hand, flying, on the floor till the next line
+  const card = P.card, C = S.card;
+  if (C.on) {
+    card.position.set(C.x, C.y, C.z);
+    card.rotation.set(0, C.yaw, 0);
+    card.rotateX(-C.pitch);
+    if (C.yaw > 1) card.rotation.z = -C.pitch;
+  } else if (C.fly >= 0 || st.cardDown) {
+    const k = C.fly >= 0 ? C.fly : 1;
+    if (k >= 1) st.cardDown = true;
+    card.position.set(0.07 + (CARD_FLOOR.x - 0.07) * k, 0.01 + (CARD_FLOOR.y - 0.01) * k + Math.sin(k * Math.PI) * 0.55, 0.01 + (CARD_FLOOR.z - 0.01) * k);
+    card.rotation.set(k * 9, k * 5, k * 3);
+    if (k >= 1) card.rotation.set(0, 0.8, 0);
   } else {
-    card.position.set(R.x, 0.0045, R.z);
-    card.rotation.set(0, R.yaw, 0);
+    card.position.set(0.2, 0, 0.1);
+    card.rotation.set(0, -0.3, 0);
   }
-  // the bill: lying on the tray, or up at the nose (`face`, world) tracking along the line
-  const bill = P.bill, B = bill.userData.rest;
-  bill.visible = !(st.hideHand && S.bill > 0.02);
-  if (S.bill > 0.001 && st.face) {
-    g.updateMatrixWorld(true);
-    _v.set(B.x, 0.0077, B.z);
-    _w.copy(st.face);
-    g.worldToLocal(_w);
-    // the nose rides along the line as it goes
-    _w.x += (S.billSweep - 0.5) * 0.1 * S.eaten;
-    _v.lerp(_w, S.bill);
-    bill.position.copy(_v);
-    // from flat on the tray to pointing down at the glass from the nose
-    bill.rotation.set(0, 0, Math.PI / 2 * (1 - S.bill) + 0.25 * S.bill);
-    bill.rotation.x = -0.9 * S.bill;
-  } else {
-    bill.position.set(B.x, 0.0077, B.z);
-    bill.rotation.set(0, 0, Math.PI / 2);
-  }
-  // the dust: a puff per press, rising and thinning, facing the camera
+  // the dust off each pass
   P.puffs.forEach((pf, k) => {
     const d = S.puffs[k];
-    pf.visible = !!d && !finished;
+    pf.visible = !!d && !idle;
     if (!d) return;
-    const a = d.age;
-    pf.position.set(P.tx + Math.sin(d.seed * 7 + k) * 0.012, 0.012 + a * 0.05, P.tz + Math.cos(d.seed * 5) * 0.01);
-    pf.scale.setScalar(0.6 + a * 1.6);
-    pf.material.opacity = (1 - a) * 0.9;
+    pf.position.set(Math.sin(d.seed * 7 + k) * 0.015, 0.02 + d.age * 0.07, Math.cos(d.seed * 5) * 0.012);
+    pf.scale.setScalar(0.6 + d.age * 1.8);
+    pf.material.opacity = (1 - d.age) * 0.9;
+    if (cam) pf.quaternion.copy(cam.quaternion);
+  });
+  // the chair spins off on its own as you go up, and settles
+  const spinK = span(t, [BEATS.launch, BEATS.end]);
+  cctv.chair.spin.rotation.y = !idle && t >= BEATS.launch ? Math.PI * 6 * easeOut(spinK) : 0;
+  // the roof's dust where you went through
+  const rt = t - (BEATS.launch + 0.2);
+  P.roof.forEach((pf, k) => {
+    pf.visible = !idle && rt >= 0 && rt < 2.4;
+    if (!pf.visible) return;
+    const a = rt / 2.4;
+    pf.position.set(P.T.seat.x + Math.sin(k * 2.3) * 0.6 * a, 7.42 + a * 1.2 + k * 0.1, P.T.seat.z + Math.cos(k * 1.7) * 0.6 * a);
+    pf.scale.setScalar(0.8 + a * 2.5);
+    pf.material.opacity = (1 - a) * 0.7;
     if (cam) pf.quaternion.copy(cam.quaternion);
   });
 }
 
-/* Build the props on the map's root. Returns the handle the map lists as
-   rp.lines(): the tables, their states, and the boxes for the test. */
-export function buildLines({ root }) {
+/* Build the props on the map's root, round the security room's desk.
+   Returns the handle the map lists as rp.lines(). */
+export function buildLines({ root, cctv }) {
   const M = materials();
-  const tables = LINE_TABLES.map((T, i) => {
-    const P = buildTable(T, M, i);
-    root.add(P.g);
-    const st = { start: 0, by: null, cancelAt: null, face: null, hideHand: false, npc: -1 };
-    P.g.children[0].onBeforeRender = (r, s, cam) => poseTable(P, st, performance.now(), cam);
-    return { ...T, i, st, P };
-  });
+  const P = buildStation(cctv, M);
+  root.add(P.g);
+  for (const pf of P.roof) root.add(pf);
+  const st = { start: 0, by: null, cancelAt: null, npc: -1, cardDown: false };
+  const T = { ...P.T, st, P };
+  // the card's face poses it all each frame (never culled: it's always there)
+  P.card.children[1].frustumCulled = false;
+  P.card.children[1].onBeforeRender = (r, s, cam) => pose(P, cctv, st, performance.now(), cam);
   const api = {
-    tables,
-    /* the tray's local point in world space */
-    world: (i, x, y, z, out = new THREE.Vector3()) => { const P = tables[i].P; P.g.updateMatrixWorld(true); return P.g.localToWorld(out.set(P.tx + x, y, P.tz + z)); },
-    /* the card's and bill's rest and live spots (tray-local), for the hands */
-    card: (i) => lineState(tables[i].st.start ? (performance.now() - tables[i].st.start) / 1000 : -1, tables[i].st.cancelAt).card,
+    tables: [T],
+    cctv,
+    /* the station's local point in world space */
+    world: (i, x, y, z, out = new THREE.Vector3()) => { P.g.updateMatrixWorld(true); return P.g.localToWorld(out.set(x, y, z)); },
+    /* the chart's tall candle (where the hand goes in), world */
+    chartPoint: (out = new THREE.Vector3()) => { P.ring.updateMatrixWorld(true); return P.ring.getWorldPosition(out); },
     state: lineState,
-    /* rule 9: every prop's world box [x0,y0,z0,x1,y1,z1] */
-    boxes: () => tables.flatMap((T) => {
-      T.P.g.updateMatrixWorld(true);
+    /* rule 9: the props' world boxes [x0,y0,z0,x1,y1,z1] */
+    boxes: () => {
+      P.g.updateMatrixWorld(true);
       const out = [];
-      T.P.g.traverse((o) => {
-        if (!o.isMesh || !o.visible || (o.isInstancedMesh && !o.count)) return;
+      P.g.traverseVisible((o) => {
+        if (!o.isMesh || (o.isInstancedMesh && !o.count)) return;
         o.geometry.computeBoundingBox();
         const b = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld);
         out.push([b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z]);
       });
       return out;
-    }),
+    },
   };
   return api;
 }

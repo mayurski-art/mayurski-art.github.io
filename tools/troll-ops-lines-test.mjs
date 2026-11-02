@@ -1,22 +1,23 @@
-// Troll Forces Socialize: Kabukigrin's candle lines (docs/CANDLE-LINES.md;
-// maps/kabukigrin-lines.js, modes/social-lines.js, view/stonks-fx.js).
-// Tabs share a room, Supabase blocked (never a live room); the rush is
-// shortened (window.__trollStonksTune), the cooldown and the VIPs' timer
-// too (window.__trollLinesTune).
-//   1. The tatami room's three tables have their props; rule 9: from a grid
-//      of eye points in the room, nothing on the tables stands between an
-//      eye and the koi tank, the noren, the lattice window or the doors;
-//      every prop sits on a table top, inside its footprint.
-//   2. By table 1 as a VIP: "Cut a line"; hold X; the eye goes down over
-//      the mirror, the props run, the body leans (third person); at the end
-//      the rush is on: faster, the chart up, STONKS; then the rug pull:
-//      slower, RUGGED; then back to normal; the cooldown prompt.
-//   3. Move mid-line: it stops, the powder stays ("Finish the line"); hold X
-//      finishes it.
-//   4. Two tabs: B sees A's line on the same table and A's body on it.
-//   5. A VIP does a line on his own when the room's clock says so.
-//   Screenshots in tools/.lines-shots: the props at each beat, the hands,
-//   the body, the rush and the rug pull.
+// Troll Forces Socialize: Kabukigrin's candle lines, v2 at the security
+// room's desk (docs/KB-SECURITY-ROOM.md 5; maps/kabukigrin-lines.js,
+// modes/social-lines.js, view/stonks-fx.js). Tabs share a room, Supabase
+// blocked (never a live room); the rush is shortened
+// (window.__trollStonksTune), the cooldown and Lurk's timer too
+// (window.__trollLinesTune).
+//   1. The station's props sit on the desk's glass, under the monitor
+//      wall's lower edge; the tatami tables have none any more.
+//   2. In the chair as a VIP (the VIP band opens the office now): "Pull a
+//      candle"; hold X; the camera turns to the chart, the candle comes out
+//      of it, the bottle rolls, the card chops and flies, the face goes down,
+//      STONKS (the rush) as it comes up, then up through the roof (35 m),
+//      back down behind the desk, over it, on your feet; the arm's green;
+//      the cooldown prompt; then the rug pull and back to normal.
+//   3. Get up mid-line: it stops, the powder stays ("Finish the line").
+//   4. Two tabs: B sees A's line, A's flight on the wire.
+//   5. Lurk does one on his own when the room's clock says so, and goes
+//      back to his spot after.
+//   Screenshots in tools/.lines-shots: each beat first person, the body third
+//   person, the flight, the climb, B's view, Lurk.
 //
 // Usage: NODE_PATH=<main checkout>/node_modules node tools/troll-ops-lines-test.mjs
 
@@ -61,8 +62,8 @@ async function open(label, username) {
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(`${label}: ${e.message}`));
   await page.addInitScript(() => {
-    window.__trollStonksTune = { rush: 7, rug: 3, out: 0.6 };
-    window.__trollLinesTune = { cooldownSecs: 6, npcFirst: 9999, npcEvery: 9999 };
+    window.__trollStonksTune = { rush: 12, rug: 3, out: 0.6 };
+    window.__trollLinesTune = { cooldownSecs: 25, npcFirst: 9999, npcEvery: 9999 };
   });
   await page.addInitScript((name) => {
     const fake = { getCachedProfile: () => ({ username: name, tags: [] }) };
@@ -84,7 +85,7 @@ async function join(page) {
   });
   await page.waitForFunction(() => !window.__trollOps.loadState().open, null, { timeout: 480000 });
   await pumpAll([page], 2500);
-  // out of the club's line, a VIP band on (the tatami room is guarded)
+  // out of the club's line, a VIP band on (the office opens to it)
   await page.evaluate(() => {
     const C = window.__trollClub; if (C && C.club.phase !== "none") C.leave();
     C.club.band = C.BAND.vip; C.club.room = window.__trollOps.net?.room ?? "solo";
@@ -94,7 +95,7 @@ async function join(page) {
 const rp = (page) => page.evaluate(() => window.__trollOps.rp());
 const LS = (page) => page.evaluate(() => window.__trollLines.state());
 const SS = (page) => page.evaluate(() => window.__trollStonks.state());
-const tables = (page) => page.evaluate(() => window.__trollLines.tables());
+const ST = (page) => page.evaluate(() => window.__trollLines.station());
 async function holdRp(page, others, done, ms = 6000) {
   await page.keyboard.down("x");
   const t0 = Date.now();
@@ -108,189 +109,165 @@ const putAt = (page, x, z, y, yaw = 0, pitch = 0) => page.evaluate(({ x, z, y, y
 }, { x, z, y, yaw, pitch });
 const until = async (pages, f, ms = 12000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await f()) return true; await pumpAll(pages, 150); } return false; };
 const shot = (page, name) => page.screenshot({ path: path.join(SHOTS, `${name}.png`) });
+// to the chair: stand behind it, hold X to sit
+async function sit(page, others = []) {
+  const s = await ST(page);
+  await putAt(page, s.seat.x, s.seat.z + 0.7, 3, 0, 0);
+  await pumpAll([page, ...others], 400);
+  const p = await rp(page);
+  await holdRp(page, others, async () => (await LS(page)).inChair, 4000);
+  return p.prompt;
+}
 
 const A = await open("A", "liner_a");
 await join(A);
 await pumpAll([A], 2000);
 
-// ── 1. The tables, and rule 9 ───────────────────────────────────────────
-const TB = await tables(A);
-check("the tatami room has three line tables", TB?.length === 3, JSON.stringify(TB?.map((t) => [t.x, t.z])));
+// ── 1. The station ───────────────────────────────────────────────────────
+const S0 = await ST(A);
+check("the line's station is at the security desk", !!S0 && Math.abs(S0.x + 9.75) < 0.05 && Math.abs(S0.top - 3.756) < 0.02, JSON.stringify(S0));
 const boxes = await A.evaluate(() => window.__trollLines.boxes());
-check("the props are built (boxes)", boxes.length > 30, `${boxes.length} boxes`);
-// every prop on a table top, inside its footprint, under 9 cm
-const TABLES = [[-29.9, 25.9, 1.2, 0.8], [-29.9, 28.3, 1.2, 0.8], [-24.9, 27.0, 0.9, 1.2]];
-const onTable = boxes.every((b) => b[1] >= 0.745 && b[4] <= 0.75 + 0.09 && TABLES.some(([x, z, w, d]) => b[0] >= x - w / 2 - 0.01 && b[3] <= x + w / 2 + 0.01 && b[2] >= z - d / 2 - 0.01 && b[5] <= z + d / 2 + 0.01));
-check("rule 9: every prop sits on a table top, inside it, under 9 cm", onTable, JSON.stringify(boxes.filter((b) => !(b[1] >= 0.745 && b[4] <= 0.84)).slice(0, 3)));
-// segment vs box: nothing between the eyes and the room's faces
-function segHitsBox(a, b, B) {
-  let t0 = 0, t1 = 1;
-  for (let i = 0; i < 3; i++) {
-    const d = b[i] - a[i], lo = B[i], hi = B[i + 3];
-    if (Math.abs(d) < 1e-9) { if (a[i] < lo || a[i] > hi) return false; continue; }
-    let u0 = (lo - a[i]) / d, u1 = (hi - a[i]) / d;
-    if (u0 > u1) [u0, u1] = [u1, u0];
-    t0 = Math.max(t0, u0); t1 = Math.min(t1, u1);
-    if (t0 > t1) return false;
-  }
-  return true;
-}
-// eye points: anywhere in the room a player can be (not over a table); a
-// ray the table itself blocks says nothing about the props on it
-// (a ray skimming within 2 cm of a table top is the table's own grazing view, not a prop's)
-const tableBox = ([x, z, w, d]) => [x - w / 2, 0.3, z - d / 2, x + w / 2, 0.77, z + d / 2];
-const overTable = (x, z) => TABLES.some(([tx, tz, w, d]) => Math.abs(x - tx) < w / 2 + 0.25 && Math.abs(z - tz) < d / 2 + 0.25);
-const eyes = [];
-for (let x = -31.3; x <= -24.4; x += 0.45) for (let z = 24.5; z <= 29.6; z += 0.45) for (const h of [0.62, 0.95, 1.6]) if (!overTable(x, z)) eyes.push([x, 0.3 + h, z]);
-const faces = [];
-const grid = (f, n = 7) => { for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) faces.push(f(i / n, j / n)); };
-grid((u, v) => [-31.2, 0.8 + 1.5 * v, 24.7 + 4.8 * u]);        // the koi tank
-grid((u, v) => [-28.2 + 2.4 * u, 1.9 + 0.7 * v, 29.78]);       // the noren
-grid((u, v) => [-31.7 + 3.5 * u, 1.5 + 1.0 * v, 24.0]);        // the lattice window
-grid((u, v) => [-28.2 + 2.4 * u, 0.2 + 2.6 * v, 24.21]);       // the hall door
-grid((u, v) => [-28.2 + 2.4 * u, 0.2 + 2.4 * v, 29.84]);       // the kitchen door
-let blocked = 0, rays = 0, sample = null;
-for (const e of eyes) for (const f of faces) {
-  if (TABLES.some((T) => segHitsBox(e, f, tableBox(T)))) continue;
-  rays++;
-  for (const B of boxes) if (segHitsBox(e, f, B)) { blocked++; sample ??= { e, f, B }; break; }
-}
-check("rule 9: no prop between any eye point and the tank, noren, window or doors", blocked === 0, `${blocked} of ${rays} rays, e.g. ${JSON.stringify(sample)}`);
+const onGlass = boxes.every((b) => b[1] >= 3.74 && b[4] <= 4.4 && b[0] >= -10.65 && b[3] <= -8.95 && b[2] >= 19.45 && b[5] <= 20.12);
+check("rule 9: every prop at rest lies on the desk's glass, under the monitor wall (4.55)", onGlass && boxes.length >= 1, JSON.stringify(boxes.filter((b) => !(b[1] >= 3.74 && b[4] <= 4.4)).slice(0, 3)));
 
-// ── 2. A line, the rush, the rug pull ───────────────────────────────────
-const T0 = TB[0];
-await putAt(A, T0.at.x, T0.at.z, 0.3, T0.at.yaw, 0.25);
-await pumpAll([A], 500);
-let s = await rp(A);
-check("by table 1: Cut a line", /cut a line/i.test(s.prompt || ""), s.prompt);
-await shot(A, "01-prompt");
-await putAt(A, T0.at.x, T0.at.z, 0.3, T0.at.yaw, -0.62);
-await pumpAll([A], 400);
-await shot(A, "00-tray");
-await putAt(A, T0.at.x, T0.at.z, 0.3, T0.at.yaw, 0.0);
-await pumpAll([A], 300);
-await holdRp(A, [], async () => (await LS(A)).phase === "line");
+// ── 2. A line ────────────────────────────────────────────────────────────
+const sitPrompt = await sit(A);
 let l = await LS(A);
-check("hold X: on a line at table 1", l.phase === "line" && l.tb === 0, JSON.stringify(l));
-const eye0 = l.eye;
-await until([A], async () => (await LS(A)).t > 0.7, 3000);
-l = await LS(A);
-check("leaning in: the eye drops and the camera pitches down at the mirror", l.eye < 1.2 && l.cam.pitch < -0.6, JSON.stringify({ eye0, eye: l.eye, cam: l.cam }));
-const tb0 = (await tables(A))[0];
-check("the table's props run for the line (started, by me, hand hidden in first person)", !!tb0.st.start && tb0.st.by === "me" && tb0.st.hideHand, JSON.stringify(tb0.st));
-const beatShots = [["02-candle", 1.0], ["03-crush", 1.75], ["04-cut", 3.3], ["05-bill", 4.15]];
-for (const [name, t] of beatShots) {
-  await A.evaluate((t) => window.__trollLines.setT(t), t);
-  await pumpAll([A], 350);
-  await shot(A, name);
-}
-console.log("fp arms:", JSON.stringify(await A.evaluate(() => { const T = window.__trollOps; const a = T.streakArms.userData.arms; return { ...T.socialArms(), vis: T.streakArms.visible, rods: a.map((x) => x.rod.visible), hands: a.map((x) => x.hand.position.toArray().map((v) => +v.toFixed(2))) }; })));
-// the body in third person, mid-cut
-await A.evaluate(() => { window.__trollLines.setT(2.6); window.__trollOps.toggleThirdPerson(); });
-await pumpAll([A], 200);
-await A.evaluate(() => window.__trollLines.setT(2.9));
-await pumpAll([A], 120);
-await shot(A, "08-body-3p");
-await A.evaluate(() => { window.__trollLines.setT(4.4); });
-await pumpAll([A], 120);
-await shot(A, "09-body-3p-snort");
-await A.evaluate(() => window.__trollOps.toggleThirdPerson());
-await A.evaluate(() => window.__trollLines.setT(4.7));
-await pumpAll([A], 200);
-await shot(A, "06-snort");
-await A.evaluate(() => window.__trollLines.setT(5.15));
-await pumpAll([A], 150);
-await shot(A, "07-snap");
-await A.evaluate(() => window.__trollLines.setT(5.7));
-await until([A], async () => (await LS(A)).done >= 1, 4000);
-l = await LS(A);
-let st = await SS(A);
-check("the line's done: the rush is on", l.done === 1 && l.phase === null && st.on && st.phase === 1, JSON.stringify({ l, st }));
-s = await rp(A);
-check("the cooldown prompt", /market's closed/i.test(s.prompt || ""), s.prompt);
-await pumpAll([A], 900);
-st = await SS(A);
-check("the rush: faster, saturated, the chart up, STONKS", st.speed > 1.2 && st.sat > 1.3 && st.candles > 2 && st.stamp === "STONKS" && st.lineFx === 1, JSON.stringify(st));
-await shot(A, "10-rush");
-await A.evaluate(() => window.__trollOps.toggleThirdPerson());
-await pumpAll([A], 300);
-await shot(A, "11-rush-3p-nose");
-await A.evaluate(() => window.__trollOps.toggleThirdPerson());
-await until([A], async () => (await SS(A)).phase === 2, 8000);
-await pumpAll([A], 1300);
-st = await SS(A);
-check("the rug pull: slower, drained, RUGGED", st.phase === 2 && st.speed < 0.9 && st.sat < 0.9 && st.stamp === "RUGGED" && st.lineFx === 2, JSON.stringify(st));
-await shot(A, "12-rug");
-await until([A], async () => !(await SS(A)).on, 8000);
-st = await SS(A);
-check("then back to normal", !st.on && Math.abs(st.speed - 1) < 0.01 && st.lineFx === 0 && Math.abs(st.sat - 1) < 0.2, JSON.stringify(st));
-const tb0b = (await tables(A))[0];
-check("the table's clear again", !tb0b.st.start, JSON.stringify(tb0b.st));
-
-// ── 3. Stop mid-line, finish it ─────────────────────────────────────────
-await until([A], async () => (await LS(A)).cd === 0, 9000);
-const T1 = TB[1];
-await putAt(A, T1.at.x, T1.at.z, 0.3, T1.at.yaw, 0.25);
-await pumpAll([A], 400);
+check("the VIP band gets into the office and the chair (Sit down)", l.inChair, `${sitPrompt} ${JSON.stringify(l.pos)}`);
+let s = await rp(A);
+check("in the chair: Pull a candle", /pull a candle/i.test(s.prompt || ""), s.prompt);
+await shot(A, "00-chair");
 await holdRp(A, [], async () => (await LS(A)).phase === "line");
-await until([A], async () => (await LS(A)).t > 2.1, 4000);
+l = await LS(A);
+check("hold X: on a line", l.phase === "line", JSON.stringify(l));
+// sampled every frame: the screenshots are too slow to land in the window
+for (let n = 0; n < 200; n++) { l = await LS(A); if (l.t > 0.7) break; await A.waitForTimeout(16); }
+check("leaning in: the camera turns to the chart (left, down)", l.cam.yaw > 0.2, JSON.stringify(l.cam));
+// each beat in order (never back past the launch: getting up before the plant stops it)
+const beatShots = [["01-reach", 0.95], ["02-pull", 1.5], ["03-roll", 2.45], ["08-body-roll-3p", 2.55, true], ["04-chop", 3.45], ["05-flick", 4.05],
+  ["09-body-plant-3p", 4.35, true], ["06-plant", 4.45], ["07-snap", 4.95]];
+for (const [name, t, tp] of beatShots) {
+  await A.evaluate(({ t, tp }) => { const T = window.__trollOps; if (!!tp !== !!T.isThirdPerson?.() && tp) T.toggleThirdPerson(); window.__trollLines.setT(t); }, { t, tp });
+  await pumpAll([A], 120);
+  // (pinned again: the screenshots are slow, the act mustn't run on meanwhile)
+  await A.evaluate((t) => window.__trollLines.setT(t), t);
+  await shot(A, name);
+  await A.evaluate((t) => window.__trollLines.setT(t), t);
+  if (tp) await A.evaluate(() => window.__trollOps.toggleThirdPerson());
+}
+l = await LS(A);
+check("the rush starts as the head comes up (STONKS)", l.done === 1 && (await SS(A)).on, JSON.stringify({ l, st: await SS(A) }));
+check("...and the arm's green", l.green > 0.9, String(l.green));
+// the launch
+await A.evaluate(() => window.__trollLines.setT(5.6));
+await pumpAll([A], 300);
+l = await LS(A);
+check("the launch: out of the chair and straight up", l.stood && !l.inChair && l.pos[1] > 3 + 15, JSON.stringify(l.pos));
+await shot(A, "10-launch");
+await A.evaluate(() => { window.__trollOps.toggleThirdPerson(); window.__trollLines.setT(5.95); });
+await pumpAll([A], 150);
+await shot(A, "12-apex-3p");
+await A.evaluate(() => window.__trollOps.toggleThirdPerson());
+// the rest of the flight in real time, sampled every frame (screenshots are
+// too slow to land on a beat): the highest point, the pitch there, and
+// the first sample back on the floor
+await A.evaluate(() => window.__trollLines.setT(5.7));
+let top = { y: 0 }, low = null, shotApex = false;
+for (let n = 0; n < 400; n++) {
+  const q = await LS(A);
+  if (q.pos[1] > top.y) top = { y: q.pos[1], pitch: q.cam.pitch, t: q.t };
+  if (!shotApex && q.t > 6.1) { shotApex = true; await shot(A, "11-apex"); }
+  if (q.t > 7.15 && q.t < 7.6 && !low) { low = { y: q.pos[1], z: q.pos[2], eye: q.eye, t: q.t }; await shot(A, "13-grab"); }
+  if (q.t > 7.7 || q.phase === null) break;
+  await A.waitForTimeout(16);
+}
+check("...about 35 m up at the apex, looking down on Kabukigrin", top.y > 3 + 30 && top.pitch < -0.6, JSON.stringify(top));
+check("back down behind the desk, crouched", !!low && Math.abs(low.y - 3) < 0.05 && low.z > 20.2 && low.z < 20.7 && low.eye < 1.0, JSON.stringify(low));
+
+await A.evaluate(() => { window.__trollOps.toggleThirdPerson(); window.__trollLines.setT(7.7); });
+await pumpAll([A], 250);
+await shot(A, "14-climb-3p");
+await A.evaluate(() => window.__trollOps.toggleThirdPerson());
+await until([A], async () => (await LS(A)).phase === null, 4000);
+l = await LS(A);
+check("over the desk, on your feet", l.phase === null && l.eye > 1.5 && !l.inChair, JSON.stringify({ eye: l.eye, pos: l.pos }));
+let st = await SS(A);
+check("the rush: faster, saturated, STONKS", st.speed > 1.2 && st.sat > 1.3 && st.lineFx === 1, JSON.stringify(st));
+await shot(A, "15-rush");
+await sit(A);
+s = await rp(A);
+check("back in the chair: the cooldown prompt", /market's closed/i.test(s.prompt || ""), s.prompt);
+await until([A], async () => (await SS(A)).phase === 2, 25000);
+await pumpAll([A], 1200);
+st = await SS(A);
+check("the rug pull: slower, drained, RUGGED", st.phase === 2 && st.speed < 0.95 && st.stamp === "RUGGED" && st.lineFx === 2, JSON.stringify(st));
+await until([A], async () => !(await SS(A)).on, 20000);
+check("then back to normal", !(await SS(A)).on);
+await until([A], async () => (await LS(A)).green === 0, 6000);
+check("...the arm's its own colour again", (await LS(A)).green === 0);
+
+// ── 3. Get up mid-line, finish it ───────────────────────────────────────
+await until([A], async () => (await LS(A)).cd === 0, 30000);
+const done0 = (await LS(A)).done;
+await holdRp(A, [], async () => (await LS(A)).phase === "line");
+await until([A], async () => (await LS(A)).t > 2.7, 4000);
 await A.keyboard.down("w");
 await pumpAll([A], 400);
 await A.keyboard.up("w");
 l = await LS(A);
-let tb1 = (await tables(A))[1];
-check("moving mid-line stops it; the powder stays on the mirror", l.phase === null && l.cancelAt > 1.5 && tb1.st.cancelAt > 1.5, JSON.stringify({ l, st: tb1.st }));
-await shot(A, "13-leftover");
-await putAt(A, T1.at.x, T1.at.z, 0.3, T1.at.yaw, 0.25);
-await pumpAll([A], 400);
+let stn = await ST(A);
+check("getting up mid-line stops it; the powder stays on the glass", l.phase === null && l.cancelAt > 2.4 && stn.st.cancelAt > 2.4, JSON.stringify({ l, st: stn.st }));
+await shot(A, "16-leftover");
+await sit(A);
 s = await rp(A);
-check("by it again: Finish the line", /finish the line/i.test(s.prompt || ""), s.prompt);
+check("back in the chair: Finish the line", /finish the line/i.test(s.prompt || ""), s.prompt);
 await holdRp(A, [], async () => (await LS(A)).phase === "line");
 l = await LS(A);
-check("finishing picks up at the bill", l.phase === "line" && l.t >= 3.4, JSON.stringify(l));
-await until([A], async () => (await LS(A)).done >= 2, 6000);
+check("finishing picks up at the drag", l.phase === "line" && l.t >= 3.6, JSON.stringify(l));
+await until([A], async () => (await LS(A)).phase === null, 8000);
 l = await LS(A);
-check("...and ends in a second rush", l.done === 2, JSON.stringify(l));
+check("...and ends in a second rush, on your feet", l.done === done0 + 1 && !l.inChair, JSON.stringify(l));
 await A.evaluate(() => window.__trollStonks.end());
 
 // ── 4. Two tabs ─────────────────────────────────────────────────────────
 const B = await open("B", "liner_b");
 await join(B);
 await pumpAll([A, B], 4000);
-await until([A], async () => !(await SS(A)).on && (await LS(A)).cd === 0, 6000);
-const T2 = TB[2];
-await putAt(B, T2.x - 0.3, T2.z - 1.7, 0.3, Math.PI + 0.25, -0.15);
-await putAt(A, T2.at.x, T2.at.z, 0.3, T2.at.yaw, 0.25);
-await pumpAll([A, B], 600);
+await until([A], async () => (await LS(A)).cd === 0, 30000);
+await putAt(B, -12.4, 22.9, 3, -0.9, -0.05);
+await sit(A, [B]);
 await holdRp(A, [B], async () => (await LS(A)).phase === "line");
-const seen = await until([A, B], async () => (await LS(B)).peers.some((p) => p.tb === 2), 5000);
-const lb = await LS(B), tbB = (await tables(B))[2];
-check("B sees A's line on table 3 (the message, the table's props run)", seen && tbB.st.start > 0 && tbB.st.by && tbB.st.by !== "me", JSON.stringify({ peers: lb.peers, st: tbB.st }));
+const seen = await until([A, B], async () => (await LS(B)).peers.length > 0, 5000);
+const sb = await ST(B);
+check("B sees A's line (the message, the props run)", seen && sb.st.start > 0 && sb.st.by && sb.st.by !== "me", JSON.stringify(sb.st));
+await pumpAll([A, B], 1800);
+await shot(B, "17-peer-roll");
+await A.evaluate(() => window.__trollLines.setT(5.9));
+const flew = await until([A, B], async () => (await B.evaluate(() => [...window.__trollOps.net.peers.values()].some((p) => p.snaps?.some((q) => q.y > 15)))), 4000);
+check("B sees A go up (the flight is A's position)", flew);
+await until([A, B], async () => (await LS(A)).phase === null, 6000);
 await pumpAll([A, B], 1200);
-await shot(B, "14-peer-body");
-await until([A, B], async () => (await LS(A)).done >= 3, 8000);
-await pumpAll([A, B], 1200);
-const tbB2 = (await tables(B))[2];
-check("B's copy clears when it's over", !tbB2.st.start, JSON.stringify(tbB2.st));
-const fxSeen = await until([A, B], async () => (await B.evaluate(() => [...window.__trollOps.net.peers.values()].some((p) => p.lineFx === 1))), 4000);
-check("B sees A's rush on the wire (the dusted nose)", fxSeen);
+check("B's copy clears when it's over", !(await ST(B)).st.start);
 await A.evaluate(() => window.__trollStonks.end());
 
-// ── 5. A VIP does one ───────────────────────────────────────────────────
+// ── 5. Lurk does one ────────────────────────────────────────────────────
+await A.keyboard.down("w"); await pumpAll([A, B], 300); await A.keyboard.up("w");
+await putAt(A, -11.6, 22.9, 3, -0.7, -0.1);
+await pumpAll([A, B], 500);
 await A.evaluate(() => window.__trollLines.npcNow());
 const npcOn = await until([A, B], async () => (await LS(A)).npcs.length > 0, 5000);
 const la = await LS(A);
-const npcTb = la.npcs[0]?.tb;
 const npc = la.npcs[0] ? await A.evaluate((i) => { const n = window.__trollOps.townNpcs().list[i]; return { name: n.c.name, role: n.c.role, over: !!n.override }; }, la.npcs[0].i) : null;
-check("a VIP at a table does a line (taken over, the table running)", npcOn && npc?.role === "VIP" && npc.over, JSON.stringify({ npcs: la.npcs, npc }));
-await putAt(A, -27.2, 27.0, 0.3, Math.PI / 2 + (npcTb === 1 ? -0.4 : 0.4), 0.15);
-await pumpAll([A, B], 1500);
-await shot(A, "15-vip-line");
-const bSees = await until([B], async () => (await LS(B)).npcs.length > 0, 3000);
-check("B runs the same VIP from the message", bSees);
+const bSees = await until([B], async () => (await LS(B)).npcs.length > 0 || !!(await ST(B)).st.start, 3000);
+check("B runs the same Lurk from the message", bSees);
+check("Lurk does a line (taken over, the station running)", npcOn && npc?.name === "Lurk" && npc.over, JSON.stringify({ npcs: la.npcs, npc }));
+await pumpAll([A, B], 2200);
+await shot(A, "18-lurk-roll");
+await until([A], async () => A.evaluate(() => { const s = window.__trollLines.station().st; return !!s.start && (performance.now() - s.start) / 1000 > 6.0; }), 6000);
+await shot(A, "19-lurk-up");
 await until([A], async () => (await LS(A)).npcs.length === 0, 9000);
 const released = la.npcs[0] ? await A.evaluate((i) => !window.__trollOps.townNpcs().list[i].override, la.npcs[0].i) : false;
-check("...and goes back to his drink after", released);
+check("...and goes back to watching the monitors after", released);
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 await browser.close();

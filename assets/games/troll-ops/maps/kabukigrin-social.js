@@ -49,7 +49,8 @@ export const KB_VIEW = { zoneOf: kbZone, sees: (a, b) => a === b || SEES[a]?.inc
    house, the office) stay guarded. */
 function entryZoneOf(x, y, z) {
   const k = kbZone(x, y, z);
-  return k === "street" || k === "aMain" ? "street" : k === "vip" ? k : k === "back" || k === "office" ? "back" : "main";
+  // (the office is the security room now: the VIP band opens it too, docs/KB-SECURITY-ROOM.md pick 5)
+  return k === "street" || k === "aMain" ? "street" : k === "vip" || k === "office" ? "vip" : k === "back" ? "back" : "main";
 }
 
 /* Where the door's people stand. The club's front door looks north up A
@@ -227,6 +228,8 @@ export function kbNpcs({ DC, DANCE, deck }) {
 
   /* ---- the office over the square, the manager at the desk */
   add("Big Boss", "Manager", "count", { x: -12.35, z: 21.6, y: MEZZ, yaw: FACE_YAW["-x"] });
+  // ...and the security side: Lurk at the desk's end, arms folded, watching the monitors (modes/social-lines.js gives him a line now and then)
+  add("Lurk", "Security", "guard", { x: -8.68, z: 20.55, y: MEZZ, yaw: FACE_YAW["-z"] - 0.3 }, guard);
 
   /* ---- the tatami room: four of its six cushions, bottle service, one at the koi */
   seatsOf("cushion").slice(0, 4).forEach((i, k) => sit(i, "VIP", "drink", k % 2 ? { drink: "whiskey" } : {}));
