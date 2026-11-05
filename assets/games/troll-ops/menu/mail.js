@@ -16,7 +16,7 @@ export const LETTERS = [
     from: new Date(2026, 9, 26),
     until: SEASON.end,
     title: "Halloween update",
-    body: "Hollowgrin is open: the island's haunted underside, with its fair, chapel and woods. Halloween challenges are live until 12 November, and everyone who plays Chapter One gets the Pumpkin Head free. Tap the pumpkin on the start screen for the Halloween look.",
+    body: "Hollowgrin is open: the island's haunted underside, with its fair, chapel and woods. Halloween challenges are live until 26 November, and everyone who plays Chapter One gets the Pumpkin Head free. Tap the pumpkin on the start screen for the Halloween look.",
     cta: "See the challenges",
     screen: "quests",
   },

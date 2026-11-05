@@ -2,10 +2,10 @@
 -- editor. Idempotent: safe to run again.
 --
 -- Every account that comes into Trollnite (trollrunner.net/trollnite, once /warfare)
--- during Chapter One, 26 October to the end of 12 November 2026 (Pacific
+-- during Chapter One, 26 October to the end of 26 November 2026 (Pacific
 -- time), gets the Pumpkin Head free and keeps it after. The window is
 -- checked here, on the server's clock: a device clock set back can't claim
--- it after the 12th.
+-- it after the 26th.
 --
 -- 1. troll_forces_grants: what an account has been given, one row per item.
 --    Readable by its owner only; nobody writes it but the function below
@@ -41,7 +41,7 @@ as $$
 declare
   v_uid   uuid := auth.uid();
   v_from  timestamptz := timestamptz '2026-10-26 00:00:00 America/Los_Angeles';
-  v_until timestamptz := timestamptz '2026-11-13 00:00:00 America/Los_Angeles';
+  v_until timestamptz := timestamptz '2026-11-27 00:00:00 America/Los_Angeles';
   v_at    timestamptz;
 begin
   if v_uid is null then
@@ -81,6 +81,6 @@ from (
   select user_id, updated_at from public.troll_game_saves
    where game_id = 'troll-forces' and updated_at >= timestamptz '2026-10-26 00:00:00 America/Los_Angeles'
 ) seen
-where at < timestamptz '2026-11-13 00:00:00 America/Los_Angeles'
+where at < timestamptz '2026-11-27 00:00:00 America/Los_Angeles'
 group by user_id
 on conflict (user_id, item) do nothing;

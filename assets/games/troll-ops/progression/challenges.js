@@ -5,7 +5,7 @@
 //   daily    three a day, new at local midnight
 //   weekly   three a week, new each Monday (the leaderboard's week)
 //   event    the season's own set, for as long as it runs (core/season.js:
-//            Chapter One, to the end of 12 November)
+//            Chapter One, to the end of 26 November)
 //
 // Everyone gets the same picks on the same day or week: they're drawn from
 // the pools below by a seed made of the date. Every finished match or run

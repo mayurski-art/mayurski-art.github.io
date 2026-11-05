@@ -6,13 +6,13 @@
 // Halloween runs as long as Chapter One does (user, 2026-10-30: "the
 // halloween theme should be connected to the timer duration of chapter
 // one"): from the first of October, when the lobby first went Halloween, to
-// the end of 12 November, local time. ?season=halloween or ?season=off
+// the end of 26 November, local time. ?season=halloween or ?season=off
 // forces it either way (the tests, the screenshots).
 
 export const SEASON = {
   name: "Chapter One",
   start: new Date(2026, 9, 26),
-  end: new Date(2026, 10, 12, 23, 59, 59),
+  end: new Date(2026, 10, 26, 23, 59, 59),
 };
 const HALLOWEEN_FROM = new Date(2026, 9, 1);
 
