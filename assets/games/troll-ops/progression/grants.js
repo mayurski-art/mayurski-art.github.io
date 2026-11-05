@@ -1,6 +1,6 @@
 // Troll Forces — items the server gives away. The first is the Pumpkin Head
 // (user, 2026-10-31): every account that comes into the game during Chapter
-// One, 26 October to the end of 12 November 2026, gets it free and keeps it.
+// One, 26 October through the end of 26 November 2026, gets it free and keeps it.
 //
 // The server decides, on its own clock (assets/supabase/
 // troll_forces_pumpkin_head.sql): troll_forces_claim_pumpkin_head() grants
@@ -69,7 +69,7 @@ function notify(item) {
   window.TrollNotis?.show?.({
     id: `tf-grant-${item}-${myId()}`,
     platform: "reward",
-    summary: "You got the Pumpkin Head, free for playing Chapter One. It's yours to keep. Find it in the Locker, under Face.",
+    summary: "You got the Pumpkin Head for playing Chapter One by November 26. It's yours to keep. Find it in the Locker, under Face.",
     screen: "faces",   // (the inbox keeps the message: menu/inbox.js opens this screen from it)
     onCta: () => window.dispatchEvent(new CustomEvent("trollforces:open-screen", { detail: "faces" })),
   });
